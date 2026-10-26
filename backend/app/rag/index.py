@@ -79,43 +79,30 @@ def market_texts(stats: dict) -> list[tuple[str, str]]:
     return out
 
 
-def _add(db: Session, owner_id, source_type: str, ref: str, title: str, url: str, texts: list[str]) -> int:
-    s = get_settings()
-    vecs = embed(texts, "document")
-    for t, v in zip(texts, vecs):
-        db.add(Chunk(owner_id=owner_id, source_type=source_type, source_ref=ref, title=title, url=url,
-                     text=t, embedding_model=s.embedding_model_name, embedding=v))
-    return len(texts)
-
-
 def rebuild_shared(db: Session) -> int:
     from ..services import current_market
 
-    db.execute(delete(Chunk).where(Chunk.owner_id.is_(None)))
+    s = get_settings()
     postings, stats = current_market(db)
-    n = 0
-    open_postings = [p for p in postings if p.status in ("open", "unverified")]
-    if open_postings:
-        n += _add_many_postings(db, open_postings)
+    # (source_type, source_ref, title, url, text) for every shared chunk, embedded in one batched job
+    items: list[tuple[str, str, str, str, str]] = []
+    for p in postings:
+        if p.status in ("open", "unverified"):
+            items.append(("posting", str(p.id), f"{p.company} — {p.title}", p.url, posting_text(p)))
     for title, text in market_texts(stats):
-        n += _add(db, None, "market", title, title, "", [text])
+        items.append(("market", title, title, "", text))
     for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
         text = path.read_text()
         title = next((ln.lstrip("# ").strip() for ln in text.splitlines() if ln.startswith("#")), path.stem)
-        n += _add(db, None, "method", path.name, title, "", chunk_text(text))
+        items.extend(("method", path.name, title, "", t) for t in chunk_text(text))
+
+    vecs = embed([it[4] for it in items], "document")  # before deleting, so a failure keeps the old index
+    db.execute(delete(Chunk).where(Chunk.owner_id.is_(None)))
+    for (stype, ref, title, url, text), v in zip(items, vecs):
+        db.add(Chunk(owner_id=None, source_type=stype, source_ref=ref, title=title, url=url,
+                     text=text, embedding_model=s.embedding_model_name, embedding=v))
     db.commit()
-    return n
-
-
-def _add_many_postings(db: Session, postings: list[Posting]) -> int:
-    s = get_settings()
-    texts = [posting_text(p) for p in postings]
-    vecs = embed(texts, "document")
-    for p, t, v in zip(postings, texts, vecs):
-        db.add(Chunk(owner_id=None, source_type="posting", source_ref=str(p.id),
-                     title=f"{p.company} — {p.title}", url=p.url, text=t,
-                     embedding_model=s.embedding_model_name, embedding=v))
-    return len(postings)
+    return len(items)
 
 
 def scorecard_text(evaluation: dict) -> str:
@@ -139,15 +126,20 @@ def scorecard_text(evaluation: dict) -> str:
 def rebuild_user(db: Session, user: User) -> int:
     from ..services import evaluate
 
-    db.execute(delete(Chunk).where(Chunk.owner_id == user.id))
-    n = 0
+    s = get_settings()
     prof = user.profile
+    items: list[tuple[str, str, str]] = []  # (source_type, title, text)
     if prof and prof.cv_text.strip():
-        n += _add(db, user.id, "cv", "cv", "Your CV", "", chunk_text(prof.cv_text))
+        items.extend(("cv", "Your CV", t) for t in chunk_text(prof.cv_text))
     if prof:
-        n += _add(db, user.id, "scorecard", "scorecard", "Your scorecard", "", [scorecard_text(evaluate(db, user))])
+        items.append(("scorecard", "Your scorecard", scorecard_text(evaluate(db, user))))
+    vecs = embed([t for _, _, t in items], "document")
+    db.execute(delete(Chunk).where(Chunk.owner_id == user.id))
+    for (stype, title, text), v in zip(items, vecs):
+        db.add(Chunk(owner_id=user.id, source_type=stype, source_ref=stype, title=title, url="",
+                     text=text, embedding_model=s.embedding_model_name, embedding=v))
     db.commit()
-    return n
+    return len(items)
 
 
 def search(db: Session, user_id: int, query: str, k: int | None = None) -> list[tuple[Chunk, float]]:

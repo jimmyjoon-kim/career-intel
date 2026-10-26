@@ -1,5 +1,6 @@
 """CLI: python -m app.seed [csv ...]  — import postings CSVs and rebuild the RAG index."""
 
+import logging
 import sys
 from pathlib import Path
 
@@ -26,4 +27,10 @@ def main(paths: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    try:
+        main(sys.argv[1:])
+    except RuntimeError as err:
+        print(f"\nSetup stopped: {err}")
+        sys.exit(1)

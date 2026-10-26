@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     voyage_api_key: str = ""
     voyage_model: str = "voyage-3.5"
     embedding_dim: int = 1024
+    # Rough token budget per Voyage request; keep low for accounts with small rate limits.
+    voyage_max_batch_tokens: int = 8000
 
     rag_top_k: int = 8
 
