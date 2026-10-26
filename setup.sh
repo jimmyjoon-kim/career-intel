@@ -6,12 +6,25 @@ cd "$(dirname "$0")"
 
 say() { printf "\n\033[1;36m▶ %s\033[0m\n" "$1"; }
 
-# 1. Docker
+# 1. Docker — find the CLI even when Docker Desktop has not added it to PATH
+for d in /Applications/Docker.app/Contents/Resources/bin "$HOME/.docker/bin" /usr/local/bin /opt/homebrew/bin "$HOME/.orbstack/bin"; do
+  [ -x "$d/docker" ] && case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac
+done
+export PATH
+command -v docker >/dev/null || { echo "Docker CLI not found. Install Docker Desktop from docker.com, open it once, then re-run ./setup.sh"; exit 1; }
+
 if ! docker info >/dev/null 2>&1; then
-  say "Starting Docker…"
-  open -a Docker 2>/dev/null || open -a OrbStack 2>/dev/null || { echo "Docker is not installed."; exit 1; }
-  for _ in $(seq 1 90); do docker info >/dev/null 2>&1 && break; sleep 2; done
-  docker info >/dev/null 2>&1 || { echo "Docker did not start. Open Docker Desktop, then re-run ./setup.sh"; exit 1; }
+  say "Waiting for the Docker engine (finish any Docker Desktop setup screens)…"
+  open -a Docker 2>/dev/null || open -a OrbStack 2>/dev/null || true
+  for _ in $(seq 1 150); do docker info >/dev/null 2>&1 && break; sleep 2; done
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker engine is not responding. Docker says:"
+    docker info 2>&1 | tail -5
+    exit 1
+  fi
+fi
+if ! docker compose version >/dev/null 2>&1; then
+  echo "'docker compose' is missing. Update Docker Desktop, then re-run ./setup.sh"; exit 1
 fi
 
 # 2. API keys (asked once; press Enter to skip and run in offline mode)
