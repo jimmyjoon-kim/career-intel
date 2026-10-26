@@ -33,7 +33,7 @@ if [ ! -f .env ]; then
   say "API keys (input hidden; press Enter to skip)"
   read -rsp "Anthropic API key: " AK; echo
   read -rsp "Voyage API key:    " VK; echo
-  SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)
+  SECRET=$(openssl rand -hex 20)
   sed -i.bak -e "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${AK}|" \
              -e "s|^VOYAGE_API_KEY=.*|VOYAGE_API_KEY=${VK}|" \
              -e "s|^JWT_SECRET=.*|JWT_SECRET=${SECRET}|" .env && rm -f .env.bak
