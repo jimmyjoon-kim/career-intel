@@ -9,6 +9,7 @@ type Dash = {
   top: Row[];
   gaps: (Gap & { postings: number; impact: number; hard: boolean })[];
   gate_fail_reasons: { reason: string; count: number }[];
+  base: { base_score: number; position: number; cluster: string; n_reference: number; holders: { median: number }; gaps: string[]; differentiators: string[] } | null;
 };
 
 export default function Dashboard() {
@@ -25,6 +26,20 @@ export default function Dashboard() {
         <div className="notice">
           Your profile has no evidence yet, so every requirement counts as missing. <Link to="/profile">Upload your CV</Link> to score properly.
         </div>
+      )}
+
+      {data.base ? (
+        <section className="card base-strip">
+          <div><div className="kpi-n">{data.base.base_score.toFixed(1)}</div><div className="muted small">Base score · holder median {data.base.holders.median.toFixed(1)}</div></div>
+          <div><div className="kpi-n">{Math.round(data.base.position)}<span className="sup">th</span></div><div className="muted small">percentile among {data.base.n_reference} {data.base.cluster} role holders</div></div>
+          <div className="base-lines small">
+            <div><b>Gaps:</b> {data.base.gaps.join(", ") || "none"}</div>
+            <div><b>Lead with:</b> {data.base.differentiators.join(", ") || "none"}</div>
+            <Link to="/scorecard">Full scorecard →</Link>
+          </div>
+        </section>
+      ) : (
+        <div className="notice">No base score yet. <Link to="/profile">Paste your full experience text</Link> to compare yourself with people who hold the roles you want.</div>
       )}
 
       <section className="kpis">

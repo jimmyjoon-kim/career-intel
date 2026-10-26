@@ -14,11 +14,15 @@ export default function ProfilePage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [cvDraft, setCvDraft] = useState("");
+  const [expDraft, setExpDraft] = useState("");
+  const [target, setTarget] = useState("");
   const [prefs, setPrefs] = useState({ min_level: "Director", locations: "", remote_ok: true, needs_sponsorship: false, excluded: "", years: "" });
 
   useEffect(() => {
     if (!prof) return;
     setCvDraft(prof.cv_text);
+    setExpDraft(prof.experience_text);
+    setTarget(prof.target_date);
     setPrefs({
       min_level: prof.min_level, locations: prof.locations.join(", "), remote_ok: prof.remote_ok,
       needs_sponsorship: prof.needs_sponsorship, excluded: prof.excluded_title_terms.join(", "),
@@ -54,6 +58,9 @@ export default function ProfilePage() {
   }), "Preferences saved.");
 
   const saveCvText = () => run(() => api("/api/profile", { method: "PUT", json: { cv_text: cvDraft } }), "CV text processed.");
+
+  const saveExperience = () => run(() => api("/api/profile", { method: "PUT", json: { experience_text: expDraft, target_date: target } }),
+    "Experience saved. Your scorecard has been recalculated.");
 
   const setTag = (tag: string, match: number, evidence: string) =>
     run(() => api(`/api/profile/tags/${tag}`, { method: "PUT", json: { match, evidence } }), "Saved.");
@@ -109,6 +116,21 @@ export default function ProfilePage() {
           </div>
         </section>
       </div>
+
+      <section className="card">
+        <h2>Full experience text</h2>
+        <p className="muted small">
+          Used for your Scorecard. On LinkedIn open Experience, then Show all; select the whole list and paste it here. CV-style text with
+          dates on each role line also works. Every role description is read, not only titles. If this is empty, your CV text is used.
+        </p>
+        <textarea rows={12} value={expDraft} placeholder={"Interim CRO\nWortal.AI\nJan 2025 - Jan 2026 · 1 yr 1 mo\n..."} onChange={(e) => setExpDraft(e.target.value)} />
+        <div className="form">
+          <label>Target application date <span className="muted small">(YYYY-MM; marks which gaps can close in time)</span>
+            <input value={target} placeholder="2027-06" onChange={(e) => setTarget(e.target.value)} />
+          </label>
+          <button className="btn primary" disabled={busy} onClick={saveExperience}>Save and rescore</button>
+        </div>
+      </section>
 
       <section className="card">
         <h2>Evidence by requirement</h2>

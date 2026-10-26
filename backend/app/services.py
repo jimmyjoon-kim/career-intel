@@ -2,6 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import Posting, Profile, User
+from .v2.model import opportunity, public
+from .v2.service import SHARED_TAGS, scorecard
 from .scoring import PostingView, ProfileView, gap_summary, gate, market_stats, rank_key, score
 
 
@@ -13,14 +15,23 @@ def posting_view(p: Posting) -> PostingView:
     )
 
 
-def profile_view(prof: Profile | None) -> ProfileView:
+def profile_view(prof: Profile | None, feats: dict | None = None) -> ProfileView:
     if prof is None:
         return ProfileView()
+    matches = {k: float(v.get("match", 0)) for k, v in (prof.tag_matches or {}).items()}
+    user_set = {k for k, v in (prof.tag_matches or {}).items() if v.get("source") == "user"}
+    if feats:  # evidence read from full experience text raises (never lowers) CV keyword matches
+        for t in SHARED_TAGS:
+            if t not in user_set and feats["tags"].get(t, 0) > matches.get(t, 0):
+                matches[t] = feats["tags"][t]
+    years = prof.years_experience
+    if years is None and feats:
+        years = int(feats["YOE_raw"])
     return ProfileView(
         min_level=prof.min_level, locations=list(prof.locations or []), remote_ok=prof.remote_ok,
         needs_sponsorship=prof.needs_sponsorship, excluded_title_terms=list(prof.excluded_title_terms or []),
-        years_experience=prof.years_experience,
-        matches={k: float(v.get("match", 0)) for k, v in (prof.tag_matches or {}).items()},
+        years_experience=years,
+        matches=matches,
     )
 
 
@@ -45,19 +56,26 @@ def current_market(db: Session) -> tuple[list[Posting], dict]:
 def evaluate(db: Session, user: User) -> dict:
     """Gate and score every posting for this user."""
     postings, stats = current_market(db)
-    prof = profile_view(user.profile)
+    card, feats, _ = scorecard(db, user.profile, n_boot=0)
+    prof = profile_view(user.profile, feats)
     rows = []
     for p in postings:
         pv = posting_view(p)
         ok, reasons = gate(pv, prof)
         result = score(pv, prof, stats)
-        rows.append({"posting": p, "gate_pass": ok, "gate_reasons": reasons, **result})
+        opp = None
+        if card:
+            ctab = stats["clusters"].get(result["cluster"], stats["all"])["tags"]
+            opp = opportunity(card, pv.tags, {t: i["weight"] for t, i in ctab.items()},
+                              posting_level=pv.level_band, years_required=pv.years_required)
+        rows.append({"posting": p, "gate_pass": ok, "gate_reasons": reasons, "opportunity": opp, **result})
     passing = sorted((r for r in rows if r["gate_pass"]), key=rank_key)
     return {
         "stats": stats,
         "rows": rows,
         "passing": passing,
         "gap_summary": gap_summary(passing),
+        "base": public(card) if card else None,
     }
 
 
@@ -78,4 +96,5 @@ def row_dict(r: dict) -> dict:
         "gate_pass": r["gate_pass"], "gate_reasons": r["gate_reasons"],
         "cluster": r["cluster"], "weighted_score": r["weighted_score"], "rank_score": r["rank_score"],
         "has_zero_hard_gap": r["has_zero_hard_gap"], "hard_gaps": r["hard_gaps"], "gaps": r["gaps"],
+        "opportunity": r.get("opportunity"),
     }

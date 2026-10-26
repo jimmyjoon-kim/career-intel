@@ -20,6 +20,8 @@ class TokenOut(BaseModel):
 class ProfileIn(BaseModel):
     headline: str | None = None
     cv_text: str | None = None
+    experience_text: str | None = Field(default=None, max_length=60000)
+    target_date: str | None = Field(default=None, pattern=r"^(\d{4}-\d{2})?$")
     years_experience: int | None = None
     min_level: str | None = None
     locations: list[str] | None = None

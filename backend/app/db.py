@@ -20,6 +20,11 @@ def init_db() -> None:
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(engine)
+    # Columns added after first release (create_all does not alter existing tables).
+    with engine.begin() as conn:
+        for ddl in ("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS experience_text TEXT DEFAULT ''",
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_date VARCHAR(7) DEFAULT ''"):
+            conn.execute(text(ddl))
 
 
 def get_db() -> Generator[Session, None, None]:

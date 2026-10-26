@@ -232,3 +232,33 @@ details summary { cursor: pointer; color: var(--accent); margin: 0.5rem 0; }
 .sources li { margin-bottom: 0.5rem; }
 .ask-bar { position: sticky; bottom: 0; display: flex; gap: 0.5rem; padding: 1rem 0; background: var(--bg); }
 .ask-bar input { flex: 1; }
+
+/* scorecard */
+.base-strip { display: grid; grid-template-columns: auto auto 1fr; gap: 2rem; align-items: center; }
+.base-lines { display: flex; flex-direction: column; gap: 4px; }
+.sup { font-size: 0.9rem; vertical-align: super; margin-left: 1px; }
+@media (max-width: 700px) { .base-strip { grid-template-columns: 1fr 1fr; } .base-lines { grid-column: 1 / -1; } }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { font-size: 11px; fill: var(--muted); }
+.chart .lbl { fill: var(--ink); font-size: 12px; }
+.chart .strong { fill: var(--ink); font-weight: 600; }
+.chart .grid { stroke: var(--line); }
+.chart .bar-h { fill: var(--muted); opacity: 0.45; }
+.chart .you { stroke: var(--accent); stroke-width: 2.5; }
+.chart .med { stroke: var(--ink-2); stroke-dasharray: 4 4; }
+.chart .dot-you { fill: var(--accent); }
+.chart .dot-med { fill: var(--warn); }
+.chart .conn { stroke: var(--line); stroke-width: 2; }
+.chart .gap { fill: var(--bad); font-weight: 600; }
+.chart .lead { fill: var(--good); }
+.legend-row { display: flex; gap: 1rem; font-size: 12px; color: var(--ink-2); margin: 0.25rem 0 0.5rem; }
+.legend-row i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.plan3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+@media (max-width: 1000px) { .plan3 { grid-template-columns: 1fr; } }
+.plan3 .card { margin: 0; }
+.plan3 ul { padding-left: 1.1rem; margin: 0.5rem 0 0; }
+.plan3 li { margin-bottom: 0.5rem; }
+.kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.kicker.warn { color: var(--warn); }
+.kicker.bad { color: var(--bad); }
+.notes { padding-left: 1.1rem; color: var(--ink-2); font-size: 12px; }

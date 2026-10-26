@@ -123,6 +123,26 @@ def scorecard_text(evaluation: dict) -> str:
     return "\n".join(lines)
 
 
+def base_text(card: dict) -> str:
+    lines = [f"Your v2 base score against {card['n_reference']} people who hold {card['cluster']} roles "
+             f"(full experience text read with the same rules for you and for them).",
+             f"Base score {card['base_score']} (holder median {card['holders']['median']}); position among holders "
+             f"{card['position']}th percentile.",
+             "Factors (your percentile vs median holder, weighted gap; + means holders ahead):"]
+    for f in card["factors"]:
+        lines.append(f"- {f['label']}: you {f['you_pct']} vs {f['holder_median_pct']}, weight {f['weight']}, gap {f['delta']}")
+    for g in card["gaps"]:
+        lines.append(f"Gap: {g['label']} ({g['class']}). {g['action']} Months to close: {g['months_to_close']}.")
+    for d in card["differentiators"]:
+        lines.append(f"Differentiator: {d['label']} (you {d['you_pct']} vs median {d['holder_median_pct']}).")
+    for x in card["focus_areas"]:
+        lines.append(f"Focus area: {x['label']}: {round(100 * x['holder_share'])}% of holders; yours {x['status']}.")
+    for p in card["peers"]:
+        lines.append(f"Nearest holder: {p['company']} — {p['title']}, score {p['score']}; ahead on "
+                     f"{', '.join(p['ahead_on']) or 'nothing'}; you lead on {', '.join(p['you_lead_on']) or 'nothing'}.")
+    return "\n".join(lines)
+
+
 def rebuild_user(db: Session, user: User) -> int:
     from ..services import evaluate
 
@@ -132,7 +152,10 @@ def rebuild_user(db: Session, user: User) -> int:
     if prof and prof.cv_text.strip():
         items.extend(("cv", "Your CV", t) for t in chunk_text(prof.cv_text))
     if prof:
-        items.append(("scorecard", "Your scorecard", scorecard_text(evaluate(db, user))))
+        ev = evaluate(db, user)
+        items.append(("scorecard", "Your scorecard", scorecard_text(ev)))
+        if ev.get("base"):
+            items.append(("scorecard", "Your base score (v2)", base_text(ev["base"])))
     vecs = embed([t for _, _, t in items], "document")
     db.execute(delete(Chunk).where(Chunk.owner_id == user.id))
     for (stype, title, text), v in zip(items, vecs):

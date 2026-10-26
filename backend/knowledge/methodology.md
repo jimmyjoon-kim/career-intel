@@ -31,3 +31,13 @@ Weights are validated against the profiles of people actually hired, not job-des
 - Facts only. Verified and unverified information are kept separate.
 - No probabilities or likelihoods of being hired are produced.
 - Gaps are shown with their evidence and whether they can be closed; negatives are not over-weighted.
+
+## v2 base score, peer comparison and opportunity scores
+
+- Reader: every role's title, company, dates and description lines are read with the same rules for the user and for every reference holder. Function and domain come from descriptions as well as titles; evidence older than 8 years counts half.
+- Factors: years of experience, company tier of the most recent employer held 12+ months (Tier 1 top-10 tech, Tier 2 >= $10B public or dated unicorn, Tier 3 other), level band held 12+ months, function evidence, domain evidence, scarce experience, quantified outcomes. Education is not scored until holder coverage reaches 50%. Age and age proxies are never read.
+- Base score = weighted mean of factor percentiles within people who hold the target role. Weights blend an expert prior with market discrimination: w = (50 x expert + n x market) / (50 + n).
+- Position = percentile of the base score among holders, with a 95% bootstrap range.
+- Gap on a factor = weight x (median holder percentile - your percentile). Structural gaps (tier, years, level) are stepping stones; capability gaps (function, domain, scarce experience, outcomes) are focus areas; negative gaps are differentiators.
+- Consulting background counts only for employment at a consulting firm or described management/strategy consulting work, not for a "Consultant" title or a firm named as a client.
+- Opportunity score = the base composite with weights re-emphasised by one posting's requirement tags (w' = w x (1 + share of posting requirement weight on that factor)). Years and level requirements are reported as thresholds, not scored. The emphasis rule is a first pass and is not yet validated against hiring outcomes.

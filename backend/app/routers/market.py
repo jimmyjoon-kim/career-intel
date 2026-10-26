@@ -33,6 +33,9 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
         "top": [row_dict(r) for r in ev["passing"][:10]],
         "gaps": ev["gap_summary"],
         "gate_fail_reasons": _reason_counts(rows),
+        "base": ({k: ev["base"][k] for k in ("base_score", "position", "cluster", "n_reference", "holders")}
+                 | {"gaps": [g["label"] for g in ev["base"]["gaps"]],
+                    "differentiators": [d["label"] for d in ev["base"]["differentiators"]]}) if ev["base"] else None,
     }
 
 
@@ -118,6 +121,13 @@ def admin_set_status(posting_id: int, status: str, _: User = Depends(admin_user)
     db.commit()
     rebuild_shared(db)
     return posting_dict(p)
+
+
+@router.post("/admin/reference/reload")
+def admin_reload_reference(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+    from ..v2.service import import_reference_seed
+
+    return {"loaded": import_reference_seed(db)}
 
 
 @router.post("/admin/reindex")

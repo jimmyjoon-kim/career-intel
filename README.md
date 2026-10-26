@@ -83,3 +83,9 @@ Interactive docs are served at `http://localhost:8000/docs`.
 - Hire-profile ingestion and Bayesian re-weighting from outcomes. The method is described in `backend/knowledge/methodology.md`; the data model has room for it.
 - Database migrations. Tables are created on start-up; add Alembic before the schema changes in production.
 - Email verification, password reset and rate limiting, which are needed before public launch.
+
+## Scorecard (v2)
+
+Paste your LinkedIn Experience text (Experience, then Show all, select all) on the Profile page and set a target date. The Scorecard page shows your base score against people who hold the target roles, factor-by-factor gaps, focus areas, differentiators, nearest role holders, and exactly how each role was read. Postings show an opportunity score: your base score re-weighted by that posting's requirements.
+
+Reference holders are stored as derived factor values only (company and current title, no names, links or raw text): `backend/seed/reference_*.json`, loaded by the seed step or by admins via `POST /api/admin/reference/reload`.

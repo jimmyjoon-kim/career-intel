@@ -19,7 +19,8 @@ MAX_UPLOAD = 5 * 1024 * 1024
 
 def profile_dict(p: Profile) -> dict:
     return {
-        "headline": p.headline, "cv_text": p.cv_text, "years_experience": p.years_experience,
+        "headline": p.headline, "cv_text": p.cv_text, "experience_text": p.experience_text or "",
+        "target_date": p.target_date or "", "years_experience": p.years_experience,
         "tag_matches": p.tag_matches or {}, "min_level": p.min_level, "locations": p.locations or [],
         "remote_ok": p.remote_ok, "needs_sponsorship": p.needs_sponsorship,
         "excluded_title_terms": p.excluded_title_terms or [],

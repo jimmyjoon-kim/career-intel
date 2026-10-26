@@ -10,6 +10,7 @@ from .db import SessionLocal, init_db
 from .importer import import_csv
 from .models import User
 from .rag.index import rebuild_shared, rebuild_user
+from .v2.service import import_reference_seed
 
 DEFAULT = Path(__file__).resolve().parents[1] / "seed"
 
@@ -21,6 +22,8 @@ def main(paths: list[str]) -> None:
         for f in files:
             date = f.stem.removeprefix("postings_")[:10]
             print(f"{f.name}: {import_csv(db, f.read_text(encoding='utf-8-sig'), date)}")
+        for name, n in import_reference_seed(db).items():
+            print(f"{name}: {n} reference holders")
         print(f"shared chunks: {rebuild_shared(db)}")
         for u in db.scalars(select(User)):
             rebuild_user(db, u)

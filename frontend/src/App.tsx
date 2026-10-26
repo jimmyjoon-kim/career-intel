@@ -2,6 +2,7 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import ScorecardPage from "./pages/Scorecard";
 import Postings from "./pages/Postings";
 import Market from "./pages/Market";
 import ProfilePage from "./pages/Profile";
@@ -10,6 +11,7 @@ import Admin from "./pages/Admin";
 
 const NAV = [
   { to: "/", label: "Dashboard" },
+  { to: "/scorecard", label: "Scorecard" },
   { to: "/postings", label: "Postings" },
   { to: "/market", label: "Market" },
   { to: "/profile", label: "Profile" },
@@ -49,6 +51,7 @@ export default function App() {
       <main className="main">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/scorecard" element={<ScorecardPage />} />
           <Route path="/postings" element={<Postings />} />
           <Route path="/market" element={<Market />} />
           <Route path="/profile" element={<ProfilePage />} />

@@ -33,7 +33,7 @@ export default function Postings() {
       {loading && !data ? <div className="muted">Loading…</div> : rows.length === 0 ? <Empty>No postings match these filters.</Empty> : (
         <div className="card flush">
           <table className="table">
-            <thead><tr><th>Company / role</th><th>Cluster</th><th>Location</th><th>Pay</th><th>Gate</th><th>Rank</th></tr></thead>
+            <thead><tr><th>Company / role</th><th>Cluster</th><th>Location</th><th>Pay</th><th>Gate</th><th title="Your base score re-weighted by this posting">Opportunity</th><th>Rank</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.posting.id} className="clickable" onClick={() => setOpen(r)}>
@@ -42,6 +42,7 @@ export default function Postings() {
                   <td className="small">{r.posting.location}{r.posting.remote_flag === "yes" ? " · Remote" : ""}</td>
                   <td className="small">{r.posting.pay_range || "—"}</td>
                   <td>{r.gate_pass ? <span className="badge ok">Pass</span> : <span className="badge no" title={r.gate_reasons.join("; ")}>Fail</span>}</td>
+                  <td className="nowrap small">{r.opportunity ? <><span className="num">{r.opportunity.score.toFixed(1)}</span> <span className="muted">· {Math.round(r.opportunity.position)}th</span>{r.opportunity.thresholds.length > 0 && <> <span className="badge hard" title={r.opportunity.thresholds.join("; ")}>Threshold</span></>}</> : <span className="muted">—</span>}</td>
                   <td className="nowrap"><span className="num">{r.rank_score.toFixed(2)}</span> <Bar value={r.rank_score} tone={r.gate_pass ? (r.has_zero_hard_gap ? "warn" : "accent") : "muted"} /></td>
                 </tr>
               ))}

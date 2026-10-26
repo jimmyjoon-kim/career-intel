@@ -12,15 +12,47 @@ export type Posting = {
   posted: string; status: string; verification: string; last_seen: string;
 };
 
+export type Opportunity = {
+  score: number; position: number; delta_vs_base: number; weights: Record<string, number>;
+  emphasised: string[]; thresholds: string[];
+};
+
 export type Row = {
   posting: Posting; gate_pass: boolean; gate_reasons: string[]; cluster: string;
   weighted_score: number; rank_score: number; has_zero_hard_gap: boolean; hard_gaps: Gap[]; gaps: Gap[];
+  opportunity: Opportunity | null;
+};
+
+export type Factor = {
+  factor: string; label: string; weight: number; you_value: number | null; you_pct: number | null;
+  holder_median_value: number | null; holder_median_pct: number | null; share_above_you: number | null;
+  delta: number | null; coverage: number;
+};
+export type GapV2 = Factor & { class: string; action: string; months_to_close: number | null; closable_by_target: boolean | null };
+export type Card = {
+  cluster: string; n_reference: number; weights: Record<string, number>; base_score: number; position: number;
+  position_ci95: [number | null, number | null];
+  holders: { median: number; p25: number; p75: number; hist: { edges: number[]; counts: number[] } };
+  factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];
+  focus_areas: { tag: string; label: string; holder_share: number; your_weight: number; status: string; note: string }[];
+  peers: { company: string; title: string; score: number; similarity: number; ahead_on: string[]; you_lead_on: string[] }[];
+};
+export type RoleRead = { title: string; company: string; start: string; end: string; months: number; level: number | null; counted: boolean; tier: number };
+export type Scorecard = {
+  ready: boolean; reason?: string; card?: Card; reference?: { source: string; as_of: string }; months_left?: number | null;
+  reading?: {
+    source: string; format: string; years: number; level_max: string | null; level_names: Record<string, string>;
+    recent_role: { title: string; company: string; start: string; end: string; months: number; level: number; level_cue: string | null; tier: number } | null;
+    roles: RoleRead[]; evidence: { tag: string; weight: number; role: string; phrase: string }[];
+    achievements: { role: string; line: string; match: string }[]; tags: Record<string, number>;
+  };
+  notes?: string[];
 };
 
 export type TagMatch = { match: number; evidence: string; source: string };
 
 export type Profile = {
-  headline: string; cv_text: string; years_experience: number | null;
+  headline: string; cv_text: string; experience_text: string; target_date: string; years_experience: number | null;
   tag_matches: Record<string, TagMatch>; min_level: string; locations: string[];
   remote_ok: boolean; needs_sponsorship: boolean; excluded_title_terms: string[]; updated_at: string | null;
 };

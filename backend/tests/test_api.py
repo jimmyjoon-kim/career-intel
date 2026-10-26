@@ -97,3 +97,38 @@ def test_full_flow(client):
     assert client.patch(f"/api/admin/postings/{pid}", params={"status": "closed"}, headers=admin_h).status_code == 200
     d2 = client.get("/api/dashboard", headers=user_h).json()
     assert pid not in [t["posting"]["id"] for t in d2["top"]]
+
+
+EXPERIENCE = """Experience
+Interim CRO
+Wortal.AI
+Jan 2025 - Jan 2026 · 1 yr 1 mo
+General Manager, Grow Korea
+Unity · Full-time
+Nov 2022 - Mar 2025 · 2 yrs 5 mos
+- Managed P&L for Advertising and Monetization Business, overseeing Business Development and Partnerships.
+General Manager, VP, Korea
+ironSource · Full-time
+Jan 2016 - Mar 2025 · 9 yrs 3 mos
+- Launched Korea Operation from inception; 8-figure Annual Net Revenue with publisher partnerships.
+"""
+
+
+def test_scorecard_flow(client):
+    h, _ = signup(client, "v2@example.com")
+    r = client.get("/api/scorecard", headers=h).json()
+    assert r["ready"] is False
+    login = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "password123"}).json()
+    ah = {"Authorization": f"Bearer {login['token']}"}
+    assert client.post("/api/admin/reference/reload", headers=h).status_code == 403
+    r = client.post("/api/admin/reference/reload", headers=ah)
+    assert r.status_code == 200 and sum(r.json()["loaded"].values()) == 44
+    assert client.put("/api/profile", json={"experience_text": EXPERIENCE, "target_date": "2027-06"}, headers=h).status_code == 200
+    s = client.get("/api/scorecard", headers=h).json()
+    assert s["ready"] and s["reading"]["format"] == "linkedin" and s["card"]["n_reference"] == 44
+    assert s["reading"]["recent_role"]["company"] == "Wortal.AI"
+    assert s["card"]["position_ci95"][0] is not None and s["months_left"] is not None
+    rows = client.get("/api/postings", headers=h).json()
+    assert all(r["opportunity"] is not None for r in rows)
+    assert client.get("/api/dashboard", headers=h).json()["base"]["n_reference"] == 44
+    assert client.put("/api/profile", json={"target_date": "June"}, headers=h).status_code == 422

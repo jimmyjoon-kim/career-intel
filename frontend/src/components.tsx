@@ -95,6 +95,15 @@ export function PostingDetail({ row, onClose }: { row: Row; onClose: () => void 
           <dt>Status</dt><dd>{p.status}{p.last_seen ? ` · last checked ${p.last_seen}` : ""}</dd>
         </dl>
 
+        {row.opportunity && (
+          <>
+            <h3>Opportunity score <span className="muted small">(your base score re-weighted for this posting)</span></h3>
+            <p><span className="num">{row.opportunity.score.toFixed(1)}</span> <span className="muted">· {Math.round(row.opportunity.position)}th percentile among role holders · {row.opportunity.delta_vs_base >= 0 ? "+" : ""}{row.opportunity.delta_vs_base.toFixed(1)} vs your base score</span></p>
+            {row.opportunity.emphasised.length > 0 && <p className="muted small">This posting weights more heavily: {row.opportunity.emphasised.join(", ")}.</p>}
+            {row.opportunity.thresholds.length > 0 && <ul className="gaps">{row.opportunity.thresholds.map((t) => <li key={t} className="gap-line"><span className="badge hard">Threshold</span> {t}</li>)}</ul>}
+          </>
+        )}
+
         <h3>Hard gaps <span className="muted small">(common-minimum tags you do not fully meet)</span></h3>
         {row.hard_gaps.length ? <ul className="gaps">{row.hard_gaps.map((g) => <GapLine key={g.tag} g={g} />)}</ul> : <p className="muted">None.</p>}
 

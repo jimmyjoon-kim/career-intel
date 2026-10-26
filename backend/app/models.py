@@ -34,6 +34,10 @@ class Profile(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     headline: Mapped[str] = mapped_column(String(300), default="")
     cv_text: Mapped[str] = mapped_column(Text, default="")
+    # Full experience text (LinkedIn "Experience" page or CV roles) read by the v2 reader.
+    experience_text: Mapped[str] = mapped_column(Text, default="")
+    # Target month for applications, "YYYY-MM"; used to mark gaps closable in time.
+    target_date: Mapped[str] = mapped_column(String(7), default="")
     years_experience: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # {tag: {"match": 0|0.5|1, "evidence": str, "source": "extracted"|"user"}}
     tag_matches: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -106,3 +110,17 @@ class Question(Base):
     mode: Mapped[str] = mapped_column(String(20))
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ReferenceProfile(Base):
+    """A person who holds a target role, stored as derived factor values only (no name, URL or raw text)."""
+
+    __tablename__ = "reference_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cluster: Mapped[str] = mapped_column(String(80), index=True)
+    company: Mapped[str] = mapped_column(String(200), default="")
+    title: Mapped[str] = mapped_column(String(300), default="")
+    features: Mapped[dict] = mapped_column(JSON, default=dict)  # YOE, CT, LV, LV_max, FN, DM, AC, tags
+    source: Mapped[str] = mapped_column(String(300), default="")
+    as_of: Mapped[str] = mapped_column(String(20), default="")
