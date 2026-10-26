@@ -7,8 +7,6 @@ services:
       POSTGRES_DB: career_intel
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U career -d career_intel"]
       interval: 3s

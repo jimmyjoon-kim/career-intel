@@ -20,6 +20,10 @@ questions about it from cited sources.
 
 ## Run with Docker
 
+One command (macOS): `./setup.sh` — starts Docker, asks for the API keys once, builds, loads the sample data and opens the app.
+
+Manual steps:
+
 ```bash
 cp .env.example .env          # add ANTHROPIC_API_KEY and VOYAGE_API_KEY
 docker compose up --build -d
