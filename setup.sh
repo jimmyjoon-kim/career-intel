@@ -27,17 +27,23 @@ if ! docker compose version >/dev/null 2>&1; then
   echo "'docker compose' is missing. Update Docker Desktop, then re-run ./setup.sh"; exit 1
 fi
 
-# 2. API keys (asked once; press Enter to skip and run in offline mode)
-if [ ! -f .env ]; then
-  cp .env.example .env
-  say "API keys (input hidden; press Enter to skip)"
-  read -rsp "Anthropic API key: " AK; echo
-  read -rsp "Voyage API key:    " VK; echo
-  SECRET=$(openssl rand -hex 20)
-  sed -i.bak -e "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${AK}|" \
-             -e "s|^VOYAGE_API_KEY=.*|VOYAGE_API_KEY=${VK}|" \
-             -e "s|^JWT_SECRET=.*|JWT_SECRET=${SECRET}|" .env && rm -f .env.bak
+# 2. API keys — asked whenever they are blank in .env (press Enter to skip = offline mode)
+[ -f .env ] || cp .env.example .env
+getv() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
+setv() {
+  if grep -qE "^$1=" .env; then
+    awk -v k="$1" -v v="$2" 'BEGIN{FS=OFS="="} $1==k{print k"="v; next} {print}' .env > .env.tmp && mv .env.tmp .env
+  else
+    printf '%s=%s\n' "$1" "$2" >> .env
+  fi
+}
+if [ -z "$(getv ANTHROPIC_API_KEY)" ] || [ -z "$(getv VOYAGE_API_KEY)" ]; then
+  say "API keys — paste each one and press Enter (nothing shows while you paste; Enter alone skips)"
+  if [ -z "$(getv ANTHROPIC_API_KEY)" ]; then read -rsp "Anthropic API key: " AK; echo; [ -n "$AK" ] && setv ANTHROPIC_API_KEY "$AK"; fi
+  if [ -z "$(getv VOYAGE_API_KEY)" ]; then read -rsp "Voyage API key:    " VK; echo; [ -n "$VK" ] && setv VOYAGE_API_KEY "$VK"; fi
 fi
+case "$(getv JWT_SECRET)" in ""|change-me) setv JWT_SECRET "$(openssl rand -hex 20)" ;; esac
+echo "Claude: $([ -n "$(getv ANTHROPIC_API_KEY)" ] && echo on || echo 'off (offline mode)') · Voyage: $([ -n "$(getv VOYAGE_API_KEY)" ] && echo on || echo 'off (local embeddings)')"
 
 # 3. Build and start
 say "Building and starting (first run takes a few minutes)…"
