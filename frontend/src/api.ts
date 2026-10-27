@@ -32,13 +32,19 @@ export type GapV2 = Factor & { class: string; action: string; months_to_close: n
 export type Card = {
   cluster: string; n_reference: number; weights: Record<string, number>; base_score: number; position: number;
   position_ci95: [number | null, number | null];
-  holders: { median: number; p25: number; p75: number; hist: { edges: number[]; counts: number[] } };
+  holders: { scores: number[]; tier_share: Record<string, number>; median: number; p25: number; p75: number; hist: { edges: number[]; counts: number[] } };
+  prevalence: Record<string, number>; tag_labels: Record<string, string>;
   factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];
   focus_areas: { tag: string; label: string; holder_share: number; your_weight: number; status: string; note: string }[];
   rare_strengths: { tag: string; label: string; holder_share: number }[];
-  peers: { company: string; title: string; score: number; similarity: number; ahead_on: string[]; you_lead_on: string[] }[];
+  peers: { company: string; title: string; score: number; similarity: number; ahead_on: string[]; you_lead_on: string[];
+    components: Record<string, number>; values: Record<string, number | null> }[];
 };
-export type RoleRead = { title: string; company: string; start: string; end: string; months: number; level: number | null; counted: boolean; tier: number };
+export type RoleRead = {
+  title: string; company: string; start: string; end: string; months: number; level: number | null; counted: boolean; tier: number;
+  key: string; families: string[]; auto: Record<string, { source: string; phrase: string }>; final: Record<string, number>;
+  team_size: number | null; reviewed: boolean; recency_weight: number;
+};
 export type Scorecard = {
   ready: boolean; reason?: string; card?: Card; reference?: { source: string; as_of: string }; months_left?: number | null;
   reading?: {

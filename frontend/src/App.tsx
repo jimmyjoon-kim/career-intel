@@ -11,13 +11,13 @@ import Ask from "./pages/Ask";
 import Admin from "./pages/Admin";
 
 const NAV = [
-  { to: "/", label: "Dashboard" },
-  { to: "/scorecard", label: "Scorecard" },
+  { to: "/", label: "Scorecard" },
+  { to: "/roles", label: "Role review" },
   { to: "/postings", label: "Postings" },
   { to: "/market", label: "Market" },
-  { to: "/profile", label: "Profile" },
-  { to: "/roles", label: "Role review" },
   { to: "/ask", label: "Ask" },
+  { to: "/profile", label: "Profile" },
+  { to: "/dashboard", label: "Gate & gaps" },
 ];
 
 export default function App() {
@@ -52,8 +52,9 @@ export default function App() {
       </aside>
       <main className="main">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<ScorecardPage />} />
           <Route path="/scorecard" element={<ScorecardPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/roles" element={<Roles />} />
           <Route path="/postings" element={<Postings />} />
           <Route path="/market" element={<Market />} />

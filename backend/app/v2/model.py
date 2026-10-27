@@ -192,15 +192,20 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         peers.append({"company": rows[i]["company"], "title": rows[i]["title"], "score": _r(S_h[i]),
                       "similarity": round(1 - _gower(uf, rows[i]), 3),
                       "ahead_on": [FACTOR_LABELS[k] for k, v in sorted(comp.items(), key=lambda x: -x[1]) if v > 0.5][:3],
-                      "you_lead_on": [FACTOR_LABELS[k] for k, v in sorted(comp.items(), key=lambda x: x[1]) if v < -0.5][:3]})
+                      "you_lead_on": [FACTOR_LABELS[k] for k, v in sorted(comp.items(), key=lambda x: x[1]) if v < -0.5][:3],
+                      "components": {FACTOR_LABELS[k]: v for k, v in comp.items()},
+                      "values": {k: _r(rows[i].get(k), 2) for k in FACTORS}})
 
     return {
         "cluster": ref.cluster, "n_reference": ref.n, "weights": {k: _r(v) for k, v in w.items()},
         "base_score": _r(S_u), "position": _r(pos),
         "position_ci95": [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))] if boots else [None, None],
-        "holders": {"median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "p75": _r(np.percentile(sc, 75)),
+        "holders": {"scores": sorted(_r(x) for x in sc),
+                    "tier_share": {f"Tier {t}": round(sum(1 for r in rows if r.get("tier") == t) / len(rows), 2) for t in (1, 2, 3)},
+                    "median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "p75": _r(np.percentile(sc, 75)),
                     "hist": {"edges": [int(e) for e in edges], "counts": [int(c) for c in hist]}},
-        "factors": factors, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare, "peers": peers,
+        "factors": factors, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare,
+        "prevalence": {t: round(p, 2) for t, p in prevalence.items()}, "tag_labels": TAG_LABELS, "peers": peers,
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
         "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf},
     }
