@@ -195,7 +195,54 @@ CONSULTING = "skill_consulting_firm_background"
 FUNC_TAGS = ["func_partnerships", "func_bd", "func_channel"]
 DOMAIN_TAGS = ["domain_ai", "domain_adtech", "domain_mobile", "domain_saas"]
 SCARCE_TAGS = ["skill_hyperscaler", "skill_govtech", CONSULTING, "skill_0to1_build", "domain_mobile"]
-ALL_TAGS = list(TAGPAT) + [CONSULTING]
+# Role templates: the qualifications a title family carries by default. Applied to every person
+# (marked "implied by title"); users review and adjust their own roles.
+ROLE_TEMPLATES = [
+    ("General manager / business-unit head",
+     r"general manager|\bgm\b|managing director|country manager|head of (?:the )?(?:business|country|region|operations)",
+     ["team_mgmt", "pnl_ownership", "func_sales_leadership"]),
+    ("Chief executive / president", r"\bceo\b|chief executive|(?<!vice )(?<!vice-)president",
+     ["team_mgmt", "pnl_ownership", "func_sales_leadership"]),
+    ("Chief revenue / commercial officer", r"\bcro\b|chief revenue|chief commercial|chief business|\bcco\b",
+     ["team_mgmt", "func_sales_leadership"]),
+    ("Vice president", r"vice president|\bvp\b|\bsvp\b|\bevp\b", ["team_mgmt"]),
+    ("Sales leader", r"vp,? (?:of )?sales|head of sales|sales director|director,? (?:of )?sales", ["func_sales_leadership"]),
+    ("Channel management", r"channel|reseller|distribution", ["func_channel", "func_partnerships"]),
+    ("Partner / alliance management", r"partner|alliance", ["func_partnerships"]),
+    ("Business development", r"business development|\bbd\b|bizdev", ["func_bd"]),
+    ("Founder", r"\bfounder|co-founder|cofounder", ["skill_0to1_build", "team_mgmt"]),
+]
+ROLE_TEMPLATES = [(n, re.compile(p, re.I), t) for n, p, t in ROLE_TEMPLATES]
+# Responsibilities read from description lines.
+SCOPE_PAT = {
+    "team_mgmt": r"\b(?:led|managed|manage|managing|oversaw|overseeing|built and led|built and managed|leading)\b[^.;]{0,60}"
+                 r"\b(?:team|teams|organi[sz]ation|org|department|staff|people|engineers|managers|sales force)\b|direct reports|"
+                 r"overseeing (?:business development|account management|operations|sales)|cross-functional team",
+    "pnl_ownership": r"p&l|profit and loss|net profit|revenue budget",
+    "func_sales_leadership": r"head of sales|sales leadership|led (?:the )?[^.;]{0,30}sales (?:team|organi[sz]ation)|"
+                             r"full (?:b2b and b2c )?sales ownership|revenue ownership",
+}
+TEAM_NUM = re.compile(r"(\d{1,4})\s*\+?\s*(?:business |sales |commercial |engineering |product |operations |account )?"
+                      r"(?:people|persons|staff|employees|engineers|product managers|pms?|reports|direct reports|headcount|"
+                      r"members|sellers|account managers|managers|business people|fte)\b", re.I)
+LARGE_TEAM = 20  # same threshold as the posting taxonomy's "large team" tag
+
+# Employer context from public sources: what the business did, applied to every role at that employer (all people).
+COMPANY_CONTEXT = [
+    (r"\bunity\b", ["domain_adtech", "domain_mobile"],
+     "Unity Grow Solutions: ads and monetisation for games and apps (Q2 2023 revenue $340M)", "https://wnhub.io/news/engines/item-41442"),
+    (r"ironsource", ["domain_adtech", "domain_mobile"],
+     "ironSource: app monetisation and ad network; NYSE listing June 2021 at $11.1B", "https://en.globes.co.il/en/article-ironsource-to-list-on-nyse-next-week-at-111b-valuation-1001375578"),
+    (r"fiksu|bidmind", ["domain_adtech", "domain_mobile"],
+     "Fiksu: Boston mobile app marketing technology with a programmatic DSP", "https://www.globenewswire.com/news-release/2013/10/30/1033585/0/en/Fiksu-Extends-App-Marketing-Leadership-With-New-Product-Lineup.html"),
+    (r"tapjoy|applovin|liftoff|vungle|chartboost|digital turbine|appsflyer|\badjust\b|inmobi|moloco|unity ads", ["domain_adtech", "domain_mobile"],
+     "Mobile ad tech company", ""),
+    (r"blackberry|research in motion", ["domain_mobile"], "BlackBerry: smartphones and mobile software", ""),
+    (r"openai|anthropic|cohere|mistral|hugging ?face|scale ai|perplexity|character\.ai|\bxai\b", ["domain_ai"], "AI model company", ""),
+]
+SOURCE_ORDER = {"you confirmed": -1, "title": 0, "employer name": 0, "description": 1, "CV": 2, "stated": 3, "implied by title": 4, "employer context": 5}
+
+ALL_TAGS = list(TAGPAT) + [CONSULTING, "team_mgmt", "team_large", "pnl_ownership", "func_sales_leadership"]
 
 ACH_PAT = re.compile(
     r"\$\s?\d|\d+(?:\.\d+)?\s?%|\b(?:[5-9]|six|seven|eight|nine)[- ]figure|"
@@ -260,14 +307,37 @@ def _label(r: dict) -> str:
     return f'{r["title"]} @ {r["company"]} ({r["start_raw"]}–{r["end_raw"]})'
 
 
-def extract_features(roles: list[dict], *, destination_company: str | None = None, use_cv_lines: bool = False,
-                     min_months: int = 12, strict_tier: bool = False, now: tuple[int, int] | None = None) -> dict:
+def _line_src(line: str) -> tuple[str, str]:
+    if line.startswith(CV_PREFIX):
+        return line[len(CV_PREFIX):], "CV"
+    if line.lower().startswith("scope:"):
+        return line[6:].strip(), "stated"
+    return line, "description"
+
+
+def team_size(lines: list[str]) -> tuple[int, str]:
+    """Largest team stated on one line (numbers on the same line are added: '15 business people and 20+ engineers')."""
+    best, best_line = 0, ""
+    for ln in lines:
+        n = sum(int(m.group(1)) for m in TEAM_NUM.finditer(ln))
+        if n > best:
+            best, best_line = n, ln
+    return best, best_line
+
+
+def role_key(r: dict) -> str:
+    return f'{r["company"].strip().lower()}|{r["title"].strip().lower()}|{r["start_raw"]}'
+
+
+def extract_features(roles: list[dict], *, destination_company: str | None = None, use_cv_lines: bool = True,
+                     min_months: int = 12, strict_tier: bool = False, now: tuple[int, int] | None = None,
+                     overrides: dict | None = None) -> dict:
     """Factor values from parsed roles. Same rules for everyone."""
     now = now or _now()
     evidence, counted, ev_roles = [], [], []
     for r in roles:
-        desc = [d for d in r["desc"] if use_cv_lines or not d.startswith(CV_PREFIX)]
-        r = dict(r, desc=[d.replace(CV_PREFIX, "") for d in desc])
+        pairs = [_line_src(d) for d in r["desc"] if use_cv_lines or not d.startswith(CV_PREFIX)]
+        r = dict(r, desc=[t for t, _ in pairs], desc_src=[src for _, src in pairs])
         if EXCL_EVIDENCE.search(r["title"]):
             continue
         if destination_company and r["start"] >= (now[0], 1) and \
@@ -299,16 +369,76 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
     tier = company_tier(recent["company"], strict_tier) if recent else None
 
     tags = {t: 0.0 for t in ALL_TAGS}
+    best_team = (0, "", "")
     for r in ev_roles:
-        blob = (r["title"] + " \n " + " \n ".join(r["desc"])).lower()
         w = 1.0 if months_between(r["end"], now) <= 96 else 0.5  # evidence older than 8 years counts half
-        hits = {t: re.search(p, blob) for t, p in TAGPAT.items()}
-        cm = CONSULTING_FIRMS.search(r["company"]) or CONSULTING_WORK.search(" ".join(r["desc"]))
-        hits[CONSULTING] = cm
-        for t, m in hits.items():
-            if m and w > tags[t]:
-                tags[t] = w
-                evidence.append({"tag": t, "weight": w, "role": _label(r), "phrase": m.group(0)})
+        ctx = [(tg, note, url) for pat, tg, note, url in COMPANY_CONTEXT if re.search(pat, r["company"].lower())]
+        segs = [("title", r["title"]), ("employer name", r["company"])] + list(zip(r["desc_src"], r["desc"]))
+        found: dict[str, tuple[str, str]] = {}
+
+        def hit(tag, src, phrase):
+            if tag not in found or SOURCE_ORDER[src] < SOURCE_ORDER[found[tag][0]]:
+                found[tag] = (src, phrase)
+
+        for t, pat in {**TAGPAT, **SCOPE_PAT}.items():
+            for src, text in segs:
+                m = re.search(pat, text.lower())
+                if m:
+                    hit(t, src, m.group(0))
+                    break
+        cm = CONSULTING_FIRMS.search(r["company"])
+        if cm:
+            hit(CONSULTING, "employer name", r["company"])
+        else:
+            for src, text in segs[2:]:
+                m = CONSULTING_WORK.search(text)
+                if m:
+                    hit(CONSULTING, src, m.group(0))
+                    break
+        families = []
+        clean_title = STAFF_PHRASES.sub("", r["title"].lower())
+        for name, rx, implied in ROLE_TEMPLATES:
+            m = rx.search(clean_title)
+            if m:
+                families.append(name)
+                for t in implied:
+                    hit(t, "implied by title", f"{name} template")
+        for tg, note, url in ctx:
+            for t in tg:
+                hit(t, "employer context", note)
+        size, size_line = team_size(r["desc"])
+        size_src = r["desc_src"][r["desc"].index(size_line)] if size else ""
+        auto_size = size
+        if size >= 2:
+            hit("team_mgmt", size_src, size_line[:120])
+            if size >= LARGE_TEAM:
+                hit("team_large", size_src, size_line[:120])
+        auto = {t: {"source": src, "phrase": phrase} for t, (src, phrase) in found.items()}
+        # Your review of this role: confirmed values replace the automatic reading.
+        ov = (overrides or {}).get(role_key(r)) or {}
+        values = {t: 1.0 for t in found}
+        if ov.get("team_size") is not None:
+            size, size_src = int(ov["team_size"]), "you confirmed"
+            for t, ok in (("team_mgmt", size >= 2), ("team_large", size >= LARGE_TEAM)):
+                if ok:
+                    found[t], values[t] = ("you confirmed", f"team of {size}"), 1.0
+        for t, v in (ov.get("tags") or {}).items():
+            if t not in ALL_TAGS or v is None:
+                continue
+            if float(v) <= 0:
+                found.pop(t, None)
+                values.pop(t, None)
+            else:
+                found[t], values[t] = ("you confirmed", "confirmed in role review"), min(1.0, float(v))
+        if size >= 2 and size > best_team[0]:
+            best_team = (size, _label(r), size_src)
+        for t, (src, phrase) in found.items():
+            evidence.append({"tag": t, "weight": w * values[t], "role": _label(r), "source": src, "phrase": phrase,
+                             "url": next((u for tg, n, u in ctx if n == phrase), "")})
+            tags[t] = max(tags[t], w * values[t])
+        r["review"] = {"key": role_key(r), "families": families, "auto": auto, "auto_team_size": auto_size or None,
+                       "final": {t: values[t] for t in found}, "team_size": size or None,
+                       "reviewed": bool(ov.get("confirmed")), "recency_weight": w}
 
     ach = []
     for r in ev_roles:
@@ -324,10 +454,11 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
         "FN": sum(tags[t] for t in FUNC_TAGS) / len(FUNC_TAGS),
         "DM": sum(tags[t] for t in DOMAIN_TAGS) / len(DOMAIN_TAGS),
         "AC": len(ach), "tags": tags, "evidence": evidence, "achievements": ach,
+        "team_size_max": {"size": best_team[0], "role": best_team[1], "source": best_team[2]} if best_team[0] else None,
         "recent_role": ({"title": recent["title"], "company": recent["company"], "start": recent["start_raw"],
                          "end": recent["end_raw"], "months": recent["months"], "level": recent["level"],
                          "level_cue": recent["level_cue"], "tier": tier} if recent else None),
         "roles": [{"title": r["title"], "company": r["company"], "start": r["start_raw"], "end": r["end_raw"],
                    "months": r["months"], "level": r.get("level"), "counted": r in counted,
-                   "tier": company_tier(r["company"], strict_tier)} for r in ev_roles],
+                   "tier": company_tier(r["company"], strict_tier), **r["review"]} for r in ev_roles],
     }

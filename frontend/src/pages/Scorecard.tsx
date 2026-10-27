@@ -79,6 +79,12 @@ export default function ScorecardPage() {
               <li key={d.factor}><b>{d.label}</b>: {fmtVal(d.factor, d.you_value)} vs median {fmtVal(d.factor, d.holder_median_value)}; {Math.round(100 * (d.share_above_you ?? 0))}% of holders above you.</li>
             ))}</ul>
           )}
+          {c.rare_strengths.length > 0 && (
+            <>
+              <p className="small" style={{ marginTop: "0.75rem" }}><b>Rare among holders</b> (in your text, held by under 30% of holders; not scored):</p>
+              <ul>{c.rare_strengths.map((x) => <li key={x.tag} className="small">{x.label}: {Math.round(100 * x.holder_share)}% of holders</li>)}</ul>
+            </>
+          )}
         </section>
       </div>
 
@@ -99,6 +105,7 @@ export default function ScorecardPage() {
         <p className="muted small">
           Source: {r.source === "experience" ? "your full experience text" : "your CV text"} ({r.format} format) · {r.years} counted years ·
           highest band held 12+ months: {r.level_max ?? "—"}.
+          {r.team_size_max && <> Largest team: {r.team_size_max.size} ({r.team_size_max.role}; {r.team_size_max.source}).</>}
           {r.recent_role && <> Scored recent role: <b>{r.recent_role.title} @ {r.recent_role.company}</b> ({r.recent_role.months} months, {TIER(r.recent_role.tier)}).</>}
         </p>
         <table className="table">
@@ -113,9 +120,11 @@ export default function ScorecardPage() {
         <details>
           <summary className="small">Evidence found ({r.evidence.length} tags, {r.achievements.length} quantified outcomes)</summary>
           <table className="table">
-            <thead><tr><th>Tag</th><th>Phrase</th><th>Role</th><th>Weight</th></tr></thead>
+            <thead><tr><th>Tag</th><th>Evidence</th><th>Source</th><th>Role</th><th>Weight</th></tr></thead>
             <tbody>{r.evidence.map((e, i) => (
-              <tr key={i}><td className="small">{e.tag}</td><td className="small">“{e.phrase}”</td><td className="small">{e.role}</td><td className="num">{e.weight}</td></tr>
+              <tr key={i}><td className="small">{e.tag}</td>
+                <td className="small">{e.url ? <a href={e.url} target="_blank" rel="noreferrer">{e.phrase}</a> : `“${e.phrase}”`}</td>
+                <td className="small">{e.source}</td><td className="small">{e.role}</td><td className="num">{e.weight}</td></tr>
             ))}</tbody>
           </table>
           <h3>Quantified outcomes</h3>

@@ -129,6 +129,7 @@ export default function ProfilePage() {
             <input value={target} placeholder="2027-06" onChange={(e) => setTarget(e.target.value)} />
           </label>
           <button className="btn primary" disabled={busy} onClick={saveExperience}>Save and rescore</button>
+          <p className="muted small">Next: <a href="/roles">review each role</a> and confirm its qualifications.</p>
         </div>
       </section>
 

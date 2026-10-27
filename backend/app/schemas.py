@@ -48,3 +48,9 @@ class PostingIn(BaseModel):
 
 class AskIn(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
+
+
+class RoleReviewIn(BaseModel):
+    tags: dict[str, float | None] = {}
+    team_size: int | None = Field(default=None, ge=0, le=100000)
+    confirmed: bool = True

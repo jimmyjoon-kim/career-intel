@@ -7,10 +7,16 @@ from ..extract import extract_cv
 from ..models import Profile, User
 from ..parsing import file_to_text
 from ..rag.index import rebuild_user
-from ..schemas import ProfileIn, TagMatchIn
+from ..schemas import ProfileIn, RoleReviewIn, TagMatchIn
 from ..security import current_user
 from ..services import ensure_profile
 from ..taxonomy import LEVELS, TAGS
+from ..v2.service import merge_experience_tags, user_features
+
+
+def _refresh_experience(prof: Profile) -> None:
+    merge_experience_tags(prof, user_features(prof))
+    flag_modified(prof, "tag_matches")
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -39,6 +45,7 @@ def _apply_cv(db: Session, user: User, prof: Profile, text: str) -> dict:
         prof.headline = result["headline"]
     if result["years_experience"] and prof.years_experience is None:
         prof.years_experience = int(result["years_experience"])
+    _refresh_experience(prof)
     db.commit()
     rebuild_user(db, user)
     return {"profile": profile_dict(prof), "extraction_mode": result["mode"], "tags_found": len(result["tags"])}
@@ -66,6 +73,8 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user), db: Sess
     cv = data.pop("cv_text", None)
     for k, v in data.items():
         setattr(prof, k, v)
+    if "experience_text" in data:
+        _refresh_experience(prof)
     db.commit()
     if cv is not None and cv.strip() != (prof.cv_text or "").strip():
         return _apply_cv(db, user, prof, cv.strip())
@@ -97,3 +106,49 @@ def set_tag(tag: str, body: TagMatchIn, user: User = Depends(current_user), db: 
     db.commit()
     rebuild_user(db, user)
     return profile_dict(prof)
+
+
+QUAL_GROUPS = [
+    ("Function", ["func_partnerships", "func_channel", "func_bd", "func_sales_leadership"]),
+    ("Management scope", ["team_mgmt", "team_large", "pnl_ownership"]),
+    ("Domain", ["domain_adtech", "domain_mobile", "domain_ai", "domain_saas"]),
+    ("Scarce experience", ["skill_0to1_build", "skill_hyperscaler", "skill_govtech", "skill_consulting_firm_background"]),
+]
+
+
+def _roles_payload(prof: Profile) -> dict:
+    from ..v2.model import TAG_LABELS
+
+    feats = user_features(prof)
+    return {
+        "qualifications": [{"group": g, "tags": [{"tag": t, "label": TAG_LABELS[t]} for t in tags]} for g, tags in QUAL_GROUPS],
+        "roles": feats["roles"] if feats else [],
+        "reviewed": sum(1 for r in (feats["roles"] if feats else []) if r["reviewed"]),
+    }
+
+
+@router.get("/roles")
+def get_roles(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return _roles_payload(ensure_profile(db, user))
+
+
+@router.put("/roles/{key:path}")
+def review_role(key: str, body: RoleReviewIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..v2.reader import ALL_TAGS
+
+    prof = ensure_profile(db, user)
+    feats = user_features(prof)
+    if not feats or key not in {r["key"] for r in feats["roles"]}:
+        raise HTTPException(404, "Role not found in your experience text")
+    bad = [t for t in body.tags if t not in ALL_TAGS]
+    if bad:
+        raise HTTPException(422, f"Unknown qualification: {', '.join(bad)}")
+    reviews = dict(prof.role_reviews or {})
+    reviews[key] = {"tags": {t: (None if v is None else (1.0 if v >= 1 else 0.5 if v >= 0.5 else 0.0)) for t, v in body.tags.items()},
+                    "team_size": body.team_size, "confirmed": body.confirmed}
+    prof.role_reviews = reviews
+    flag_modified(prof, "role_reviews")
+    _refresh_experience(prof)
+    db.commit()
+    rebuild_user(db, user)
+    return _roles_payload(prof)

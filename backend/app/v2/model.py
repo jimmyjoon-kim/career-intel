@@ -40,6 +40,8 @@ TAG_LABELS = {
     "domain_adtech": "Ad tech", "domain_ai": "AI", "domain_saas": "SaaS / cloud", "domain_mobile": "Mobile / gaming",
     "skill_hyperscaler": "Hyperscaler partnerships", "skill_govtech": "Government sector",
     "skill_consulting_firm_background": "Consulting-firm background", "skill_0to1_build": "0-to-1 build",
+    "team_mgmt": "People management", "team_large": "Large team (20+)", "pnl_ownership": "P&L ownership",
+    "func_sales_leadership": "Sales / commercial leadership",
 }
 # Posting requirement tags -> the factor they emphasise.
 TAG_FACTOR = {
@@ -178,6 +180,10 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                           "status": "older than 8 years (counts half)" if yours == 0.5 else "not found in your text",
                           "note": "rule over-matches; re-measure" if t == "skill_consulting_firm_background" and p > 0.3 else ""})
 
+    # Tag-level differentiators: evidenced (recent) in your text and held by under 30% of holders. Not part of the score.
+    rare = [{"tag": t, "label": TAG_LABELS[t], "holder_share": round(p, 2)}
+            for t, p in sorted(prevalence.items(), key=lambda x: x[1]) if uf["tags"].get(t, 0) >= 1 and p < 0.3]
+
     order = sorted(range(len(rows)), key=lambda i: _gower(uf, rows[i]))
     peers = []
     for i in order[:8]:
@@ -194,7 +200,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "position_ci95": [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))] if boots else [None, None],
         "holders": {"median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "p75": _r(np.percentile(sc, 75)),
                     "hist": {"edges": [int(e) for e in edges], "counts": [int(c) for c in hist]}},
-        "factors": factors, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "peers": peers,
+        "factors": factors, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare, "peers": peers,
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
         "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf},
     }

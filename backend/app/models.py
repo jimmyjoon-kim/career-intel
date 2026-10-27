@@ -38,6 +38,8 @@ class Profile(Base):
     experience_text: Mapped[str] = mapped_column(Text, default="")
     # Target month for applications, "YYYY-MM"; used to mark gaps closable in time.
     target_date: Mapped[str] = mapped_column(String(7), default="")
+    # Your review of each role: {role_key: {"tags": {tag: 0|0.5|1}, "team_size": int|None, "confirmed": bool}}
+    role_reviews: Mapped[dict] = mapped_column(JSON, default=dict)
     years_experience: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # {tag: {"match": 0|0.5|1, "evidence": str, "source": "extracted"|"user"}}
     tag_matches: Mapped[dict] = mapped_column(JSON, default=dict)

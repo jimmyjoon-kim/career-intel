@@ -27,7 +27,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.5,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.5,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -51,9 +55,13 @@
     "domain_saas": 0.0,
     "domain_mobile": 0.0,
     "skill_hyperscaler": 0.0,
-    "skill_govtech": 0.0,
+    "skill_govtech": 1.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -79,7 +87,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -105,7 +117,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -131,7 +147,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -157,7 +177,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -183,7 +207,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.5,
+    "func_sales_leadership": 0.5
    }
   },
   {
@@ -209,7 +237,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 0.5,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -222,20 +254,24 @@
    "LV": 5,
    "LV_max": 5,
    "FN": 0.8333333333333334,
-   "DM": 0.375,
+   "DM": 0.625,
    "AC": 4,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
     "func_channel": 0.5,
-    "domain_adtech": 0.0,
+    "domain_adtech": 1.0,
     "domain_ai": 0.0,
     "domain_saas": 1.0,
     "domain_mobile": 0.5,
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -261,7 +297,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.5,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -287,7 +327,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 1.0,
+    "func_sales_leadership": 1.0
    }
   },
   {
@@ -313,7 +357,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.5,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.5,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -339,7 +387,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -365,7 +417,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 1.0,
+    "func_sales_leadership": 1.0
    }
   },
   {
@@ -391,7 +447,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -417,7 +477,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -443,7 +507,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -456,20 +524,24 @@
    "LV": 1,
    "LV_max": 1,
    "FN": 0.3333333333333333,
-   "DM": 0.0,
+   "DM": 0.25,
    "AC": 0,
    "tags": {
     "func_partnerships": 0.0,
     "func_bd": 1.0,
     "func_channel": 0.0,
-    "domain_adtech": 0.0,
+    "domain_adtech": 1.0,
     "domain_ai": 0.0,
     "domain_saas": 0.0,
     "domain_mobile": 0.0,
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -495,7 +567,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -521,7 +597,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -547,7 +627,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -559,13 +643,13 @@
    "tier": 1,
    "LV": 2,
    "LV_max": 2,
-   "FN": 0.6666666666666666,
+   "FN": 1.0,
    "DM": 0.75,
    "AC": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
-    "func_channel": 0.0,
+    "func_channel": 1.0,
     "domain_adtech": 0.5,
     "domain_ai": 1.0,
     "domain_saas": 0.5,
@@ -573,7 +657,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.5,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.5,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -599,7 +687,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -625,7 +717,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -651,7 +747,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 1.0,
+    "func_sales_leadership": 1.0
    }
   },
   {
@@ -677,7 +777,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.5,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.5,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -703,7 +807,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 1.0,
+    "func_sales_leadership": 1.0
    }
   },
   {
@@ -716,7 +824,7 @@
    "LV": 3,
    "LV_max": 3,
    "FN": 0.6666666666666666,
-   "DM": 0.375,
+   "DM": 0.5,
    "AC": 0,
    "tags": {
     "func_partnerships": 1.0,
@@ -724,12 +832,16 @@
     "func_channel": 0.0,
     "domain_adtech": 0.0,
     "domain_ai": 1.0,
-    "domain_saas": 0.5,
+    "domain_saas": 1.0,
     "domain_mobile": 0.0,
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -755,7 +867,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -781,7 +897,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 1.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -807,7 +927,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -833,7 +957,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -859,7 +987,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 1.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.5
+    "skill_consulting_firm_background": 0.5,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -885,7 +1017,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.5,
+    "func_sales_leadership": 0.5
    }
   },
   {
@@ -911,7 +1047,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.5,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 1.0
+    "skill_consulting_firm_background": 1.0,
+    "team_mgmt": 0.5,
+    "team_large": 0.5,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -937,7 +1077,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -963,7 +1107,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -989,7 +1137,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 1.0,
     "skill_0to1_build": 1.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -1015,7 +1167,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -1041,7 +1197,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.5,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -1067,7 +1227,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 1.0
+    "skill_consulting_firm_background": 1.0,
+    "team_mgmt": 0.0,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   },
   {
@@ -1093,7 +1257,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 1.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 1.0,
+    "func_sales_leadership": 1.0
    }
   },
   {
@@ -1119,7 +1287,11 @@
     "skill_hyperscaler": 1.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 1.0,
+    "team_large": 0.0,
+    "pnl_ownership": 1.0,
+    "func_sales_leadership": 1.0
    }
   },
   {
@@ -1145,7 +1317,11 @@
     "skill_hyperscaler": 0.0,
     "skill_govtech": 0.0,
     "skill_0to1_build": 0.0,
-    "skill_consulting_firm_background": 0.0
+    "skill_consulting_firm_background": 0.0,
+    "team_mgmt": 0.5,
+    "team_large": 0.0,
+    "pnl_ownership": 0.0,
+    "func_sales_leadership": 0.0
    }
   }
  ]

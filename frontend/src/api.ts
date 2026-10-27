@@ -35,6 +35,7 @@ export type Card = {
   holders: { median: number; p25: number; p75: number; hist: { edges: number[]; counts: number[] } };
   factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];
   focus_areas: { tag: string; label: string; holder_share: number; your_weight: number; status: string; note: string }[];
+  rare_strengths: { tag: string; label: string; holder_share: number }[];
   peers: { company: string; title: string; score: number; similarity: number; ahead_on: string[]; you_lead_on: string[] }[];
 };
 export type RoleRead = { title: string; company: string; start: string; end: string; months: number; level: number | null; counted: boolean; tier: number };
@@ -43,7 +44,8 @@ export type Scorecard = {
   reading?: {
     source: string; format: string; years: number; level_max: string | null; level_names: Record<string, string>;
     recent_role: { title: string; company: string; start: string; end: string; months: number; level: number; level_cue: string | null; tier: number } | null;
-    roles: RoleRead[]; evidence: { tag: string; weight: number; role: string; phrase: string }[];
+    roles: RoleRead[]; evidence: { tag: string; weight: number; role: string; phrase: string; source: string; url: string }[];
+    team_size_max: { size: number; role: string; source: string } | null;
     achievements: { role: string; line: string; match: string }[]; tags: Record<string, number>;
   };
   notes?: string[];

@@ -132,3 +132,24 @@ def test_scorecard_flow(client):
     assert all(r["opportunity"] is not None for r in rows)
     assert client.get("/api/dashboard", headers=h).json()["base"]["n_reference"] == 44
     assert client.put("/api/profile", json={"target_date": "June"}, headers=h).status_code == 422
+
+
+def test_role_review(client):
+    import urllib.parse
+
+    h, _ = signup(client, "roles@example.com")
+    client.put("/api/profile", json={"experience_text": EXPERIENCE}, headers=h)
+    p = client.get("/api/profile/roles", headers=h).json()
+    unity = next(r for r in p["roles"] if r["company"] == "Unity")
+    assert "General manager / business-unit head" in unity["families"]
+    assert unity["final"]["pnl_ownership"] == 1 and not unity["reviewed"]
+    url = "/api/profile/roles/" + urllib.parse.quote(unity["key"], safe="")
+    r = client.put(url, json={"tags": {"skill_hyperscaler": 1, "domain_saas": 0}, "team_size": 35}, headers=h)
+    assert r.status_code == 200, r.text
+    unity = next(x for x in r.json()["roles"] if x["company"] == "Unity")
+    assert unity["reviewed"] and unity["team_size"] == 35 and unity["final"]["team_large"] == 1
+    assert unity["final"]["skill_hyperscaler"] == 1 and "domain_saas" not in unity["final"]
+    prof = client.get("/api/profile", headers=h).json()
+    assert prof["tag_matches"]["team_large"]["match"] == 1
+    assert client.put("/api/profile/roles/nope", json={"tags": {}}, headers=h).status_code == 404
+    assert client.put(url, json={"tags": {"bogus": 1}}, headers=h).status_code == 422

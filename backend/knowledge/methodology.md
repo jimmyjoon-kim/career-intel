@@ -41,3 +41,9 @@ Weights are validated against the profiles of people actually hired, not job-des
 - Gap on a factor = weight x (median holder percentile - your percentile). Structural gaps (tier, years, level) are stepping stones; capability gaps (function, domain, scarce experience, outcomes) are focus areas; negative gaps are differentiators.
 - Consulting background counts only for employment at a consulting firm or described management/strategy consulting work, not for a "Consultant" title or a firm named as a client.
 - Opportunity score = the base composite with weights re-emphasised by one posting's requirement tags (w' = w x (1 + share of posting requirement weight on that factor)). Years and level requirements are reported as thresholds, not scored. The emphasis rule is a first pass and is not yet validated against hiring outcomes.
+
+## Role review
+
+- Every role in a person's history gets the same preset qualification checklist: partnerships, channel, business development, sales/commercial leadership, people management, large team (20+), P&L ownership, ad tech, mobile, AI, SaaS, 0-to-1 build, hyperscaler, government, consulting-firm background.
+- Prefill sources, strongest first: your confirmed value, title, description, CV line, a "Scope:" line you state, role template implied by the title (for example, a general manager runs the unit's team and P&L), employer context from public sources.
+- You review each role and confirm or change each item and the team size. Confirmed values are what get scored. Role holders are scored from their own profile text with the same templates and employer context.

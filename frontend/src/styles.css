@@ -262,3 +262,14 @@ details summary { cursor: pointer; color: var(--accent); margin: 0.5rem 0; }
 .kicker.warn { color: var(--warn); }
 .kicker.bad { color: var(--bad); }
 .notes { padding-left: 1.1rem; color: var(--ink-2); font-size: 12px; }
+
+/* role review */
+.role-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.role-head h2 { margin: 0 0 2px; }
+.qual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 2rem; }
+@media (max-width: 900px) { .qual-grid { grid-template-columns: 1fr; } }
+.qual-row { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+.qual-row > div:first-child { min-width: 0; }
+.role-foot { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-top: 1rem; }
+.role-foot label { margin: 0; max-width: 260px; }
+.qual-row .seg { flex-shrink: 0; }

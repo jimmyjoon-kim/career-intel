@@ -3,6 +3,7 @@ import { useAuth } from "./auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ScorecardPage from "./pages/Scorecard";
+import Roles from "./pages/Roles";
 import Postings from "./pages/Postings";
 import Market from "./pages/Market";
 import ProfilePage from "./pages/Profile";
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/postings", label: "Postings" },
   { to: "/market", label: "Market" },
   { to: "/profile", label: "Profile" },
+  { to: "/roles", label: "Role review" },
   { to: "/ask", label: "Ask" },
 ];
 
@@ -52,6 +54,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/scorecard" element={<ScorecardPage />} />
+          <Route path="/roles" element={<Roles />} />
           <Route path="/postings" element={<Postings />} />
           <Route path="/market" element={<Market />} />
           <Route path="/profile" element={<ProfilePage />} />

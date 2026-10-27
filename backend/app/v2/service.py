@@ -11,13 +11,35 @@ from sqlalchemy.orm import Session
 
 from ..models import Profile, ReferenceProfile
 from .model import Reference, base_scorecard
-from .reader import extract_features, parse_roles
+from .reader import SOURCE_ORDER, extract_features, parse_roles
 
 SEED_DIR = Path(__file__).resolve().parents[2] / "seed"
 DEFAULT_CLUSTER = "Partnerships"
 # Reader tags that are also posting-requirement tags: experience evidence feeds posting matches.
 SHARED_TAGS = ["func_partnerships", "func_bd", "func_channel", "domain_adtech", "domain_ai", "domain_saas", "domain_mobile",
-               "skill_hyperscaler", "skill_govtech", "skill_consulting_firm_background", "skill_0to1_build"]
+               "skill_hyperscaler", "skill_govtech", "skill_consulting_firm_background", "skill_0to1_build",
+               "team_mgmt", "team_large", "pnl_ownership", "func_sales_leadership"]
+
+
+def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
+    """Store reader evidence as requirement matches (source 'experience'); never overrides your own settings."""
+    current = dict(prof.tag_matches or {})
+    for k in [k for k, v in current.items() if v.get("source") == "experience"]:
+        current.pop(k)
+    if feats:
+        best: dict[str, dict] = {}
+        for e in feats["evidence"]:
+            key = (e["weight"], -SOURCE_ORDER.get(e["source"], 9))
+            if e["tag"] in SHARED_TAGS and (e["tag"] not in best or key > best[e["tag"]][0]):
+                best[e["tag"]] = (key, e)
+        best = {t: v[1] for t, v in best.items()}
+        for t, e in best.items():
+            prev = current.get(t)
+            if prev and (prev.get("source") == "user" or float(prev.get("match", 0)) >= e["weight"]):
+                continue
+            current[t] = {"match": e["weight"], "source": "experience",
+                          "evidence": f'{e["role"]}: "{e["phrase"]}" ({e["source"]})'[:500]}
+    prof.tag_matches = current
 
 
 def import_reference_file(db: Session, path: Path) -> int:
@@ -64,7 +86,7 @@ def user_features(prof: Profile | None) -> dict | None:
     roles, fmt = parse_roles(text)
     if not roles:
         return None
-    f = extract_features(roles)
+    f = extract_features(roles, overrides=(prof.role_reviews or {}) if prof else None)
     f["source"], f["format"] = source, fmt
     return f
 

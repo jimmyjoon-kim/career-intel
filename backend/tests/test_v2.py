@@ -72,3 +72,24 @@ def test_base_scorecard_and_opportunity():
     assert opp["weights"]["UQ"] > pub["weights"]["UQ"] and opp["weights"]["CT"] < pub["weights"]["CT"]
     assert any("30+ years" in t for t in opp["thresholds"])
     assert abs(sum(opp["weights"].values()) - 100) < 0.5
+
+
+def test_title_scope_and_stated_team_size():
+    text = """Experience
+General Manager, Grow Korea
+Unity · Full-time
+Nov 2022 - Mar 2025 · 2 yrs 5 mos
+Scope: Managed all operations of the business unit: 15 business people and 20+ engineers and product managers.
+Partner Director
+Bigco
+Jan 2020 - Oct 2022 · 2 yrs 10 mos
+Worked with partners.
+"""
+    roles, _ = parse_roles(text, NOW)
+    f = extract_features(roles, now=NOW)
+    assert f["tags"]["team_mgmt"] == 1 and f["tags"]["team_large"] == 1 and f["tags"]["pnl_ownership"] == 1
+    assert f["team_size_max"]["size"] == 35 and f["team_size_max"]["source"] == "stated"
+    srcs = {(e["tag"], e["source"]) for e in f["evidence"] if "Unity" in e["role"]}
+    assert ("pnl_ownership", "implied by title") in srcs and ("domain_adtech", "employer context") in srcs
+    # A Director title alone implies no people management
+    assert not any(e["tag"] == "team_mgmt" and "Bigco" in e["role"] for e in f["evidence"])

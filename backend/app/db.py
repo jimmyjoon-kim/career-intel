@@ -23,7 +23,8 @@ def init_db() -> None:
     # Columns added after first release (create_all does not alter existing tables).
     with engine.begin() as conn:
         for ddl in ("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS experience_text TEXT DEFAULT ''",
-                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_date VARCHAR(7) DEFAULT ''"):
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_date VARCHAR(7) DEFAULT ''",
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role_reviews JSON DEFAULT '{}'::json"):
             conn.execute(text(ddl))
 
 
