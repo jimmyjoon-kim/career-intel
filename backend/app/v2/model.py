@@ -207,6 +207,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "factors": factors, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare,
         "prevalence": {t: round(p, 2) for t, p in prevalence.items()}, "tag_labels": TAG_LABELS, "peers": peers,
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
+        "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev),
         "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf},
     }
 
@@ -248,6 +249,52 @@ def opportunity(card: dict, posting_tags: list[str], tag_weights: dict[str, int]
             "weights": {k: _r(v) for k, v in w2.items()},
             "emphasised": [FACTOR_LABELS[k] for k, v in shifts if v > 0.5][:3],
             "thresholds": thresholds}
+
+
+def _score_with(uf: dict, M: np.ndarray, wv: np.ndarray, prev: dict) -> tuple[float, float]:
+    f = with_uq(uf, prev)
+    P = pct_matrix(_vec(f)[None, :], M)
+    s = float(composite(P, wv)[0])
+    return s, position(s, composite(pct_matrix(M, M), wv))
+
+
+def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev) -> dict:
+    """What a score means, who scores above you and why, and what would move your score."""
+    sc = S_h[~np.isnan(S_h)]
+    above = [i for i in range(len(rows)) if not np.isnan(S_h[i]) and S_h[i] > S_u]
+    drivers = {}
+    for j, k in enumerate(FACTORS):
+        vals = [w[k] / 100 * (P_h[i][j] - P_u[j]) for i in above if not (np.isnan(P_h[i][j]) or np.isnan(P_u[j]))]
+        drivers[k] = {"label": FACTOR_LABELS[k], "avg_points": _r(np.mean(vals)) if vals else None,
+                      "holders_ahead": sum(1 for v in vals if v > 0.5)}
+    tiers = {t: sum(1 for i in above if rows[i].get("tier") == t) for t in (1, 2, 3)}
+    # What-ifs: one change at a time, everything else as read.
+    whatifs = []
+    cases = [
+        ("Recent employer at Tier 2 (e.g. 12+ months at a $10B+ company)", "CT", {"CT": 2, "tier": 2}),
+        ("Recent employer at Tier 1 (top-10 tech)", "CT", {"CT": 3, "tier": 1}),
+        ("Partnerships, BD and channel all evidenced in the last 8 years", "FN",
+         {"tags": {**uf["tags"], "func_partnerships": 1.0, "func_bd": 1.0, "func_channel": 1.0}, "FN": 1.0}),
+        ("Hyperscaler partnership experience added", "UQ", {"tags": {**uf["tags"], "skill_hyperscaler": 1.0}}),
+        ("Two more quantified outcomes written into roles", "AC", {"AC": (uf.get("AC") or 0) + 2}),
+    ]
+    for label, k, change in cases:
+        alt = {**uf, **change}
+        if alt == uf or (k == "FN" and (uf.get("FN") or 0) >= 1) or (k == "CT" and (uf.get("CT") or 0) >= change["CT"]):
+            continue
+        s, p = _score_with(alt, M, wv, prev)
+        whatifs.append({"change": label, "factor": FACTOR_LABELS[k], "score": _r(s), "delta": _r(s - S_u), "position": _r(p),
+                        "closable": GAP_CLASS[k][0] == "capability"})
+    whatifs.sort(key=lambda x: -(x["delta"] or 0))
+    return {
+        "max": _r(sc.max()), "p90": _r(np.percentile(sc, 90)), "p75": _r(np.percentile(sc, 75)),
+        "median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "min": _r(sc.min()),
+        "ceiling_note": "A score of 100 would mean ranking first among holders on every factor; no holder does. "
+                        "The highest holder scores " + str(_r(sc.max())) + ".",
+        "n_above": len(above), "above_tiers": {f"Tier {t}": n for t, n in tiers.items()},
+        "drivers": sorted(drivers.values(), key=lambda d: -(d["avg_points"] or 0)),
+        "whatifs": whatifs,
+    }
 
 
 def public(card: dict) -> dict:

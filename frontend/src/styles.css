@@ -328,3 +328,6 @@ a.more-link { text-decoration: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tabs button.on, .chip-btn:hover { border-color: var(--accent); }
 .chip-btn { background: var(--surface-2); color: var(--ink-2); border-color: var(--line); min-height: 36px; }
+.plan-list { display: flex; flex-direction: column; gap: 8px; }
+.plan-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 190px; gap: 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; align-items: start; }
+@media (max-width: 900px) { .plan-row { grid-template-columns: 1fr; } .plan-row > div:last-child { text-align: left !important; } }

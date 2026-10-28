@@ -48,17 +48,20 @@ def _batches(texts: list[str], max_tokens: int) -> list[list[str]]:
     return out
 
 
-def _post_with_retry(client: httpx.Client, payload: dict, api_key: str) -> httpx.Response:
+def _post_with_retry(client: httpx.Client, payload: dict, api_key: str, max_attempts: int = MAX_ATTEMPTS,
+                     max_wait: float = 65) -> httpx.Response:
     """POST to Voyage, waiting and retrying on rate limits (429) and transient 5xx errors."""
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    MAX = max_attempts
+    for attempt in range(1, MAX + 1):
         resp = client.post(VOYAGE_URL, headers={"Authorization": f"Bearer {api_key}"}, json=payload)
         if resp.status_code != 429 and resp.status_code < 500:
             break
-        if attempt == MAX_ATTEMPTS:
+        if attempt == MAX:
             break
         retry_after = resp.headers.get("retry-after")
         wait = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else min(65, 21 * attempt)
-        log.warning("Voyage returned %s; waiting %.0fs (attempt %d/%d)", resp.status_code, wait, attempt, MAX_ATTEMPTS)
+        wait = min(wait, max_wait)
+        log.warning("Voyage returned %s; waiting %.0fs (attempt %d/%d)", resp.status_code, wait, attempt, MAX)
         time.sleep(wait)
     if resp.status_code == 401:
         raise RuntimeError("Voyage rejected the API key (401). Check VOYAGE_API_KEY in .env.")
@@ -71,7 +74,7 @@ def _post_with_retry(client: httpx.Client, payload: dict, api_key: str) -> httpx
     return resp
 
 
-def _voyage(texts: list[str], input_type: str) -> list[list[float]]:
+def _voyage(texts: list[str], input_type: str, max_attempts: int = MAX_ATTEMPTS, max_wait: float = 65) -> list[list[float]]:
     s = get_settings()
     out: list[list[float]] = []
     batches = _batches(texts, s.voyage_max_batch_tokens)
@@ -84,16 +87,17 @@ def _voyage(texts: list[str], input_type: str) -> list[list[float]]:
                 "model": s.voyage_model,
                 "input_type": input_type,
                 "output_dimension": s.embedding_dim,
-            }, s.voyage_api_key)
+            }, s.voyage_api_key, max_attempts, max_wait)
             data = sorted(resp.json()["data"], key=lambda d: d["index"])
             out.extend(d["embedding"] for d in data)
     return out
 
 
-def embed(texts: list[str], input_type: str = "document") -> list[list[float]]:
+def embed(texts: list[str], input_type: str = "document", quick: bool = False) -> list[list[float]]:
+    """quick=True (interactive queries): at most 2 attempts, 5 s wait, so a request never hangs on rate limits."""
     s = get_settings()
     if not texts:
         return []
     if s.voyage_api_key:
-        return _voyage(texts, input_type)
+        return _voyage(texts, input_type, 2, 5) if quick else _voyage(texts, input_type)
     return [_hash_embed(t, s.embedding_dim) for t in texts]

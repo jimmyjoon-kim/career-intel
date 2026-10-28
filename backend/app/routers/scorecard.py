@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import User
 from ..security import current_user
-from ..services import ensure_profile
+from ..services import ensure_profile, evaluate
+from ..v2.gapplan import build_gap_plan
 from ..v2.model import public
 from ..v2.reader import LEVEL_NAMES
 from ..v2.service import months_left, reference_meta, scorecard
@@ -18,9 +19,12 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
     card, feats, reason = scorecard(db, prof)
     if card is None:
         return {"ready": False, "reason": reason}
+    left = months_left(prof.target_date or "")
+    ev = evaluate(db, user)
     return {
         "ready": True,
         "card": public(card),
+        "gap_plan": build_gap_plan(card, ev["gap_summary"], left),
         "reference": reference_meta(db),
         "months_left": months_left(prof.target_date or ""),
         "reading": {

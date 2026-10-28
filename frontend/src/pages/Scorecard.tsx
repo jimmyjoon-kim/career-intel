@@ -89,6 +89,10 @@ export default function ScorecardPage() {
         </button>
       </section>
 
+      <Benchmark c={c} />
+
+      <GapPlan items={data.gap_plan ?? []} monthsLeft={data.months_left ?? null} />
+
       <section className="sc-row2">
         <div className="tile">
           <div className="tile-title">Seven factors, you vs the median holder</div>
@@ -193,6 +197,106 @@ export default function ScorecardPage() {
 
       {detail && <DetailPanel d={detail} c={c} r={r} notes={data.notes ?? []} reference={data.reference} onClose={() => setDetail(null)} onOpen={setDetail} />}
     </div>
+  );
+}
+
+type PlanItem = NonNullable<Scorecard["gap_plan"]>[number];
+
+function GapPlan({ items, monthsLeft }: { items: PlanItem[]; monthsLeft: number | null }) {
+  const groups = items.reduce<Record<string, PlanItem[]>>((acc, it) => { (acc[it.against] ||= []).push(it); return acc; }, {});
+  const fmt = (v: string | number | null, f: string | null) => (v == null ? "—" : typeof v === "number" ? fmtVal(f ?? "", v) : v);
+  return (
+    <section className="tile">
+      <div className="tile-head">
+        <span className="tile-title">Close the gap</span>
+        <span className="small muted">{monthsLeft != null ? `${monthsLeft} months to your target date` : "Set a target date on Profile to see what closes in time"}</span>
+      </div>
+      {items.length === 0 ? <div className="muted small">No gaps against the median holder, the holders above you, or open postings.</div> :
+        Object.entries(groups).map(([against, list]) => (
+          <div key={against} style={{ marginBottom: 14 }}>
+            <h3 style={{ color: "var(--muted)" }}>Compared with: {against}</h3>
+            <div className="plan-list">
+              {list.map((it) => (
+                <div key={against + it.gap} className="plan-row">
+                  <div>
+                    <b>{it.gap}</b> <span className={`chip-d ${it.kind === "structural" || it.kind === "hard minimum" ? "warn" : "acc"}`}>{it.kind}</span>
+                    <div className="small" style={{ color: "var(--ink-2)", marginTop: 4 }}>{it.evidence}</div>
+                    {(it.you != null || it.them != null) && <div className="small muted">You: {fmt(it.you, it.factor)}{it.them != null ? ` · them: ${fmt(it.them, it.factor)}` : ""}</div>}
+                  </div>
+                  <div className="small">{it.action}</div>
+                  <div className="small" style={{ textAlign: "right" }}>
+                    <div>{it.months == null ? "Not closable by current work" : it.months <= 1 ? "Under a month (if the work exists)" : `About ${it.months} months`}</div>
+                    <div className={it.by_target === true ? "good" : it.by_target === false ? "bad" : "muted"} style={{ color: it.by_target === true ? "var(--good)" : it.by_target === false ? "var(--bad)" : undefined, fontWeight: 600 }}>
+                      {it.by_target === true ? "Closable by target" : it.by_target === false ? "Not by target" : ""}
+                    </div>
+                    {it.score_effect != null && <div style={{ color: "var(--accent)" }}>Score +{it.score_effect} if closed</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+    </section>
+  );
+}
+
+function Benchmark({ c }: { c: Card }) {
+  const b = c.benchmark;
+  const marks: [string, number, string][] = [["lowest", b.min, "var(--dot)"], ["25th", b.p25, "var(--dot)"], ["median", b.median, "var(--holder)"],
+    ["75th", b.p75, "var(--dot)"], ["90th", b.p90, "var(--dot)"], ["highest", b.max, "var(--dot)"]];
+  const maxDrv = Math.max(1, ...b.drivers.map((d) => Math.abs(d.avg_points ?? 0)));
+  return (
+    <section className="sc-row2">
+      <div className="tile">
+        <div className="tile-title">What your score means</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>Your score against the range of scores held by people in these roles.</div>
+        <svg width="100%" height="110" viewBox="0 0 520 110" role="img" aria-label={`Benchmark: lowest ${b.min}, median ${b.median}, 90th percentile ${b.p90}, highest ${b.max}, you ${c.base_score}`}>
+          <rect x="10" y="50" width="500" height="10" rx="5" fill="var(--line)" />
+          <rect x={10 + b.p25 * 5} y="50" width={(b.p75 - b.p25) * 5} height="10" fill="var(--dim)" />
+          {marks.map(([l, v, col], i) => (
+            <g key={l}>
+              <line x1={10 + v * 5} x2={10 + v * 5} y1="44" y2="66" stroke={col} strokeWidth="2" />
+              <text x={10 + v * 5} y={i % 2 ? 84 : 98} textAnchor="middle" className="svg-text" fontSize="11">{l} {v}</text>
+            </g>
+          ))}
+          <circle cx={10 + c.base_score * 5} cy="55" r="9" fill="var(--accent-strong)" stroke="var(--bg)" strokeWidth="2" />
+          <text x={10 + c.base_score * 5} y="30" textAnchor="middle" fontSize="13" fontWeight="700" className="svg-ink">you {c.base_score}</text>
+        </svg>
+        <p className="small" style={{ color: "var(--ink-2)", margin: "6px 0 0" }}>{b.ceiling_note} Read the score against these holders, not against 100: you are above {c.n_reference - b.n_above} of {c.n_reference}.</p>
+      </div>
+      <div className="tile">
+        <div className="tile-title">Why {b.n_above} holders score above you</div>
+        <div className="small muted" style={{ marginBottom: 8 }}>
+          Average weighted points they gain (+) or lose (−) against you, by factor. Their recent employer: {Object.entries(b.above_tiers).filter(([, n]) => n).map(([t, n]) => `${n} ${t}`).join(", ")}.
+        </div>
+        {b.drivers.map((d) => {
+          const v = d.avg_points ?? 0;
+          return (
+            <div key={d.label} className="fac" style={{ cursor: "inherit", gridTemplateColumns: "150px minmax(0,1fr) 64px" }}>
+              <span>{d.label.replace(" (recent employer)", "")}</span>
+              <span className="track">
+                <span style={{ position: "absolute", left: "50%", top: -3, width: 1, height: 16, background: "var(--muted)" }} />
+                <span style={{ position: "absolute", height: 10, borderRadius: 5, background: v > 0 ? "var(--bad)" : "var(--good)",
+                  left: v > 0 ? "50%" : `${50 - (50 * Math.abs(v)) / maxDrv}%`, width: `${(50 * Math.abs(v)) / maxDrv}%` }} />
+              </span>
+              <span className={`gapv ${v > 0.5 ? "bad" : v < -0.5 ? "good" : ""}`}>{v > 0 ? "+" : ""}{v.toFixed(1)}</span>
+            </div>
+          );
+        })}
+        <div className="small" style={{ color: "var(--ink-2)", marginTop: 8 }}>Red = where they lead you; green = where you lead them.</div>
+      </div>
+      <div className="tile" style={{ gridColumn: "1 / -1" }}>
+        <div className="tile-title">What would move your score</div>
+        <div className="small muted" style={{ marginBottom: 10 }}>One change at a time, everything else as read today. Recomputed with the same model.</div>
+        {b.whatifs.map((w) => (
+          <div key={w.change} className="rank-row" style={{ gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr) 140px" }}>
+            <span>{w.change}<br /><span className={`chip-d ${w.closable ? "good" : "warn"}`}>{w.closable ? "Capability · closable if the work exists" : "Structural · needs time at a new employer"}</span></span>
+            <span className="track"><span className="fill" style={{ width: `${w.score}%` }} /><span className="tick" style={{ left: `${c.base_score}%`, background: "var(--muted)" }} /></span>
+            <span style={{ textAlign: "right" }}><b>{w.score}</b> <span className="good" style={{ color: "var(--good)" }}>+{w.delta}</span><br /><span className="small muted">{ord(w.position)} percentile</span></span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

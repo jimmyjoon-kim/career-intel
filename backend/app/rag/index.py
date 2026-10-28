@@ -5,6 +5,8 @@ and the method documents in backend/knowledge/. Private corpus (owner_id = user)
 user's CV chunks and a generated scorecard of their matches and gaps.
 """
 
+import logging
+import re
 from pathlib import Path
 
 from sqlalchemy import delete, or_, select
@@ -15,6 +17,9 @@ from ..models import Chunk, Posting, User
 from ..taxonomy import TAGS
 from .embeddings import embed
 
+log = logging.getLogger(__name__)
+_STOP = {"the", "and", "for", "what", "which", "are", "how", "why", "with", "that", "this", "does", "have", "from", "into",
+         "about", "you", "your", "can", "should", "will", "there", "their", "they", "them", "who", "where", "when", "fit"}
 KNOWLEDGE_DIR = Path(__file__).resolve().parents[2] / "knowledge"
 CHUNK_CHARS = 1200
 OVERLAP = 200
@@ -165,10 +170,43 @@ def rebuild_user(db: Session, user: User) -> int:
     return len(items)
 
 
+def safe_rebuild_user(db: Session, user: User) -> str:
+    """Rebuild the private index without failing the request that triggered it."""
+    try:
+        rebuild_user(db, user)
+        return "ok"
+    except Exception as err:  # noqa: BLE001 — a rate limit must not block saving a profile
+        db.rollback()
+        log.warning("private index rebuild failed: %s", err)
+        return f"Your data was saved, but the Ask index was not refreshed: {err}"
+
+
+def keyword_search(db: Session, user_id: int, query: str, k: int) -> list[tuple[Chunk, float]]:
+    """Fallback when the embedding service is unavailable: rank chunks by query-word hits."""
+    words = [w for w in re.findall(r"[a-z0-9&]{3,}", query.lower()) if w not in _STOP][:12]
+    if not words:
+        return []
+    rows = list(db.scalars(select(Chunk).where(or_(Chunk.owner_id.is_(None), Chunk.owner_id == user_id))))
+    scored = []
+    for c in rows:
+        low = c.text.lower()
+        hits = sum(low.count(w) for w in words)
+        if hits:
+            scored.append((c, hits))
+    scored.sort(key=lambda x: -x[1])
+    top = scored[:k]
+    mx = top[0][1] if top else 1
+    return [(c, round(h / mx, 4)) for c, h in top]
+
+
 def search(db: Session, user_id: int, query: str, k: int | None = None) -> list[tuple[Chunk, float]]:
     s = get_settings()
     k = k or s.rag_top_k
-    qv = embed([query], "query")[0]
+    try:
+        qv = embed([query], "query", quick=True)[0]
+    except Exception as err:  # noqa: BLE001
+        log.warning("query embedding failed, using keyword search: %s", err)
+        return keyword_search(db, user_id, query, k)
     dist = Chunk.embedding.cosine_distance(qv)
     stmt = (
         select(Chunk, dist.label("dist"))

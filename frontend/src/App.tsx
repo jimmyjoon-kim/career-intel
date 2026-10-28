@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { api } from "./api";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import Login from "./pages/Login";
@@ -40,6 +42,7 @@ export default function App() {
           {user.is_admin && <NavLink to="/admin" className={({ isActive }) => (isActive ? "active" : "")}>Data</NavLink>}
         </nav>
         <div className="side-foot">
+          <RefreshButton />
           {status && (
             <div className="sys">
               <span className={`dot ${status.llm ? "on" : "off"}`} />
@@ -67,6 +70,26 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+    </div>
+  );
+}
+
+
+function RefreshButton() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await api<{ ok: boolean; roles_read: number; index: string }>("/api/profile/refresh", { method: "POST" });
+      if (r.index !== "ok") { setMsg(r.index); setBusy(false); return; }
+      window.location.reload();
+    } catch (e) { setMsg((e as Error).message); setBusy(false); }
+  };
+  return (
+    <div>
+      <button className="btn primary" style={{ width: "100%" }} disabled={busy} onClick={run}>{busy ? "Refreshing…" : "Refresh analysis"}</button>
+      {msg && <div className="small" style={{ color: "var(--warn)", marginTop: 6 }}>{msg}</div>}
     </div>
   );
 }

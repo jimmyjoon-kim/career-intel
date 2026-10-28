@@ -167,3 +167,24 @@ def test_matches(client):
     assert isinstance(m["positions"], list)
     s = client.post("/api/matches/search", json={"query": "Head of Partnerships AI"}, headers=h).json()
     assert s["available"] is False  # offline in tests
+
+
+def test_benchmark_gap_plan_refresh_and_ask_fallback(client, monkeypatch):
+    h, _ = signup(client, "bench@example.com")
+    client.put("/api/profile", json={"experience_text": EXPERIENCE, "target_date": "2027-06"}, headers=h)
+    s = client.get("/api/scorecard", headers=h).json()
+    b = s["card"]["benchmark"]
+    assert b["max"] >= b["p90"] >= b["median"] and isinstance(b["whatifs"], list)
+    assert isinstance(s["gap_plan"], list) and all("action" in g for g in s["gap_plan"])
+    unity = next(r for r in s["reading"]["roles"] if r["company"] == "Unity")
+    assert unity["level"] == 3  # a general manager reads as VP-equivalent
+    r = client.post("/api/profile/refresh", headers=h).json()
+    assert r["ok"] and r["roles_read"] >= 3
+    # Ask must not fail when the embedding service does
+    from app.rag import index
+
+    def boom(*a, **k):
+        raise RuntimeError("rate limited")
+    monkeypatch.setattr(index, "embed", boom)
+    a = client.post("/api/ask", json={"question": "Which partnerships postings are open?"}, headers=h)
+    assert a.status_code == 200 and a.json()["sources"]

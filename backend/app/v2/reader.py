@@ -155,13 +155,14 @@ OPERATING = re.compile(r"\b(chief|cro|ceo|coo|cso|cmo|vp|vice president|director
 LEVEL = [
     (r"\b(chief|cro|ceo|coo|cso|cmo|cpo|(?<!vice )(?<!vice-)president)\b", 5),
     (r"\b(svp|evp|senior vice president|executive vice president|managing director)\b", 4),
-    (r"\b(vp|vice president|avp|rvp)\b", 3),
-    (r"\b(senior director|sr\.? director|global head|head of|general manager|gm\b|group director)", 2),
+    # A general manager runs a business unit (P&L, multiple functions): VP-equivalent in most companies.
+    (r"\b(vp|vice president|avp|rvp|general manager|gm)\b", 3),
+    (r"\b(senior director|sr\.? director|global head|head of|group director)", 2),
     (r"\bdirector\b", 1),
     (r"\b(senior manager|sr\.? manager|lead|principal|consultant|specialist|account executive|manager|associate|analyst|"
      r"engineer|scientist|representative|planner|coordinator|assistant|strategist|producer|officer)\b", 0),
 ]
-LEVEL_NAMES = {0: "Manager / IC", 1: "Director", 2: "Head / Sr Director / GM", 3: "VP", 4: "SVP / MD", 5: "C-level"}
+LEVEL_NAMES = {0: "Manager / IC", 1: "Director", 2: "Head / Sr Director", 3: "VP / GM", 4: "SVP / MD", 5: "C-level"}
 LEVEL_CUES = re.compile(r"\bp&l\b|\bpnl\b|p&l responsib|managed p&l|owned (?:full )?p&l|led [^.]{0,40}(organization|org\b)|"
                         r"\bhead of\b|general manager|business unit|led the [^.]{0,30}business\b", re.I)
 STAFF_PHRASES = re.compile(r"office of the (?:ceo|coo|cro|chairman)|chief of staff|business lead to the \w+|aide to|"

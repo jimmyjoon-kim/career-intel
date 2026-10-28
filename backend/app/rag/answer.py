@@ -29,7 +29,13 @@ def answer(db: Session, user_id: int, question: str) -> dict:
     if not hits:
         return {"answer": "No indexed sources yet. Ask an admin to import postings and rebuild the index.",
                 "sources": [], "mode": "empty"}
-    text = complete(SYSTEM, f"Sources:\n{_format_sources(hits)}\n\nQuestion: {question}", max_tokens=1200)
+    try:
+        text = complete(SYSTEM, f"Sources:\n{_format_sources(hits)}\n\nQuestion: {question}", max_tokens=1200)
+    except Exception as err:  # noqa: BLE001 — show the reason instead of a server error
+        lines = [f"Claude could not answer ({type(err).__name__}: {str(err)[:300]}). Check ANTHROPIC_API_KEY, "
+                 "the model name and your API credit. The most relevant sources are below."]
+        lines += [f"[{s['n']}] {s['title']}: " + " ".join(s["excerpt"].split("\n")[1:])[:220] + "…" for s in sources[:5]]
+        return {"answer": "\n".join(lines), "sources": sources, "mode": "error"}
     if text is None:
         lines = ["Offline mode (no ANTHROPIC_API_KEY): showing the most relevant sources instead of a written answer."]
         lines += [f"[{s['n']}] {s['title']}: " + " ".join(s["excerpt"].split("\n")[1:])[:220] + "…" for s in sources[:5]]

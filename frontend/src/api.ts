@@ -37,6 +37,12 @@ export type Card = {
   factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];
   focus_areas: { tag: string; label: string; holder_share: number; your_weight: number; status: string; note: string }[];
   rare_strengths: { tag: string; label: string; holder_share: number }[];
+  benchmark: {
+    max: number; p90: number; p75: number; median: number; p25: number; min: number; ceiling_note: string;
+    n_above: number; above_tiers: Record<string, number>;
+    drivers: { label: string; avg_points: number | null; holders_ahead: number }[];
+    whatifs: { change: string; factor: string; score: number; delta: number; position: number; closable: boolean }[];
+  };
   peers: { company: string; title: string; score: number; similarity: number; ahead_on: string[]; you_lead_on: string[];
     components: Record<string, number>; values: Record<string, number | null> }[];
 };
@@ -46,7 +52,9 @@ export type RoleRead = {
   team_size: number | null; reviewed: boolean; recency_weight: number;
 };
 export type Scorecard = {
-  ready: boolean; reason?: string; card?: Card; reference?: { source: string; as_of: string }; months_left?: number | null;
+  ready: boolean; reason?: string; card?: Card;
+  gap_plan?: { against: string; gap: string; kind: string; you: string | number | null; them: string | number | null;
+    evidence: string; action: string; months: number | null; by_target: boolean | null; score_effect: number | null; factor: string | null }[]; reference?: { source: string; as_of: string }; months_left?: number | null;
   reading?: {
     source: string; format: string; years: number; level_max: string | null; level_names: Record<string, string>;
     recent_role: { title: string; company: string; start: string; end: string; months: number; level: number; level_cue: string | null; tier: number } | null;

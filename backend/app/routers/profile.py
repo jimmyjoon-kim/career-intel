@@ -6,7 +6,7 @@ from ..db import get_db
 from ..extract import extract_cv
 from ..models import Profile, User
 from ..parsing import file_to_text
-from ..rag.index import rebuild_user
+from ..rag.index import safe_rebuild_user as rebuild_user
 from ..schemas import ProfileIn, RoleReviewIn, TagMatchIn
 from ..security import current_user
 from ..services import ensure_profile
@@ -152,3 +152,14 @@ def review_role(key: str, body: RoleReviewIn, user: User = Depends(current_user)
     db.commit()
     rebuild_user(db, user)
     return _roles_payload(prof)
+
+
+@router.post("/refresh")
+def refresh(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Re-read your experience, re-apply your role review, rescore and rebuild your Ask index."""
+    prof = ensure_profile(db, user)
+    _refresh_experience(prof)
+    db.commit()
+    index = rebuild_user(db, user)
+    feats = user_features(prof)
+    return {"ok": True, "roles_read": len(feats["roles"]) if feats else 0, "index": index}
