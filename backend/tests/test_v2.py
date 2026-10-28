@@ -103,3 +103,29 @@ def test_education_parsing_and_scheduled_degrees():
     assert e["ED"] == 1 and [d["level"] for d in e["degrees"]] == [1, 2, 2]
     assert all(d["in_progress"] for d in e["degrees"][1:])
     assert education_by(e["degrees"], "2027-06") == 2 and education_by(e["degrees"], "2026-12") == 1
+
+
+def test_ai_recency_journey_and_technical_depth():
+    from app.v2.signals import combine
+
+    text = """Experience
+Interim CRO
+Acme AI
+Jan 2025 - Jan 2026 · 1 yr 1 mo
+Led LLM product partnerships.
+General Manager, Korea
+ironSource · Full-time
+Jan 2016 - Mar 2025 · 9 yrs 3 mos
+- Managed P&L; SDK mediation platform.
+Machine learning sales
+OldCo · Full-time
+Jan 2012 - Jan 2014 · 2 yrs 1 mo
+- Sold machine learning tools.
+"""
+    roles, _ = parse_roles(text, NOW)
+    f = combine(extract_features(roles, now=NOW), tech_degree=True, ai_degree=0.5, now=NOW)
+    assert f["AI_work"] == 1.0 and f["AI"] == 0.8  # recent AI role + half credit for a degree in progress
+    assert f["CT"] == 3 and f["journey"] and f["journey"][0]["event"] == "IPO"  # ironSource Tier 2 + IPO during tenure
+    old, _ = parse_roles(text.split("General Manager")[0].replace("Jan 2025 - Jan 2026", "Jan 2018 - Jan 2020"), NOW)
+    g = combine(extract_features(old, now=NOW), tech_degree=False, ai_degree=0.0, now=NOW)
+    assert g["AI"] == 0.06  # AI work older than three years counts 0.1 x 0.6

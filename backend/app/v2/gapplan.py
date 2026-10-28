@@ -7,8 +7,8 @@ from ..taxonomy import TAGS
 
 # How to close each kind of gap. Stated as conditions on facts, never as claims about the user.
 FACTOR_ACTIONS = {
-    "CT": ("Hold a role for 12+ months at a Tier 1 or Tier 2 employer (top-10 tech, or $10B+ public / dated unicorn). "
-           "Until then, lead with your Unity and ironSource record: under an 18-month reading rule Unity (Tier 2) is the scored employer.", 24),
+    "CT": ("Hold a role for 12+ months at a Tier 1 or Tier 2 employer, or take part in a company's IPO or acquisition "
+           "(joined 6+ months before it). Lead with the strongest employer record you have.", 24),
     "FN": ("If you ran partnership, business development or channel/reseller work in a role that ended in the last 8 years, "
            "say so in that role's description or confirm it on Role review; work older than 8 years counts half.", 1),
     "LV": ("Hold a higher band for 12+ months.", 18),
@@ -18,6 +18,9 @@ FACTOR_ACTIONS = {
     "UQ": ("Scarce experience such as hyperscaler co-sell, GSI alliances, government or a 0-to-1 build: state it if done, "
            "otherwise 6–12 months.", 9),
     "AC": ("Write quantified outcomes (revenue, growth %, team size, partner count) into role descriptions.", 1),
+    "AI": ("Commercial work on an AI product, at an AI company or with AI partners, active within the last 24 months; "
+           "or an AI graduate degree. AI work older than about two years counts very little.", 6),
+    "TK": ("Technical product work (SDK/API, platform, ML) written into a recent role, a technical role, or a technical degree.", 6),
     "ED": ("Complete a graduate degree (master's or MBA); it counts from its completion date. "
            "A degree in progress is listed on the Scorecard and counts automatically once its end date passes.", 24),
 }

@@ -441,6 +441,14 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
                        "final": {t: values[t] for t in found}, "team_size": size or None,
                        "reviewed": bool(ov.get("confirmed")), "recency_weight": w}
 
+    from .signals import role_signals
+
+    signals = []
+    for r in ev_roles:
+        sg = role_signals(r, now)
+        sg.update(_end=r["end"], _tier=company_tier(r["company"], strict_tier), _label=_label(r))
+        signals.append(sg)
+
     ach = []
     for r in ev_roles:
         for d in r["desc"]:
@@ -454,7 +462,7 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
         "LV": recent["level"] if recent else None, "LV_max": level_max,
         "FN": sum(tags[t] for t in FUNC_TAGS) / len(FUNC_TAGS),
         "DM": sum(tags[t] for t in DOMAIN_TAGS) / len(DOMAIN_TAGS),
-        "AC": len(ach), "tags": tags, "evidence": evidence, "achievements": ach,
+        "AC": len(ach), "tags": tags, "evidence": evidence, "achievements": ach, "_signals": signals,
         "team_size_max": {"size": best_team[0], "role": best_team[1], "source": best_team[2]} if best_team[0] else None,
         "recent_role": ({"title": recent["title"], "company": recent["company"], "start": recent["start_raw"],
                          "end": recent["end_raw"], "months": recent["months"], "level": recent["level"],

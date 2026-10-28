@@ -67,6 +67,10 @@ export type Scorecard = {
     team_size_max: { size: number; role: string; source: string } | null;
     degrees: { text: string; level: number; end: string | null; in_progress: boolean; technical: boolean }[];
     education_by_target: number | null;
+    journey: { role: string; event: string; date: string | null; status: string; note: string }[];
+    ct_basis: string | null; ct_tier_only: number | null;
+    ai_work: { role: string; weight: number; phrase: string }[]; ai_degrees: string[];
+    tk_parts: Record<string, boolean>;
     achievements: { role: string; line: string; match: string }[]; tags: Record<string, number>;
   };
   notes?: string[];

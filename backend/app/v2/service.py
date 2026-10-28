@@ -55,7 +55,7 @@ def import_reference_file(db: Session, path: Path) -> int:
     # A reference file replaces its whole cluster, so a re-read never leaves the previous rows behind.
     db.execute(delete(ReferenceProfile).where(ReferenceProfile.cluster == data["cluster"]))
     for r in data["rows"]:
-        feats = {k: r.get(k) for k in ("YOE", "YOE_raw", "CT", "tier", "LV", "LV_max", "FN", "DM", "AC", "ED", "mba", "technical")}
+        feats = {k: r.get(k) for k in ("YOE", "YOE_raw", "CT", "tier", "LV", "LV_max", "FN", "DM", "AC", "ED", "mba", "technical", "AI", "TK", "CT_tier_only")}
         feats["tags"] = r["tags"]
         db.add(ReferenceProfile(cluster=data["cluster"], company=r["company"], title=r["title"], features=feats,
                                 source=data["source"], as_of=data.get("as_of", "")))
@@ -103,7 +103,23 @@ def user_features(prof: Profile | None) -> dict | None:
     target = (prof.target_date if prof else "") or ""
     f["target_date"] = target
     f["ED_target"] = education_by(edu["degrees"], target) if target else None
+    from .signals import AI_DEGREE, combine
+
+    ai_deg = [d for d in edu["degrees"] if AI_DEGREE.search(d["text"]) and d["level"] >= 2]
+    ai_now = 1.0 if any(not d["in_progress"] for d in ai_deg) else 0.5 if ai_deg else 0.0
+    tech_deg = any(d["technical"] and not d["in_progress"] for d in edu["degrees"])
+    combine(f, tech_degree=tech_deg, ai_degree=ai_now, now=_now_ym())
+    f["AI_degrees"] = [d["text"] for d in ai_deg]
+    if ai_deg and target and all(d["end"] and d["end"] <= target for d in ai_deg):
+        f["AI_target"] = round(min(1.0, 0.6 * f["AI_work"] + 0.4), 3)
+    else:
+        f["AI_target"] = None
     return f
+
+
+def _now_ym() -> tuple[int, int]:
+    t = date.today()
+    return (t.year, t.month)
 
 
 def months_left(target: str) -> int | None:

@@ -17,14 +17,14 @@ import numpy as np
 
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
-FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED"]
-FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier (recent employer)", "LV": "Level held",
+FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK"]
+FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "AI": "Current AI relevance", "TK": "Technical depth", "LV": "Level held",
                  "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)"}
-W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5, "ED": 5}
+W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5, "ED": 5, "AI": 10, "TK": 5}
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
-GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2}
+GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2, "AI": 1, "TK": 1}
 GAP_CLASS = {
     "YOE": ("structural", "Time at level; 12 months per year of gap."),
     "CT": ("structural", "Stepping stone: a role at a Tier 1/2 employer; counts once held 12+ months."),
@@ -34,8 +34,10 @@ GAP_CLASS = {
     "UQ": ("capability", "Scarce experience: hyperscaler co-sell, GSI alliances, government, 0-to-1 builds."),
     "AC": ("capability", "Write quantified outcomes into role descriptions; 0-3 months."),
     "ED": ("capability", "Complete a graduate degree; counts from its completion date."),
+    "AI": ("capability", "Commercial work on an AI product in the last 24 months, or an AI graduate degree."),
+    "TK": ("capability", "Technical role, technical degree or technical product work (SDK/API, platform, ML)."),
 }
-TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24}
+TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24, "AI": 6, "TK": 6}
 TAG_LABELS = {
     "func_partnerships": "Partnerships / alliances", "func_bd": "Business development", "func_channel": "Channel / reseller / GSI",
     "domain_adtech": "Ad tech", "domain_ai": "AI", "domain_saas": "SaaS / cloud", "domain_mobile": "Mobile / gaming",
@@ -52,7 +54,9 @@ TAG_FACTOR = {
     **{t: "UQ" for t in ["skill_hyperscaler", "skill_govtech", "skill_consulting_firm_background", "skill_0to1_build",
                          "skill_si_gsi", "skill_cosell"]},
     **{t: "LV" for t in ["team_mgmt", "team_large", "pnl_ownership", "skill_exec_presence", "mgmt_tenure_stated"]},
-    **{t: "ED" for t in ["edu_bachelors", "edu_technical"]},
+    **{t: "ED" for t in ["edu_bachelors"]},
+    **{t: "AI" for t in ["skill_llm_ai_products"]},
+    **{t: "TK" for t in ["edu_technical", "skill_sdk_api"]},
 }
 # Product level names -> reader bands
 LEVEL_TO_BAND = {"IC": 0, "Manager": 0, "Senior Manager": 0, "Director": 1, "Head": 2, "Sr Director": 2, "VP": 3, "SVP": 4, "C-level": 5}
@@ -266,7 +270,8 @@ def opportunity(card: dict, posting_tags: list[str], tag_weights: dict[str, int]
 
 CARD_ATTRS = [("LVL", "LV", "Level held"), ("FUN", "FN", "Function evidence"), ("DOM", "DM", "Domain breadth"),
               ("EXP", "YOE", "Years of experience"), ("IMP", "AC", "Quantified impact"), ("TIER", "CT", "Employer tier"),
-              ("EDU", "ED", "Education (degree level)"), ("SCA", "UQ", "Scarce experience")]
+              ("EDU", "ED", "Education (degree level)"), ("SCA", "UQ", "Scarce experience"),
+              ("AI", "AI", "Current AI relevance"), ("TEC", "TK", "Technical depth")]
 TRAIT_TAGS = ["team_large", "pnl_ownership", "func_sales_leadership", "skill_0to1_build", "skill_hyperscaler",
               "skill_govtech", "skill_consulting_firm_background", "func_channel"]
 _POS = [(r"general manager|\bgm\b|managing director|country manager", "GM"), (r"\bceo\b|\bcro\b|chief", "CXO"),
@@ -348,8 +353,10 @@ def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev) -> dict:
         ("Two more quantified outcomes written into roles", "AC", {"AC": (uf.get("AC") or 0) + 2}),
     ]
     if uf.get("ED_target") is not None and (uf.get("ED") is None or uf["ED_target"] > uf["ED"]):
-        cases.insert(0, (f"Degrees in progress completed by your target date ({uf.get('target_date') or 'target'})", "ED",
-                         {"ED": uf["ED_target"]}))
+        change = {"ED": uf["ED_target"]}
+        if uf.get("AI_target") is not None:
+            change["AI"] = uf["AI_target"]
+        cases.insert(0, (f"Degrees in progress completed by your target date ({uf.get('target_date') or 'target'})", "ED", change))
     for label, k, change in cases:
         alt = {**uf, **change}
         if alt == uf or (k == "FN" and (uf.get("FN") or 0) >= 1) or (k == "CT" and (uf.get("CT") or 0) >= change.get("CT", 0)):

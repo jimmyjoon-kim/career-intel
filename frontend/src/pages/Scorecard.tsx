@@ -25,8 +25,8 @@ const MATRIX_TAGS: [string, string][] = [
   ["team_mgmt", "People"], ["team_large", "Team 20+"], ["pnl_ownership", "P&L"], ["domain_adtech", "Ad tech"],
   ["domain_mobile", "Mobile"], ["domain_ai", "AI"], ["domain_saas", "SaaS"],
 ];
-const RADAR_ORDER = ["LV", "FN", "DM", "YOE", "UQ", "AC", "ED", "CT"];
-const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", CT: "Company tier" };
+const RADAR_ORDER = ["LV", "FN", "DM", "AI", "TK", "YOE", "UQ", "AC", "ED", "CT"];
+const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", AI: "AI (current)", TK: "Technical", CT: "Tier & journey" };
 const FACTOR_TAGS: Record<string, string[]> = {
   FN: ["func_partnerships", "func_bd", "func_channel"],
   DM: ["domain_ai", "domain_adtech", "domain_mobile", "domain_saas"],
@@ -38,11 +38,11 @@ const ord = (n: number) => { const r = Math.round(n); const s = r % 100 >= 11 &&
 function fmtVal(k: string, v: number | null | undefined) {
   if (v == null) return "—";
   if (k === "LV") return BANDS[Math.round(v)] ?? String(v);
-  if (k === "CT") return `Tier ${4 - Math.round(v)}`;
+  if (k === "CT") return ["—", "Tier 3", "Tier 2", "Tier 1", "Tier 1 + journey"][Math.round(v)] ?? String(v);
   if (k === "YOE") return `${v} yrs`;
   if (k === "AC") return `${v} lines`;
   if (k === "ED") return ["—", "Bachelor's", "Master's / MBA", "Doctorate"][Math.round(v)] ?? String(v);
-  if (k === "FN" || k === "DM") return `${Math.round(v * 100)}%`;
+  if (k === "FN" || k === "DM" || k === "AI" || k === "TK") return `${Math.round(v * 100)}%`;
   return v.toFixed(2);
 }
 
@@ -101,7 +101,7 @@ export default function ScorecardPage() {
 
       <section className="sc-row2">
         <div className="tile">
-          <div className="tile-title">Eight factors, you vs the median holder</div>
+          <div className="tile-title">Ten factors, you vs the median holder</div>
           <div className="small muted">Percentile within holders. Select a factor for its evidence.</div>
           <Radar factors={c.factors} />
           <div className="legend-dots" style={{ marginBottom: 8 }}><span><span className="sq" style={{ background: "var(--accent-strong)" }} />You</span><span><span className="sq" style={{ background: "var(--holder)" }} />Median holder</span></div>
@@ -439,7 +439,11 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         </dl>
         {gap && <div className="callout">{gap.class === "structural" ? "Structural · stepping stone. " : "Capability · focus area. "}{gap.action} {gap.months_to_close != null ? `About ${gap.months_to_close} months to close.` : ""}</div>}
         {f.factor === "CT" && (<>
-          <h3>Scored role</h3>
+          <h3>Company journey</h3>
+          {r.journey.length === 0 ? <p className="small muted">No IPO, acquisition or merger during a role was found.</p> :
+            <ul className="ev">{r.journey.map((j, i) => <li key={i}><div className="src">{j.event}{j.date ? ` · ${j.date}` : ""} · {j.status}</div>{j.note}<div className="small muted">{j.role}</div></li>)}</ul>}
+          <p className="small muted">Scored on: {r.ct_basis}. Tier of your most recent role alone: {fmtVal("CT", r.ct_tier_only)}.</p>
+          <h3>Most recent role (tier only)</h3>
           <p className="small">{r.recent_role ? `${r.recent_role.title} @ ${r.recent_role.company} (${r.recent_role.months} months, Tier ${r.recent_role.tier}). The most recent role held 12 months or more is scored.` : "—"}</p>
           <h3>Holders' recent employer tier</h3>
           {Object.entries(c.holders.tier_share).map(([t, s]) => <div key={t} className="fac" style={{ cursor: "inherit" }}><span>{t}</span><span className="track"><span className="fill" style={{ width: `${100 * s}%` }} /></span><span className="gapv">{Math.round(100 * s)}%</span></div>)}
@@ -447,6 +451,16 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         {(f.factor === "LV" || f.factor === "YOE") && (<>
           <h3>Roles read</h3>
           <ul className="ev">{r.roles.map((x) => <li key={x.key}><div className="src">{x.start} – {x.end} · {x.months} months{x.counted ? "" : " · not counted"}</div><b>{x.title}</b> · {x.company}{f.factor === "LV" && x.level != null ? ` · ${BANDS[x.level]}` : ""}</li>)}</ul>
+        </>)}
+        {f.factor === "AI" && (<>
+          <h3>AI evidence, weighted by recency</h3>
+          <ul className="ev">{r.ai_work.map((a, i) => <li key={i}><div className="src">weight {a.weight} · {a.weight >= 1 ? "last 24 months" : a.weight >= 0.5 ? "24–36 months ago" : "older than 3 years"}</div>“{a.phrase}”<div className="small muted">{a.role}</div></li>)}</ul>
+          {r.ai_degrees.length > 0 && <p className="small">AI degree: {r.ai_degrees.join("; ")} (counts half while in progress, fully once completed).</p>}
+          <p className="small muted">AI work older than about two years counts very little; recent AI commercial work and current AI credentials carry the weight.</p>
+        </>)}
+        {f.factor === "TK" && (<>
+          <h3>Technical depth</h3>
+          <ul className="ev">{Object.entries(r.tk_parts).map(([k, v]) => <li key={k}><div className="src">{v ? "Has" : "Not found"}</div>{k}</li>)}</ul>
         </>)}
         {f.factor === "ED" && (<>
           <h3>Your degrees</h3>

@@ -47,3 +47,10 @@ Weights are validated against the profiles of people actually hired, not job-des
 - Every role in a person's history gets the same preset qualification checklist: partnerships, channel, business development, sales/commercial leadership, people management, large team (20+), P&L ownership, ad tech, mobile, AI, SaaS, 0-to-1 build, hyperscaler, government, consulting-firm background.
 - Prefill sources, strongest first: your confirmed value, title, description, CV line, a "Scope:" line you state, role template implied by the title (for example, a general manager runs the unit's team and P&L), employer context from public sources.
 - You review each role and confirm or change each item and the team size. Confirmed values are what get scored. Role holders are scored from their own profile text with the same templates and employer context.
+
+## v3 context factors (2026-10-29)
+
+- Current AI relevance (AI): AI work counts 1.0 if the role was active in the last 24 months, 0.5 at 24-36 months, 0.1 if older; AI = 0.6 x best recent AI work + 0.4 x AI graduate degree (1.0 completed, 0.5 in progress). Postings that ask for AI products weight this factor more.
+- Technical depth (TK): mean of technical degree, technical role in the last 15 years, technical product work in the last 8 years.
+- Company tier & journey (CT): max of the most recent role's tier and the best role in the last 10 years scored as tier + 1 when the role spanned its company's IPO or acquisition (joined 6+ months before). Event dates: ironSource verified; others widely reported, not yet checked against filings.
+- Expert weights: AI 10, TK 5 added to the prior; no market estimate yet, so they keep their expert share. Not yet validated against hiring outcomes.
