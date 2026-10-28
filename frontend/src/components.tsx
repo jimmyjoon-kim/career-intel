@@ -85,8 +85,8 @@ export function PostingDetail({ row, onClose }: { row: Row; onClose: () => void 
         </div>
 
         <dl className="facts">
-          <dt>Rank score</dt><dd>{row.rank_score.toFixed(2)} <Bar value={row.rank_score} /></dd>
-          <dt>Weighted match</dt><dd>{row.weighted_score.toFixed(2)}</dd>
+          <dt>Overall match</dt><dd>{Math.round(row.rank_score * 100)}% <Bar value={row.rank_score} /> <span className="muted small">requirement match, less 10 points per partly met minimum</span></dd>
+          <dt>Requirement match</dt><dd>{Math.round(row.weighted_score * 100)}%</dd>
           <dt>Cluster</dt><dd>{row.cluster}</dd>
           <dt>Level</dt><dd>{p.level_band}</dd>
           <dt>Pay</dt><dd>{p.pay_range || "Not stated"}</dd>

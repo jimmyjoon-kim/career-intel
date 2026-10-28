@@ -56,7 +56,7 @@ export default function Dashboard() {
             <Empty>No postings pass your gate yet. Check your preferences on the Profile page.</Empty>
           ) : (
             <table className="table">
-              <thead><tr><th>Role</th><th>Rank</th><th>Hard gaps</th></tr></thead>
+              <thead><tr><th>Role</th><th>Match</th><th>Hard gaps</th></tr></thead>
               <tbody>
                 {data.top.map((r) => (
                   <tr key={r.posting.id} className="clickable" onClick={() => setOpen(r)}>
@@ -65,7 +65,7 @@ export default function Dashboard() {
                       <div className="muted small">{r.posting.title}</div>
                     </td>
                     <td className="nowrap">
-                      <span className="num">{r.rank_score.toFixed(2)}</span> <Bar value={r.rank_score} tone={r.has_zero_hard_gap ? "warn" : "accent"} />
+                      <span className="num">{Math.round(r.rank_score * 100)}%</span> <Bar value={r.rank_score} tone={r.has_zero_hard_gap ? "warn" : "accent"} />
                     </td>
                     <td>
                       {r.hard_gaps.length === 0 ? <span className="muted small">None</span> :

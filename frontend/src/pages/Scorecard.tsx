@@ -38,6 +38,7 @@ function fmtVal(k: string, v: number | null | undefined) {
   if (k === "CT") return `Tier ${4 - Math.round(v)}`;
   if (k === "YOE") return `${v} yrs`;
   if (k === "AC") return `${v} lines`;
+  if (k === "FN" || k === "DM") return `${Math.round(v * 100)}%`;
   return v.toFixed(2);
 }
 
@@ -405,7 +406,7 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         <dl className="kv">
           <dt>Opportunity score</dt><dd>{o.score.toFixed(1)} · {ord(o.position)} among holders · {o.delta_vs_base >= 0 ? "+" : ""}{o.delta_vs_base.toFixed(1)} vs base</dd>
           <dt>Location</dt><dd>{p.location}</dd><dt>Level</dt><dd>{p.level_band}</dd><dt>Pay</dt><dd>{p.pay_range || "Not stated"}</dd>
-          <dt>Requirement match</dt><dd>{row.weighted_score.toFixed(2)} (rank {row.rank_score.toFixed(2)})</dd>
+          <dt>Requirement match</dt><dd>{Math.round(row.weighted_score * 100)}% (overall {Math.round(row.rank_score * 100)}%)</dd>
         </dl>
         {o.emphasised.length > 0 && <p className="small">This posting weights more heavily: <b>{o.emphasised.join(", ")}</b>.</p>}
         <h3>Weights for this posting</h3>
