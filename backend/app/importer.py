@@ -31,6 +31,18 @@ def _status(row: dict) -> tuple[str, str]:
     return "unverified", listed
 
 
+AD_TAGS = {"domain_adtech", "func_ad_sales", "skill_programmatic", "skill_retail_media", "skill_measurement_attribution",
+           "skill_performance_marketing"}
+AD_TITLE = re.compile(r"\bads?\b|advertis|media|brand partnerships|monetiz", re.I)
+
+
+def check_cluster(label: str, tags: list[str], title: str) -> str:
+    """An 'Ad Sales' label needs advertising evidence; general sales roles go to Sales Leadership."""
+    if label == "Ad Sales" and not (AD_TAGS & set(tags)) and not AD_TITLE.search(title):
+        return "Sales Leadership"
+    return label
+
+
 def import_csv(db: Session, content: str, source_date: str | None = None) -> dict:
     source_date = source_date or date.today().isoformat()
     reader = csv.DictReader(io.StringIO(content))
@@ -50,7 +62,7 @@ def import_csv(db: Session, content: str, source_date: str | None = None) -> dic
             company=company,
             title=title,
             level_band=(row.get("level_band") or "").strip() or infer_level(title),
-            role_cluster=(row.get("role_cluster") or "Other").strip() or "Other",
+            role_cluster=check_cluster((row.get("role_cluster") or "Other").strip() or "Other", reqs, title),
             location=(row.get("location") or "").strip(),
             remote_flag=(row.get("remote_flag") or "unstated").strip().lower() or "unstated",
             bay_area=(row.get("bay_area") or "").strip() in ("1", "true", "True", "yes"),

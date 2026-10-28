@@ -94,3 +94,12 @@ def test_gap_summary_orders_by_impact():
     out = gap_summary(rows)
     assert [g["tag"] for g in out] == ["a", "b"]
     assert out[0]["impact"] == 3.0 and out[1]["impact"] == 2.5
+
+
+def test_ad_sales_label_needs_ad_evidence():
+    from app.importer import check_cluster
+
+    assert check_cluster("Ad Sales", ["domain_ai", "func_sales_leadership"], "Director, NVIDIA Compute Sales") == "Sales Leadership"
+    assert check_cluster("Ad Sales", ["domain_adtech"], "Director of Business Development") == "Ad Sales"
+    assert check_cluster("Ad Sales", [], "Director, Ad Sales (UCAN)") == "Ad Sales"
+    assert check_cluster("Partnerships", [], "Director, Switch Sales") == "Partnerships"
