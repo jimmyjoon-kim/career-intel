@@ -18,6 +18,8 @@ FACTOR_ACTIONS = {
     "UQ": ("Scarce experience such as hyperscaler co-sell, GSI alliances, government or a 0-to-1 build: state it if done, "
            "otherwise 6–12 months.", 9),
     "AC": ("Write quantified outcomes (revenue, growth %, team size, partner count) into role descriptions.", 1),
+    "ED": ("Complete a graduate degree (master's or MBA); it counts from its completion date. "
+           "A degree in progress is listed on the Scorecard and counts automatically once its end date passes.", 24),
 }
 TAG_ACTIONS = {
     "func_channel": ("If channel, reseller or partner-sales work was part of a role since 2018, add it to that role or confirm it on Role review.", 1),
@@ -38,12 +40,16 @@ def _closable(months: int | None, left: int | None) -> bool | None:
     return months <= left
 
 
-def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None) -> list[dict]:
+def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None, ed_months: int | None = None) -> list[dict]:
+    """ed_months: months until your next graduate degree in progress completes (None if none)."""
     items: list[dict] = []
+    actions = dict(FACTOR_ACTIONS)
+    if ed_months is not None:
+        actions["ED"] = ("Your graduate degree in progress counts from its completion date; nothing else to do.", ed_months)
     whatif = {w["factor"]: w for w in card.get("benchmark", {}).get("whatifs", [])}
     # 1. Against the median holder
     for g in card["gaps"]:
-        action, months = FACTOR_ACTIONS[g["factor"]]
+        action, months = actions[g["factor"]]
         wf = whatif.get(g["label"])
         items.append({"against": "Median role holder", "gap": g["label"], "kind": g["class"],
                       "you": g["you_value"], "them": g["holder_median_value"],
@@ -55,7 +61,7 @@ def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None
     for d in card.get("benchmark", {}).get("drivers", []):
         if (d["avg_points"] or 0) > 0.5 and d["label"] not in seen:
             k = next(f["factor"] for f in card["factors"] if f["label"] == d["label"])
-            action, months = FACTOR_ACTIONS[k]
+            action, months = actions[k]
             wf = whatif.get(d["label"])
             items.append({"against": f'{card["benchmark"]["n_above"]} holders who score above you', "gap": d["label"],
                           "kind": "structural" if k in ("CT", "LV", "YOE") else "capability",

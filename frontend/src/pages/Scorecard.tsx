@@ -25,8 +25,8 @@ const MATRIX_TAGS: [string, string][] = [
   ["team_mgmt", "People"], ["team_large", "Team 20+"], ["pnl_ownership", "P&L"], ["domain_adtech", "Ad tech"],
   ["domain_mobile", "Mobile"], ["domain_ai", "AI"], ["domain_saas", "SaaS"],
 ];
-const RADAR_ORDER = ["LV", "FN", "DM", "YOE", "UQ", "AC", "CT"];
-const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", CT: "Company tier" };
+const RADAR_ORDER = ["LV", "FN", "DM", "YOE", "UQ", "AC", "ED", "CT"];
+const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", CT: "Company tier" };
 const FACTOR_TAGS: Record<string, string[]> = {
   FN: ["func_partnerships", "func_bd", "func_channel"],
   DM: ["domain_ai", "domain_adtech", "domain_mobile", "domain_saas"],
@@ -41,6 +41,7 @@ function fmtVal(k: string, v: number | null | undefined) {
   if (k === "CT") return `Tier ${4 - Math.round(v)}`;
   if (k === "YOE") return `${v} yrs`;
   if (k === "AC") return `${v} lines`;
+  if (k === "ED") return ["—", "Bachelor's", "Master's / MBA", "Doctorate"][Math.round(v)] ?? String(v);
   if (k === "FN" || k === "DM") return `${Math.round(v * 100)}%`;
   return v.toFixed(2);
 }
@@ -100,7 +101,7 @@ export default function ScorecardPage() {
 
       <section className="sc-row2">
         <div className="tile">
-          <div className="tile-title">Seven factors, you vs the median holder</div>
+          <div className="tile-title">Eight factors, you vs the median holder</div>
           <div className="small muted">Percentile within holders. Select a factor for its evidence.</div>
           <Radar factors={c.factors} />
           <div className="legend-dots" style={{ marginBottom: 8 }}><span><span className="sq" style={{ background: "var(--accent-strong)" }} />You</span><span><span className="sq" style={{ background: "var(--holder)" }} />Median holder</span></div>
@@ -295,7 +296,7 @@ function Benchmark({ c }: { c: Card }) {
         <div className="small muted" style={{ marginBottom: 10 }}>One change at a time, everything else as read today. Recomputed with the same model.</div>
         {b.whatifs.map((w) => (
           <div key={w.change} className="rank-row" style={{ gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr) 140px" }}>
-            <span>{w.change}<br /><span className={`chip-d ${w.closable ? "good" : "warn"}`}>{w.closable ? "Capability · closable if the work exists" : "Structural · needs time at a new employer"}</span></span>
+            <span>{w.change}<br /><span className={`chip-d ${w.closable ? "good" : "warn"}`}>{(w as { scheduled?: boolean }).scheduled ? "Scheduled · counts when the degrees are completed" : w.closable ? "Capability · closable if the work exists" : "Structural · needs time at a new employer"}</span></span>
             <span className="track"><span className="fill" style={{ width: `${w.score}%` }} /><span className="tick" style={{ left: `${c.base_score}%`, background: "var(--muted)" }} /></span>
             <span style={{ textAlign: "right" }}><b>{w.score}</b> <span className="good" style={{ color: "var(--good)" }}>+{w.delta}</span><br /><span className="small muted">{ord(w.position)} percentile</span></span>
           </div>
@@ -359,13 +360,13 @@ function DotPlot({ scores, you, median }: { scores: number[]; you: number; media
 
 function Radar({ factors }: { factors: Factor[] }) {
   const get = (k: string) => factors.find((f) => f.factor === k)!;
-  const pt = (i: number, v: number, R = 130) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 7; return [170 + (R * v / 100) * Math.cos(a), 170 + (R * v / 100) * Math.sin(a)]; };
+  const pt = (i: number, v: number, R = 130) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / RADAR_ORDER.length; return [170 + (R * v / 100) * Math.cos(a), 170 + (R * v / 100) * Math.sin(a)]; };
   const poly = (vals: number[]) => vals.map((v, i) => pt(i, v).map((n) => n.toFixed(1)).join(",")).join(" ");
   const you = RADAR_ORDER.map((k) => get(k).you_pct ?? 0), med = RADAR_ORDER.map((k) => get(k).holder_median_pct ?? 0);
   return (
-    <svg width="100%" height="300" viewBox="0 0 340 340" role="img" aria-label="Radar chart of seven factor percentiles, you against the median holder">
-      <polygon points={poly(Array(7).fill(100))} fill="none" stroke="var(--line)" />
-      <polygon points={poly(Array(7).fill(50))} fill="none" stroke="var(--line)" />
+    <svg width="100%" height="300" viewBox="0 0 340 340" role="img" aria-label="Radar chart of factor percentiles, you against the median holder">
+      <polygon points={poly(Array(RADAR_ORDER.length).fill(100))} fill="none" stroke="var(--line)" />
+      <polygon points={poly(Array(RADAR_ORDER.length).fill(50))} fill="none" stroke="var(--line)" />
       <polygon points={poly(med)} fill="var(--holder)" fillOpacity="0.14" stroke="var(--holder)" strokeWidth="2" />
       <polygon points={poly(you)} fill="var(--accent-strong)" fillOpacity="0.22" stroke="var(--accent-strong)" strokeWidth="2.5" />
       {RADAR_ORDER.map((k, i) => {
@@ -446,6 +447,12 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         {(f.factor === "LV" || f.factor === "YOE") && (<>
           <h3>Roles read</h3>
           <ul className="ev">{r.roles.map((x) => <li key={x.key}><div className="src">{x.start} – {x.end} · {x.months} months{x.counted ? "" : " · not counted"}</div><b>{x.title}</b> · {x.company}{f.factor === "LV" && x.level != null ? ` · ${BANDS[x.level]}` : ""}</li>)}</ul>
+        </>)}
+        {f.factor === "ED" && (<>
+          <h3>Your degrees</h3>
+          {r.degrees.length === 0 ? <p className="small muted">None read. Add a line starting "Education:" to your experience text on Profile.</p> :
+            <ul className="ev">{r.degrees.map((g, i) => <li key={i}><div className="src">{["", "Bachelor's", "Master's / MBA / JD", "Doctorate"][g.level]}{g.in_progress ? ` · in progress, counts from ${g.end ?? "completion"}` : " · completed"}{g.technical ? " · technical" : ""}</div>{g.text}</li>)}</ul>}
+          <p className="small muted">Highest degree completed counts today. By your target date: {fmtVal("ED", r.education_by_target)}. 36% of holders have a master's, MBA or JD; none has a doctorate.</p>
         </>)}
         {f.factor === "AC" && (<>
           <h3>Quantified outcomes found</h3>

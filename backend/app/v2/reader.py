@@ -463,3 +463,47 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
                    "months": r["months"], "level": r.get("level"), "counted": r in counted,
                    "tier": company_tier(r["company"], strict_tier), **r["review"]} for r in ev_roles],
     }
+
+
+# ------------------------------------------------------------------ education
+# Degree level: 1 bachelor, 2 master / MBA / JD, 3 doctorate. Certificates, executive education and
+# coursework without a degree do not count. Only the degree level is scored (no school, no graduation year).
+DEG3 = re.compile(r"\bph\.?d\b|doctor of philosophy|\bdphil\b|doctorate", re.I)
+DEG2 = re.compile(r"\bmaster|\bm\.?sc?\b|\bm\.?s\.|\bmba\b|\bemba\b|executive mba|\bm\.?a\.?\b|\bmeng\b|\bj\.?d\.?\b|juris doctor|\bllm\b", re.I)
+DEG1 = re.compile(r"\bbachelor|\bb\.?sc?\b|\bb\.?s\.|\bb\.?a\.?\b|\bbba\b|\bb\.?e\.?\b|\bbeng\b|\bbse\b|undergraduate", re.I)
+TECH_DEG = re.compile(r"engineer|computer|information systems|information technolog|\bai\b|artificial intelligence|machine learning|data science|physics|mathemat", re.I)
+_DATE = re.compile(rf"(?:({_M})\s+)?((?:19|20)\d{{2}})")
+
+
+def parse_education(text: str, now: tuple[int, int] | None = None) -> dict:
+    """Reads 'Education:' lines (entries separated by ';'). Entries ending after today are in progress."""
+    now = now or _now()
+    degrees = []
+    for line in (text or "").splitlines():
+        if not line.strip().lower().startswith("education:"):
+            continue
+        for part in line.split(":", 1)[1].split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            lvl = 3 if DEG3.search(part) else 2 if DEG2.search(part) else 1 if DEG1.search(part) else None
+            if lvl is None:
+                continue
+            dates = list(_DATE.finditer(part))
+            end = None
+            if dates:
+                m = dates[-1]
+                end = (int(m.group(2)), MON[m.group(1)[:3].lower()] if m.group(1) else 12)
+            in_progress = bool(re.search(r"in progress|expected|candidate", part, re.I)) or (end is not None and end > now)
+            degrees.append({"text": part[:160], "level": lvl, "end": f"{end[0]}-{end[1]:02d}" if end else None,
+                            "in_progress": in_progress, "technical": bool(TECH_DEG.search(part)),
+                            "mba": bool(re.search(r"\bmba\b|\bemba\b|business administration", part, re.I)) and lvl == 2})
+    done = [d["level"] for d in degrees if not d["in_progress"]]
+    return {"degrees": degrees, "ED": max(done) if done else None,
+            "technical": any(d["technical"] and not d["in_progress"] for d in degrees)}
+
+
+def education_by(degrees: list[dict], ym: str) -> int | None:
+    """Highest level completed by a YYYY-MM date (in-progress degrees count once their end date has passed)."""
+    lv = [d["level"] for d in degrees if not d["in_progress"] or (d["end"] and d["end"] <= ym)]
+    return max(lv) if lv else None

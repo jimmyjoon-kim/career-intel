@@ -17,14 +17,14 @@ import numpy as np
 
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
-FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC"]
+FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED"]
 FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier (recent employer)", "LV": "Level held",
-                 "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes"}
-W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5}
+                 "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)"}
+W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5, "ED": 5}
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
-GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20}
+GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2}
 GAP_CLASS = {
     "YOE": ("structural", "Time at level; 12 months per year of gap."),
     "CT": ("structural", "Stepping stone: a role at a Tier 1/2 employer; counts once held 12+ months."),
@@ -33,8 +33,9 @@ GAP_CLASS = {
     "DM": ("capability", "Commercial work in the missing domain (AI, SaaS, ad tech, mobile)."),
     "UQ": ("capability", "Scarce experience: hyperscaler co-sell, GSI alliances, government, 0-to-1 builds."),
     "AC": ("capability", "Write quantified outcomes into role descriptions; 0-3 months."),
+    "ED": ("capability", "Complete a graduate degree; counts from its completion date."),
 }
-TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2}
+TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24}
 TAG_LABELS = {
     "func_partnerships": "Partnerships / alliances", "func_bd": "Business development", "func_channel": "Channel / reseller / GSI",
     "domain_adtech": "Ad tech", "domain_ai": "AI", "domain_saas": "SaaS / cloud", "domain_mobile": "Mobile / gaming",
@@ -51,6 +52,7 @@ TAG_FACTOR = {
     **{t: "UQ" for t in ["skill_hyperscaler", "skill_govtech", "skill_consulting_firm_background", "skill_0to1_build",
                          "skill_si_gsi", "skill_cosell"]},
     **{t: "LV" for t in ["team_mgmt", "team_large", "pnl_ownership", "skill_exec_presence", "mgmt_tenure_stated"]},
+    **{t: "ED" for t in ["edu_bachelors", "edu_technical"]},
 }
 # Product level names -> reader bands
 LEVEL_TO_BAND = {"IC": 0, "Manager": 0, "Senior Manager": 0, "Director": 1, "Head": 2, "Sr Director": 2, "VP": 3, "SVP": 4, "C-level": 5}
@@ -66,9 +68,16 @@ class Reference:
         return len(self.rows)
 
 
-def hybrid_weights(n: int) -> dict[str, float]:
-    te, tm = sum(W_EXPERT.values()), sum(W_MARKET.values())
-    return {k: (PRIOR_M * 100 * W_EXPERT[k] / te + n * 100 * W_MARKET[k] / tm) / (PRIOR_M + n) for k in FACTORS}
+def hybrid_weights(n: int, factors: list[str] | None = None) -> dict[str, float]:
+    """Factors without a market estimate (ED: non-target hires' education not read) keep their expert share."""
+    factors = factors or FACTORS
+    te = sum(W_EXPERT[k] for k in factors)
+    exp = {k: W_EXPERT[k] / te for k in factors}
+    mk = {k: W_MARKET[k] for k in factors if k in W_MARKET}
+    missing = sum(exp[k] for k in factors if k not in W_MARKET)
+    tm = sum(mk.values())
+    mkt = {k: (mk[k] / tm * (1 - missing) if k in mk else exp[k]) for k in factors}
+    return {k: (PRIOR_M * 100 * exp[k] + n * 100 * mkt[k]) / (PRIOR_M + n) for k in factors}
 
 
 def scarcity(ref_rows: list[dict]) -> dict[str, float]:
@@ -131,7 +140,10 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     uf = with_uq(user_f, prev)
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
+    ed_cov = sum(1 for r in rows if r.get("ED") is not None) / len(rows)
     w = hybrid_weights(ref.n)
+    if ed_cov < 0.5:  # education enters the score only when at least half the holders' education is known
+        w["ED"] = 0.0
     wv = np.array([w[k] for k in FACTORS])
     P_h, P_u = pct_matrix(M, M), pct_matrix(U[None, :], M)[0]
     S_h, S_u = composite(P_h, wv), float(composite(P_u[None, :], wv)[0])
@@ -253,7 +265,8 @@ def opportunity(card: dict, posting_tags: list[str], tag_weights: dict[str, int]
 
 
 CARD_ATTRS = [("LVL", "LV", "Level held"), ("FUN", "FN", "Function evidence"), ("DOM", "DM", "Domain breadth"),
-              ("EXP", "YOE", "Years of experience"), ("IMP", "AC", "Quantified impact"), ("TIER", "CT", "Employer tier")]
+              ("EXP", "YOE", "Years of experience"), ("IMP", "AC", "Quantified impact"), ("TIER", "CT", "Employer tier"),
+              ("EDU", "ED", "Education (degree level)"), ("SCA", "UQ", "Scarce experience")]
 TRAIT_TAGS = ["team_large", "pnl_ownership", "func_sales_leadership", "skill_0to1_build", "skill_hyperscaler",
               "skill_govtech", "skill_consulting_firm_background", "func_channel"]
 _POS = [(r"general manager|\bgm\b|managing director|country manager", "GM"), (r"\bceo\b|\bcro\b|chief", "CXO"),
@@ -334,13 +347,16 @@ def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev) -> dict:
         ("Hyperscaler partnership experience added", "UQ", {"tags": {**uf["tags"], "skill_hyperscaler": 1.0}}),
         ("Two more quantified outcomes written into roles", "AC", {"AC": (uf.get("AC") or 0) + 2}),
     ]
+    if uf.get("ED_target") is not None and (uf.get("ED") is None or uf["ED_target"] > uf["ED"]):
+        cases.insert(0, (f"Degrees in progress completed by your target date ({uf.get('target_date') or 'target'})", "ED",
+                         {"ED": uf["ED_target"]}))
     for label, k, change in cases:
         alt = {**uf, **change}
-        if alt == uf or (k == "FN" and (uf.get("FN") or 0) >= 1) or (k == "CT" and (uf.get("CT") or 0) >= change["CT"]):
+        if alt == uf or (k == "FN" and (uf.get("FN") or 0) >= 1) or (k == "CT" and (uf.get("CT") or 0) >= change.get("CT", 0)):
             continue
         s, p = _score_with(alt, M, wv, prev)
         whatifs.append({"change": label, "factor": FACTOR_LABELS[k], "score": _r(s), "delta": _r(s - S_u), "position": _r(p),
-                        "closable": GAP_CLASS[k][0] == "capability"})
+                        "closable": GAP_CLASS[k][0] == "capability", "scheduled": k == "ED"})
     whatifs.sort(key=lambda x: -(x["delta"] or 0))
     return {
         "max": _r(sc.max()), "p90": _r(np.percentile(sc, 90)), "p75": _r(np.percentile(sc, 75)),

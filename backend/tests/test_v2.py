@@ -93,3 +93,13 @@ Worked with partners.
     assert ("pnl_ownership", "implied by title") in srcs and ("domain_adtech", "employer context") in srcs
     # A Director title alone implies no people management
     assert not any(e["tag"] == "team_mgmt" and "Bigco" in e["role"] for e in f["evidence"])
+
+
+def test_education_parsing_and_scheduled_degrees():
+    from app.v2.reader import education_by, parse_education
+
+    e = parse_education("Education: BS Mechanical Engineering, Boston University; EMBA, Quantic (Sep 2025 to Jan 2027); "
+                        "MS in AI Engineering, Quantic (Mar 2026 to May 2027, in progress); Certificate in Data Science", NOW)
+    assert e["ED"] == 1 and [d["level"] for d in e["degrees"]] == [1, 2, 2]
+    assert all(d["in_progress"] for d in e["degrees"][1:])
+    assert education_by(e["degrees"], "2027-06") == 2 and education_by(e["degrees"], "2026-12") == 1

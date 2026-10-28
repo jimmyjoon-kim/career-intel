@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Profile, ReferenceProfile
 from .model import Reference, base_scorecard
-from .reader import CV_PREFIX, SOURCE_ORDER, extract_features, parse_roles
+from .reader import CV_PREFIX, SOURCE_ORDER, education_by, extract_features, parse_education, parse_roles
 
 SEED_DIR = Path(__file__).resolve().parents[2] / "seed"
 DEFAULT_CLUSTER = "Partnerships"
@@ -52,10 +52,10 @@ def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
 
 def import_reference_file(db: Session, path: Path) -> int:
     data = json.loads(path.read_text(encoding="utf-8"))
-    db.execute(delete(ReferenceProfile).where(ReferenceProfile.cluster == data["cluster"],
-                                              ReferenceProfile.source == data["source"]))
+    # A reference file replaces its whole cluster, so a re-read never leaves the previous rows behind.
+    db.execute(delete(ReferenceProfile).where(ReferenceProfile.cluster == data["cluster"]))
     for r in data["rows"]:
-        feats = {k: r.get(k) for k in ("YOE", "YOE_raw", "CT", "tier", "LV", "LV_max", "FN", "DM", "AC")}
+        feats = {k: r.get(k) for k in ("YOE", "YOE_raw", "CT", "tier", "LV", "LV_max", "FN", "DM", "AC", "ED", "mba", "technical")}
         feats["tags"] = r["tags"]
         db.add(ReferenceProfile(cluster=data["cluster"], company=r["company"], title=r["title"], features=feats,
                                 source=data["source"], as_of=data.get("as_of", "")))
@@ -96,6 +96,13 @@ def user_features(prof: Profile | None) -> dict | None:
         return None
     f = extract_features(roles, overrides=(prof.role_reviews or {}) if prof else None)
     f["source"], f["format"] = source, fmt
+    edu = parse_education(text)
+    if edu["ED"] is None and prof and prof.cv_text and text is not prof.cv_text:
+        edu = parse_education(prof.cv_text) if parse_education(prof.cv_text)["degrees"] else edu
+    f["ED"], f["degrees"] = edu["ED"], edu["degrees"]
+    target = (prof.target_date if prof else "") or ""
+    f["target_date"] = target
+    f["ED_target"] = education_by(edu["degrees"], target) if target else None
     return f
 
 

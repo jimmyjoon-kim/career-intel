@@ -13,6 +13,17 @@ from ..v2.service import months_left, reference_meta, scorecard
 router = APIRouter(prefix="/api/scorecard", tags=["scorecard"])
 
 
+def _months_to_degree(feats: dict) -> int | None:
+    from datetime import date
+
+    ends = [d["end"] for d in feats.get("degrees", []) if d["in_progress"] and d["level"] >= 2 and d["end"]]
+    if not ends:
+        return None
+    y, m = (int(x) for x in min(ends).split("-"))
+    t = date.today()
+    return max(0, (y - t.year) * 12 + (m - t.month))
+
+
 @router.get("")
 def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_db)):
     prof = ensure_profile(db, user)
@@ -27,7 +38,7 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
     return {
         "ready": True,
         "card": pub,
-        "gap_plan": build_gap_plan(card, ev["gap_summary"], left),
+        "gap_plan": build_gap_plan(card, ev["gap_summary"], left, _months_to_degree(feats)),
         "reference": reference_meta(db),
         "months_left": months_left(prof.target_date or ""),
         "reading": {
@@ -35,10 +46,11 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
             "recent_role": feats["recent_role"], "level_max": LEVEL_NAMES.get(feats["LV_max"]) if feats["LV_max"] is not None else None,
             "level_names": LEVEL_NAMES, "roles": feats["roles"], "evidence": feats["evidence"],
             "achievements": feats["achievements"], "tags": feats["tags"], "team_size_max": feats["team_size_max"],
+            "degrees": feats.get("degrees", []), "education_by_target": feats.get("ED_target"),
         },
         "notes": [
             "Reference = people recently hired into US Partnerships roles; the only cluster collected so far.",
-            "Education is not scored: holder education coverage is 0%.",
+            "Education counts at a 5% weight by highest degree completed (bachelor's 1, master's/MBA/JD 2, doctorate 3); degrees in progress count from their completion date. School and graduation year are not scored.",
             "Title-implied scope (a GM runs the unit's team and P&L) and employer context apply to holders and to you alike. "
             "Facts you state on a 'Scope:' line and CV lines exist only for you, so team size is shown but not scored.",
             "Company tiers come from a rule-based list, not a dated market-cap table.",

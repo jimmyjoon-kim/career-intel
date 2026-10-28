@@ -1,6 +1,6 @@
 {
  "cluster": "Partnerships",
- "source": "US Partnerships role holders hired Sep-Oct 2026, full LinkedIn experience text, read 2026-10-27",
+ "source": "US Partnerships role holders hired Sep-Oct 2026, full LinkedIn experience text (read 2026-10-27) and education (degree level, read 2026-10-28)",
  "as_of": "2026-10",
  "n": 44,
  "rows": [
@@ -16,6 +16,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.25,
    "AC": 3,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -46,6 +49,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.0,
    "AC": 0,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -76,6 +82,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.0,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -106,6 +115,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.25,
    "AC": 2,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -136,6 +148,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.25,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -166,6 +181,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.5,
    "AC": 3,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -196,6 +214,9 @@
    "FN": 0.8333333333333334,
    "DM": 0.75,
    "AC": 4,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -226,6 +247,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.25,
    "AC": 4,
+   "ED": 2,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -256,6 +280,9 @@
    "FN": 0.8333333333333334,
    "DM": 0.625,
    "AC": 4,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -286,6 +313,9 @@
    "FN": 1.0,
    "DM": 0.625,
    "AC": 4,
+   "ED": 2,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -316,6 +346,9 @@
    "FN": 1.0,
    "DM": 0.75,
    "AC": 2,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -346,6 +379,9 @@
    "FN": 0.8333333333333334,
    "DM": 0.75,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -376,6 +412,9 @@
    "FN": 1.0,
    "DM": 0.5,
    "AC": 9,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -406,6 +445,9 @@
    "FN": 1.0,
    "DM": 0.25,
    "AC": 4,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -436,6 +478,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.375,
    "AC": 1,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -466,6 +511,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.5,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -496,6 +544,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.75,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -526,6 +577,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.25,
    "AC": 0,
+   "ED": null,
+   "mba": null,
+   "technical": null,
    "tags": {
     "func_partnerships": 0.0,
     "func_bd": 1.0,
@@ -556,6 +610,9 @@
    "FN": 0.5,
    "DM": 0.0,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -586,6 +643,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.0,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -616,6 +676,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.25,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -646,6 +709,9 @@
    "FN": 1.0,
    "DM": 0.75,
    "AC": 1,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -676,6 +742,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.75,
    "AC": 0,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -706,6 +775,9 @@
    "FN": 0.8333333333333334,
    "DM": 0.375,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.5,
@@ -736,6 +808,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.0,
    "AC": 1,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -766,6 +841,9 @@
    "FN": 1.0,
    "DM": 0.75,
    "AC": 3,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -796,6 +874,9 @@
    "FN": 1.0,
    "DM": 1.0,
    "AC": 2,
+   "ED": 1,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -826,6 +907,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.5,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -856,6 +940,9 @@
    "FN": 0.8333333333333334,
    "DM": 0.5,
    "AC": 5,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -886,6 +973,9 @@
    "FN": 0.8333333333333334,
    "DM": 0.5,
    "AC": 1,
+   "ED": 2,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -916,6 +1006,9 @@
    "FN": 1.0,
    "DM": 1.0,
    "AC": 3,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -946,6 +1039,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.5,
    "AC": 3,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -976,6 +1072,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.25,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -1006,6 +1105,9 @@
    "FN": 1.0,
    "DM": 0.5,
    "AC": 7,
+   "ED": 2,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -1036,6 +1138,9 @@
    "FN": 0.5,
    "DM": 0.0,
    "AC": 2,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.5,
@@ -1066,6 +1171,9 @@
    "FN": 0.6666666666666666,
    "DM": 0.25,
    "AC": 7,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -1096,6 +1204,9 @@
    "FN": 1.0,
    "DM": 0.25,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -1126,6 +1237,9 @@
    "FN": 1.0,
    "DM": 0.75,
    "AC": 8,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -1156,6 +1270,9 @@
    "FN": 0.3333333333333333,
    "DM": 0.75,
    "AC": 0,
+   "ED": 2,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,
@@ -1186,6 +1303,9 @@
    "FN": 0.5,
    "DM": 0.5,
    "AC": 5,
+   "ED": 2,
+   "mba": 0,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.5,
@@ -1216,6 +1336,9 @@
    "FN": 0.0,
    "DM": 0.0,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 0.0,
     "func_bd": 0.0,
@@ -1246,6 +1369,9 @@
    "FN": 0.0,
    "DM": 0.0,
    "AC": 0,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 0.0,
     "func_bd": 0.0,
@@ -1276,6 +1402,9 @@
    "FN": 1.0,
    "DM": 0.25,
    "AC": 4,
+   "ED": 2,
+   "mba": 1,
+   "technical": 0,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 1.0,
@@ -1306,6 +1435,9 @@
    "FN": 0.5,
    "DM": 0.25,
    "AC": 0,
+   "ED": 1,
+   "mba": 0,
+   "technical": 1,
    "tags": {
     "func_partnerships": 1.0,
     "func_bd": 0.0,

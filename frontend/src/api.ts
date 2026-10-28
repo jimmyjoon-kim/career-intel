@@ -65,6 +65,8 @@ export type Scorecard = {
     recent_role: { title: string; company: string; start: string; end: string; months: number; level: number; level_cue: string | null; tier: number } | null;
     roles: RoleRead[]; evidence: { tag: string; weight: number; role: string; phrase: string; source: string; url: string }[];
     team_size_max: { size: number; role: string; source: string } | null;
+    degrees: { text: string; level: number; end: string | null; in_progress: boolean; technical: boolean }[];
+    education_by_target: number | null;
     achievements: { role: string; line: string; match: string }[]; tags: Record<string, number>;
   };
   notes?: string[];
