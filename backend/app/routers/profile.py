@@ -26,7 +26,7 @@ MAX_UPLOAD = 5 * 1024 * 1024
 def profile_dict(p: Profile) -> dict:
     return {
         "headline": p.headline, "cv_text": p.cv_text, "experience_text": p.experience_text or "",
-        "target_date": p.target_date or "", "years_experience": p.years_experience,
+        "target_date": p.target_date or "", "has_photo": bool(p.photo), "years_experience": p.years_experience,
         "tag_matches": p.tag_matches or {}, "min_level": p.min_level, "locations": p.locations or [],
         "remote_ok": p.remote_ok, "needs_sponsorship": p.needs_sponsorship,
         "excluded_title_terms": p.excluded_title_terms or [],
@@ -163,3 +163,38 @@ def refresh(user: User = Depends(current_user), db: Session = Depends(get_db)):
     index = rebuild_user(db, user)
     feats = user_features(prof)
     return {"ok": True, "roles_read": len(feats["roles"]) if feats else 0, "index": index}
+
+
+PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_PHOTO = 600 * 1024
+
+
+@router.post("/photo")
+async def upload_photo(file: UploadFile = File(...), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    import base64
+
+    data = await file.read()
+    ctype = file.content_type or ""
+    sig = data[:12]
+    if sig.startswith(b"\xff\xd8"):
+        ctype = "image/jpeg"
+    elif sig.startswith(b"\x89PNG"):
+        ctype = "image/png"
+    elif sig[:4] == b"RIFF" and sig[8:12] == b"WEBP":
+        ctype = "image/webp"
+    if ctype not in PHOTO_TYPES:
+        raise HTTPException(422, "Use a JPEG, PNG or WebP image.")
+    if len(data) > MAX_PHOTO:
+        raise HTTPException(413, "Image too large (max 600 KB). A square photo of about 400 pixels is enough.")
+    prof = ensure_profile(db, user)
+    prof.photo = f"data:{ctype};base64,{base64.b64encode(data).decode()}"
+    db.commit()
+    return profile_dict(prof)
+
+
+@router.delete("/photo")
+def delete_photo(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    prof = ensure_profile(db, user)
+    prof.photo = ""
+    db.commit()
+    return profile_dict(prof)

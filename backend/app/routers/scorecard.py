@@ -21,9 +21,12 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
         return {"ready": False, "reason": reason}
     left = months_left(prof.target_date or "")
     ev = evaluate(db, user)
+    pub = public(card)
+    pub["cards"]["you"]["photo"] = prof.photo or None
+    pub["cards"]["you"]["name"] = user.name or "You"
     return {
         "ready": True,
-        "card": public(card),
+        "card": pub,
         "gap_plan": build_gap_plan(card, ev["gap_summary"], left),
         "reference": reference_meta(db),
         "months_left": months_left(prof.target_date or ""),

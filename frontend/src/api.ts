@@ -31,7 +31,7 @@ export type Factor = {
 export type GapV2 = Factor & { class: string; action: string; months_to_close: number | null; closable_by_target: boolean | null };
 export type PlayerCard = {
   ovr: number | null; attrs: { code: string; label: string; value: number | null }[]; scarce: number | null; traits: string[];
-  name: string; sub: string; position: string; alt_positions: string[]; index?: number;
+  name: string; sub: string; position: string; alt_positions: string[]; index?: number; photo?: string | null;
 };
 export type Card = {
   cluster: string; n_reference: number; weights: Record<string, number>; base_score: number; position: number;
@@ -73,7 +73,7 @@ export type Scorecard = {
 export type TagMatch = { match: number; evidence: string; source: string };
 
 export type Profile = {
-  headline: string; cv_text: string; experience_text: string; target_date: string; years_experience: number | null;
+  headline: string; cv_text: string; experience_text: string; target_date: string; has_photo: boolean; years_experience: number | null;
   tag_matches: Record<string, TagMatch>; min_level: string; locations: string[];
   remote_ok: boolean; needs_sponsorship: boolean; excluded_title_terms: string[]; updated_at: string | null;
 };

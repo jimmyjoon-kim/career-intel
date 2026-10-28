@@ -40,6 +40,8 @@ class Profile(Base):
     target_date: Mapped[str] = mapped_column(String(7), default="")
     # Your review of each role: {role_key: {"tags": {tag: 0|0.5|1}, "team_size": int|None, "confirmed": bool}}
     role_reviews: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Profile photo as a data URL (jpeg/png/webp, small); shown on your player card only.
+    photo: Mapped[str] = mapped_column(Text, default="")
     years_experience: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # {tag: {"match": 0|0.5|1, "evidence": str, "source": "extracted"|"user"}}
     tag_matches: Mapped[dict] = mapped_column(JSON, default=dict)

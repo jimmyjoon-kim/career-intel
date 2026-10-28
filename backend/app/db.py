@@ -24,7 +24,8 @@ def init_db() -> None:
     with engine.begin() as conn:
         for ddl in ("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS experience_text TEXT DEFAULT ''",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_date VARCHAR(7) DEFAULT ''",
-                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role_reviews JSON DEFAULT '{}'::json"):
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role_reviews JSON DEFAULT '{}'::json",
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS photo TEXT DEFAULT ''"):
             conn.execute(text(ddl))
 
 

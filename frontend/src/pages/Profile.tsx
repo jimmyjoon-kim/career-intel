@@ -118,6 +118,14 @@ export default function ProfilePage() {
       </div>
 
       <section className="card">
+        <h2>Photo</h2>
+        <p className="muted small">Shown on your player card only. JPEG, PNG or WebP, up to 600 KB; a square photo works best.</p>
+        <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) run(() => upload<Profile>("/api/profile/photo", f), "Photo saved."); }} />
+        {prof.has_photo && <button className="btn" disabled={busy} onClick={() => run(() => api<Profile>("/api/profile/photo", { method: "DELETE" }), "Photo removed.")}>Remove photo</button>}
+      </section>
+
+      <section className="card">
         <h2>Full experience text</h2>
         <p className="muted small">
           Used for your Scorecard. On LinkedIn open Experience, then Show all; select the whole list and paste it here. CV-style text with

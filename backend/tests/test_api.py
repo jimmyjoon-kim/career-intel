@@ -188,3 +188,12 @@ def test_benchmark_gap_plan_refresh_and_ask_fallback(client, monkeypatch):
     monkeypatch.setattr(index, "embed", boom)
     a = client.post("/api/ask", json={"question": "Which partnerships postings are open?"}, headers=h)
     assert a.status_code == 200 and a.json()["sources"]
+
+
+def test_photo_upload(client):
+    h, _ = signup(client, "photo@example.com")
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
+    r = client.post("/api/profile/photo", files={"file": ("me.png", png, "image/png")}, headers=h)
+    assert r.status_code == 200 and r.json()["has_photo"]
+    assert client.post("/api/profile/photo", files={"file": ("x.txt", b"hello", "text/plain")}, headers=h).status_code == 422
+    assert client.delete("/api/profile/photo", headers=h).json()["has_photo"] is False

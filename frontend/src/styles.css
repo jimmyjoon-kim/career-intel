@@ -369,3 +369,6 @@ button.pcard.hit:hover { transform: translateY(-2px); transition: transform 0.15
 .pc-legend div { display: flex; gap: 6px; } .pc-legend dt { font-weight: 800; color: var(--muted); width: 34px; } .pc-legend dd { margin: 0; color: var(--ink-2); }
 .tabs button { min-height: 36px; background: var(--surface-2); color: var(--ink-2); border-color: var(--line); }
 .tabs button.on { background: var(--accent-strong); color: #0b0f17; border-color: var(--accent-strong); }
+.pc-photo { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; border: 2px solid var(--pc-glow); position: relative; z-index: 1; }
+.pcard.lg .pc-photo { width: 84px; height: 84px; }
+.pcard.sm .pc-photo { width: 44px; height: 44px; }

@@ -12,7 +12,9 @@ export function PCard({ c, size = "sm", onClick, you = false }: { c: PlayerCard;
           <span className="pc-num">{c.ovr ?? "—"}</span>
           <span className="pc-pos">{c.position}</span>
         </div>
-        <div className="pc-mono" aria-hidden="true">{you ? "YOU" : initials(c.name)}</div>
+        {c.photo
+          ? <img className="pc-photo" src={c.photo} alt="Your profile photo" />
+          : <div className="pc-mono" aria-hidden="true">{you ? "YOU" : initials(c.name)}</div>}
       </div>
       <div className="pc-name">{c.name}</div>
       <div className="pc-sub">{c.sub}</div>
