@@ -29,6 +29,10 @@ export type Factor = {
   delta: number | null; coverage: number;
 };
 export type GapV2 = Factor & { class: string; action: string; months_to_close: number | null; closable_by_target: boolean | null };
+export type PlayerCard = {
+  ovr: number | null; attrs: { code: string; label: string; value: number | null }[]; scarce: number | null; traits: string[];
+  name: string; sub: string; position: string; alt_positions: string[]; index?: number;
+};
 export type Card = {
   cluster: string; n_reference: number; weights: Record<string, number>; base_score: number; position: number;
   position_ci95: [number | null, number | null];
@@ -37,6 +41,7 @@ export type Card = {
   factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];
   focus_areas: { tag: string; label: string; holder_share: number; your_weight: number; status: string; note: string }[];
   rare_strengths: { tag: string; label: string; holder_share: number }[];
+  cards: { you: PlayerCard; top: PlayerCard[]; nearest: PlayerCard[]; legend: Record<string, string>; note: string };
   benchmark: {
     max: number; p90: number; p75: number; median: number; p25: number; min: number; ceiling_note: string;
     n_above: number; above_tiers: Record<string, number>;

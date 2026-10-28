@@ -208,6 +208,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "prevalence": {t: round(p, 2) for t, p in prevalence.items()}, "tag_labels": TAG_LABELS, "peers": peers,
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
         "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev),
+        "cards": _cards(S_u, S_h, P_h, P_u, rows, uf, order),
         "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf},
     }
 
@@ -249,6 +250,61 @@ def opportunity(card: dict, posting_tags: list[str], tag_weights: dict[str, int]
             "weights": {k: _r(v) for k, v in w2.items()},
             "emphasised": [FACTOR_LABELS[k] for k, v in shifts if v > 0.5][:3],
             "thresholds": thresholds}
+
+
+CARD_ATTRS = [("LVL", "LV", "Level held"), ("FUN", "FN", "Function evidence"), ("DOM", "DM", "Domain breadth"),
+              ("EXP", "YOE", "Years of experience"), ("IMP", "AC", "Quantified impact"), ("TIER", "CT", "Employer tier")]
+TRAIT_TAGS = ["team_large", "pnl_ownership", "func_sales_leadership", "skill_0to1_build", "skill_hyperscaler",
+              "skill_govtech", "skill_consulting_firm_background", "func_channel"]
+_POS = [(r"general manager|\bgm\b|managing director|country manager", "GM"), (r"\bceo\b|\bcro\b|chief", "CXO"),
+        (r"alliance", "ALL"), (r"partner", "PTN"), (r"business development|\bbd\b", "BD"), (r"growth", "GRW"),
+        (r"monetiz|ads?\b|advertis", "ADS"), (r"sales|revenue|commercial", "SAL")]
+
+
+def position_code(title: str) -> str:
+    import re as _re
+    for pat, code in _POS:
+        if _re.search(pat, (title or "").lower()):
+            return code
+    return "PTN"
+
+
+def _rating(p) -> int | None:
+    return None if p is None or (isinstance(p, float) and np.isnan(p)) else int(max(1, min(99, round(float(p)))))
+
+
+def _card(score, pcts, tags) -> dict:
+    return {"ovr": _rating(score),
+            "attrs": [{"code": c, "label": l, "value": _rating(pcts[FACTORS.index(k)])} for c, k, l in CARD_ATTRS],
+            "scarce": _rating(pcts[FACTORS.index("UQ")]),
+            "traits": [TAG_LABELS[t] for t in TRAIT_TAGS if (tags or {}).get(t, 0) >= 1]}
+
+
+def _cards(S_u, S_h, P_h, P_u, rows, uf, order) -> dict:
+    """Player-card view: overall = base score; each attribute = percentile among role holders (1–99)."""
+    you = _card(S_u, P_u, uf["tags"])
+    rr = uf.get("recent_role") or {}
+    # Primary position: the role family you held longest in the last 10 years; alternates from your other roles.
+    months: dict[str, int] = {}
+    for r in uf.get("roles", []):
+        if r.get("counted") and r.get("recency_weight", 1) == 1.0:
+            code = position_code(r["title"])
+            months[code] = months.get(code, 0) + r["months"]
+    ranked = sorted(months, key=lambda c: -months[c])
+    for t, code in (("func_partnerships", "PTN"), ("func_bd", "BD"), ("func_sales_leadership", "SAL"), ("func_channel", "CHN")):
+        if uf["tags"].get(t, 0) >= 1 and code not in ranked:
+            ranked.append(code)
+    you.update({"name": "You", "position": ranked[0] if ranked else position_code(rr.get("title", "")),
+                "alt_positions": ranked[1:5], "sub": f'{rr.get("title", "")} · {rr.get("company", "")}'.strip(" ·")})
+    def holder(i):
+        c = _card(S_h[i], P_h[i], rows[i]["tags"])
+        c.update({"name": rows[i]["company"], "sub": rows[i]["title"], "position": position_code(rows[i]["title"]),
+                  "alt_positions": [], "index": int(i)})
+        return c
+    top = sorted(range(len(rows)), key=lambda i: -(S_h[i] if not np.isnan(S_h[i]) else -1))[:8]
+    return {"you": you, "top": [holder(i) for i in top], "nearest": [holder(i) for i in order[:8]],
+            "legend": {c: l for c, _, l in CARD_ATTRS},
+            "note": "Overall = base score. Each attribute = your percentile among role holders (1–99), so 50 is the median holder."}
 
 
 def _score_with(uf: dict, M: np.ndarray, wv: np.ndarray, prev: dict) -> tuple[float, float]:

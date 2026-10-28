@@ -2,6 +2,8 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Card, Factor, RoleRead, Row, Scorecard } from "../api";
 import { Empty, ErrorBox, useFetch } from "../components";
+import { CardCompare, CardSection } from "../PlayerCards";
+import type { PlayerCard } from "../api";
 
 type Reading = NonNullable<Scorecard["reading"]>;
 type Peer = Card["peers"][number];
@@ -15,7 +17,8 @@ type Detail =
   | { kind: "role"; role: RoleRead }
   | { kind: "posting"; row: Row }
   | { kind: "holder"; peer: Peer }
-  | { kind: "limits" };
+  | { kind: "limits" }
+  | { kind: "card"; card: PlayerCard };
 
 const MATRIX_TAGS: [string, string][] = [
   ["func_partnerships", "Partner"], ["func_channel", "Channel"], ["func_bd", "BD"], ["func_sales_leadership", "Sales lead"],
@@ -74,6 +77,8 @@ export default function ScorecardPage() {
         </div>
         <button className="more-link" onClick={() => setDetail({ kind: "limits" })}>How this is measured ›</button>
       </header>
+
+      <CardSection {...c.cards} onPick={(card) => setDetail({ kind: "card", card })} />
 
       <section className="sc-row3">
         <button className="tile hit" onClick={() => setDetail({ kind: "score" })} aria-label="Base score details">
@@ -544,6 +549,8 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         <p className="small muted">Shown by current company and title only.</p>
       </>);
     }
+    case "card":
+      return <CardCompare you={c.cards.you} them={d.card} />;
     case "limits":
       return (<>
         <h2>How this is measured</h2>
