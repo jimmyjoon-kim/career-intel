@@ -153,3 +153,17 @@ def test_role_review(client):
     assert prof["tag_matches"]["team_large"]["match"] == 1
     assert client.put("/api/profile/roles/nope", json={"tags": {}}, headers=h).status_code == 404
     assert client.put(url, json={"tags": {"bogus": 1}}, headers=h).status_code == 422
+
+
+def test_matches(client):
+    h, _ = signup(client, "matches@example.com")
+    client.put("/api/profile", json={"experience_text": EXPERIENCE}, headers=h)
+    m = client.get("/api/matches", headers=h).json()
+    assert m["progression"]["established"] is not None
+    assert m["role_types"] and all(t["n_open"] >= 2 for t in m["role_types"])
+    t = m["role_types"][0]
+    assert 0 <= t["fit"] <= 100 and t["level_relation"] in ("above your level", "at your level", "below your level", "unknown")
+    assert any(x["vertical"] == "Semiconductors & compute" for x in m["role_types"])
+    assert isinstance(m["positions"], list)
+    s = client.post("/api/matches/search", json={"query": "Head of Partnerships AI"}, headers=h).json()
+    assert s["available"] is False  # offline in tests

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Profile, ReferenceProfile
 from .model import Reference, base_scorecard
-from .reader import SOURCE_ORDER, extract_features, parse_roles
+from .reader import CV_PREFIX, SOURCE_ORDER, extract_features, parse_roles
 
 SEED_DIR = Path(__file__).resolve().parents[2] / "seed"
 DEFAULT_CLUSTER = "Partnerships"
@@ -39,6 +39,14 @@ def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
                 continue
             current[t] = {"match": e["weight"], "source": "experience",
                           "evidence": f'{e["role"]}: "{e["phrase"]}" ({e["source"]})'[:500]}
+    # Wider requirement taxonomy (deal structuring, executive presence, etc.): keyword pass over the same text.
+    text, _ = experience_source(prof)
+    if text:
+        from ..taxonomy import keyword_tags
+
+        for t, snip in keyword_tags(text.replace(CV_PREFIX, "")).items():
+            if t not in current:
+                current[t] = {"match": 1.0, "source": "experience", "evidence": f'keyword in experience text: "{snip}"'[:500]}
     prof.tag_matches = current
 
 

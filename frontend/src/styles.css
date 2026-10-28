@@ -314,3 +314,17 @@ details summary { cursor: pointer; color: var(--accent); margin: 0.5rem 0; }
 button.tile.hit { background: var(--surface); border: 1px solid var(--line); padding: 22px; border-radius: 18px; }
 button.tile.hit:hover { border-color: #3a4866; }
 a.more-link { text-decoration: none; }
+
+/* matches */
+.types { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.type-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.type-card:hover { border-color: #3a4866; }
+.type-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-d { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 9px; background: var(--line); color: var(--ink-2); }
+.chip-d.good { background: var(--good-soft); color: var(--good); }
+.chip-d.warn { background: var(--warn-soft); color: var(--warn); }
+.chip-d.acc { background: var(--accent-soft); color: var(--accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tabs button.on, .chip-btn:hover { border-color: var(--accent); }
+.chip-btn { background: var(--surface-2); color: var(--ink-2); border-color: var(--line); min-height: 36px; }

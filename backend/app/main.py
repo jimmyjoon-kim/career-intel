@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import init_db
-from .routers import ask, auth, market, profile, scorecard
+from .routers import ask, auth, market, matches, profile, scorecard
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +25,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-for r in (auth.router, profile.router, market.router, ask.router, scorecard.router):
+for r in (auth.router, profile.router, market.router, ask.router, scorecard.router, matches.router):
     app.include_router(r)
 
 

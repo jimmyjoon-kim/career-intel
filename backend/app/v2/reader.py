@@ -31,7 +31,7 @@ TITLE_WORDS = re.compile(
     r"director|manager|head|vp|vice president|president|chief|lead|officer|partner|sales|engineer|consultant|executive|"
     r"analyst|associate|specialist|founder|principal|gm\b|general manager|strategist|coordinator|assistant|intern|advisor|"
     r"member|producer|representative|scientist|architect|planner|supervisor|development|partnerships|business", re.I)
-SKIP_LINE = re.compile(r"^(Skills: |Show all \d|Load more$|Experience$|Hybrid$|Remote$|On-site$|.* · (Hybrid|Remote|On-site)$|\s*$)")
+SKIP_LINE = re.compile(r"^(Skills: |Education: |Show all \d|Load more$|Experience$|Hybrid$|Remote$|On-site$|.* · (Hybrid|Remote|On-site)$|\s*$)")
 CV_PREFIX = "<<CV>> "
 
 
