@@ -29,9 +29,10 @@ US_REQ = re.compile(
 US_TITLE = re.compile(r"north america|\bus&c\b|\bucan\b|\bu\.s\.\b|\bus\b(?! ?based)|\bamericas\b", re.I)
 GLOBAL_REQ = re.compile(
     r"(?:global|international|multi-?region(?:al)?|multi-?national|cross-?border)\s+(?:operating\s+|business\s+|go-to-market\s+)?"
-    r"(?:experience|markets?|scope|footprint|expansion)[^.;]{0,60}"
+    r"(?:experience|scope|footprint)\b[^.;]{0,60}"
     r"|across (?:na|north america), emea,? and apac[^.;]{0,40}"
-    r"|(?:multiple|several) (?:international |global )?(?:markets|countries|regions)[^.;]{0,40}", re.I)
+    r"|(?:experience|track record)[^.;]{0,40}(?:multiple|several) (?:international |global )?(?:markets|countries|regions)\b[^.;]{0,40}"
+    r"|(?:scal|grow|lead|manag)\w*[^.;]{0,40}across (?:multiple|several) (?:international |global )?(?:markets|countries|regions)\b[^.;]{0,40}", re.I)
 RELOC_YES = re.compile(r"(?:offer|provide)s?\s+relocation assistance|relocation (?:assistance|support|package) (?:is )?(?:available|offered|provided)", re.I)
 RELOC_NO = re.compile(r"not eligible for relocation|no relocation|relocation (?:assistance )?(?:is )?not (?:offered|available|provided)", re.I)
 ONSITE = re.compile(r"\b\d\s+days?\s+(?:a|per)\s+week\s+in\s+(?:the\s+)?office|\bon-?site\b|\bin-office\b|office-based", re.I)
@@ -84,8 +85,8 @@ def regions(loc: str) -> set[str]:
 
 
 US_WORK = re.compile(r"[^.;]{0,80}\b(?:u\.s\.|united states|north america(?:n)?|us-based|us-headquartered|silicon valley)\b[^.;]{0,80}", re.I)
-MULTI = re.compile(r"[^.;]{0,60}(?:\bapac\b|asia[- ]pacific|\bemea\b|\bglobal\b|\bregional\b|across the region|multi-country)"
-                   r"[^.;]{0,80}", re.I)
+MULTI = re.compile(r"[^.;]{0,60}(?:\bapac\b|asia[- ]pacific|\bemea\b|across the region|multi-country|"
+                   r"global (?:accounts|business|partnerships|revenue|sales|go-to-market))[^.;]{0,80}", re.I)
 COUNTRIES = re.compile(r"\b(japan|korea|singapore|china|taiwan|india|australia|vietnam|thailand|indonesia|philippines|malaysia|"
                        r"hong kong|anz|southeast asia|united states|europe)\b", re.I)
 
@@ -116,7 +117,10 @@ def user_geo(roles: list[dict], degrees: list[dict] | None = None) -> dict:
             us_ev.append(f'{label}: "{m.group(0).strip()}"')
         mm = MULTI.search(text + " " + loc)
         if mm and (len(set(c.lower() for c in COUNTRIES.findall(text))) >= 2 or re.search(r"apac|asia[- ]pacific|emea|global", mm.group(0), re.I)):
-            multi_ev.append(f'{label}: "{mm.group(0).strip()[:160]}"')
+            best = next((ln for ln in (r.get("desc") or []) if len(set(c.lower() for c in COUNTRIES.findall(ln))) >= 2), None)
+            q = (best or mm.group(0)).strip()[:160]
+            multi_ev.append((0 if best else 1, f'{label}: "{q}"'))
+    multi_ev = [x for _, x in sorted(multi_ev, key=lambda t: t[0])]
     us_edu = [d["text"] for d in (degrees or []) if US_LOC.search(d.get("text", ""))]
     matches = {}
     if us_only >= 12:
