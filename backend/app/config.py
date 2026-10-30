@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # Search vectors: "ollama" (local model on this Mac), "voyage" (hosted), or "auto" = voyage if a key is set, else hashing.
     embedding_provider: str = "auto"
     ollama_url: str = "http://host.docker.internal:11434"
-    ollama_embed_model: str = "mxbai-embed-large"  # 1024 dimensions, same as the database column
+    ollama_embed_model: str = "snowflake-arctic-embed2"  # 1024 dimensions, same as the database column
     voyage_api_key: str = ""
     voyage_model: str = "voyage-3.5"
     embedding_dim: int = 1024
