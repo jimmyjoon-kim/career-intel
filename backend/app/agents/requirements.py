@@ -89,8 +89,16 @@ def run(db: Session, run_id: int | None, limit: int = 150) -> dict:
     done = disputed = 0
     stopped = ""
     for p in todo:
+        if not (p.description or "").strip() and p.url and not (p.read_check or {}).get("fetch_tried"):
+            from .sourcing import fetch_description, fingerprint
+
+            text = fetch_description(p.url)
+            p.read_check = {"fetch_tried": True}
+            if text:
+                p.description = text[:30000]
+                p.content_hash = fingerprint(p.title, p.description)
         if not (p.description or "").strip():
-            p.read_check = {"hash": p.content_hash, "runs": 0, "note": "no description text; title only"}
+            p.read_check = {"hash": p.content_hash, "runs": 0, "fetch_tried": True, "note": "no description text; title only"}
             continue
         try:
             ex = examples_for(db, p, pool) if pool and not is_test(p) else ""
@@ -115,7 +123,8 @@ def run(db: Session, run_id: int | None, limit: int = 150) -> dict:
         disputed += bool(m["disputed"])
         db.commit()
     db.commit()
-    return {"read": done, "with_disputed_tags": disputed, "remaining": max(0, len(todo) - done), "reads_each": reads,
+    return {"read": done, "with_disputed_tags": disputed, "title_only": sum(1 for p in todo if not (p.description or "").strip()),
+            "reads_each": reads,
             **({"stopped": stopped} if stopped else {})}
 
 

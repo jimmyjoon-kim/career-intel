@@ -236,10 +236,34 @@ def run_web(db: Session, run_id: int | None, profile_summary: str, only_location
             ok, _ = keep(r.get("title", ""), r.get("location", ""), extra)
             if not ok or db.scalar(select(Posting.id).where(Posting.url == r["url"])):
                 continue
-            db.add(Posting(company=r.get("company", "")[:200], title=r.get("title", "")[:300], url=r["url"][:1000],
+            from ..extract import _guess_cluster
+            from ..taxonomy import infer_level
+
+            title = r.get("title", "")[:300]
+            db.add(Posting(company=r.get("company", "")[:200], title=title, url=r["url"][:1000],
                            location=r.get("location", "")[:300], bay_area=bool(BAY.search(r.get("location", ""))),
+                           level_band=infer_level(title), role_cluster=_guess_cluster(title),
                            status="unverified", source="web", first_seen=today, last_seen=today,
                            verification=f"found by web search {today}; not checked on the live board", read_check={}))
             added += 1
     db.commit()
-    return {"added_unverified": added, "queries": len(queries), "locations": names, "notes": notes}
+    boards = seed_boards(db)  # web finds on Greenhouse / Lever / Ashby: their boards are read (and verified) daily from now on
+    return {"added_unverified": added, "queries": len(queries), "locations": names, "new_boards": boards, "notes": notes}
+
+
+def fetch_description(url: str, client: httpx.Client | None = None) -> str:
+    """Best effort: the visible text of a posting page (for tagging only; it does not prove the posting is open)."""
+    own = client is None
+    client = client or httpx.Client(timeout=20, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 career-intel"})
+    try:
+        r = client.get(url)
+        if r.status_code != 200 or "html" not in r.headers.get("content-type", ""):
+            return ""
+        html_ = re.sub(r"(?is)<(script|style|nav|header|footer|noscript)[^>]*>.*?</\1>", " ", r.text)
+        text = text_of(html_)
+        return text if len(text) > 600 else ""
+    except Exception:  # noqa: BLE001
+        return ""
+    finally:
+        if own:
+            client.close()
