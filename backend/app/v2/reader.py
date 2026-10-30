@@ -106,6 +106,9 @@ def parse_linkedin(text: str, now: tuple[int, int] | None = None) -> list[dict]:
                 continue
             desc.append(ln)
         r["desc"] = desc
+        from .geo import regions
+
+        r["location"] = next((ln.split(" · ")[0] for ln in desc[:2] if len(ln) < 80 and (regions(ln) or ln.endswith("Area"))), "")
         r.pop("_date_i"), r.pop("_tstart")
         _finish(r, now)
     return roles
@@ -132,7 +135,7 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
             continue
         head = (ln[: m.start()] + " " + ln[m.end():]).strip(" |,·—–-()\t")
         parts = [p.strip() for p in re.split(r"\s*[|·,—–]\s*|\s{2,}", head) if p.strip()]
-        cv_head = None
+        cv_head, cv_loc = None, ""
         if not parts and i >= 1:
             prev = L[i - 1]
             if roles and roles[-1]["desc"] and roles[-1]["desc"][-1] == prev.lstrip("-•* ").strip():
@@ -140,6 +143,7 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
             hm = CV_HEAD.match(prev)
             if hm:
                 cv_head = (hm.group(1).split(",")[0].strip(), hm.group(2).strip())
+                cv_loc = hm.group(1).split(",", 1)[1].strip() if "," in hm.group(1) else ""
             parts = [p.strip() for p in re.split(r"\s*[|·,—–]\s*", prev) if p.strip()]
         if cv_head:
             company, title = cv_head
@@ -147,7 +151,7 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
             titled = [p for p in parts if TITLE_WORDS.search(p)]
             title = titled[0] if titled else (parts[0] if parts else "")
             company = next((p for p in parts if p != title), "")
-        roles.append(_finish({"title": title, "company": company, "emp_type": None,
+        roles.append(_finish({"title": title, "company": company, "emp_type": None, "location": cv_loc,
                               "start_raw": m.group(1), "end_raw": m.group(2), "desc": []}, now))
     return roles
 

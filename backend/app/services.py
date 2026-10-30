@@ -7,11 +7,18 @@ from .v2.service import SHARED_TAGS, scorecard
 from .scoring import gate_split, PostingView, ProfileView, gap_summary, gate, market_stats, rank_key, score
 
 
+def _tags_with_geo(p: Posting) -> list[str]:
+    from .v2.geo import posting_geo_cached
+
+    tags = [t for t in (p.tags or []) if not t.startswith("geo_")]
+    return tags + [t for t in posting_geo_cached(p)["tags"] if t not in tags]
+
+
 def posting_view(p: Posting) -> PostingView:
     return PostingView(
         id=p.id, company=p.company, title=p.title, level_band=p.level_band, role_cluster=p.role_cluster,
         location=p.location, remote_flag=p.remote_flag, bay_area=p.bay_area, no_sponsorship=p.no_sponsorship,
-        status=p.status, tags=list(p.tags or []), years_required=p.years_required, scope=p.scope or "",
+        status=p.status, tags=_tags_with_geo(p), years_required=p.years_required, scope=p.scope or "",
     )
 
 

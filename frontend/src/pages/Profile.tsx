@@ -6,7 +6,7 @@ import EvidencePanel from "../EvidencePanel";
 import LinkedInImport from "../LinkedInImport";
 
 type Tax = { levels: string[]; tags: { key: string; label: string; group: string; closable: boolean }[] };
-const GROUPS = ["function", "domain", "management", "skill", "education"];
+const GROUPS = ["function", "domain", "management", "skill", "education", "geography"];
 
 export default function ProfilePage() {
   const { data: prof, setData: setProf, error } = useFetch<Profile>("/api/profile");

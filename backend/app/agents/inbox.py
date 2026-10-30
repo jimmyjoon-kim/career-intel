@@ -22,8 +22,11 @@ AI_DEG = re.compile(r"artificial intelligence|machine learning|\bAI\b", re.I)
 
 
 def derive(h: dict, now: tuple[int, int]) -> dict:
-    f = extract_features(parse_linkedin(h.get("experience_text", ""), now), destination_company=h.get("company"),
-                         use_cv_lines=True, now=now)
+    from ..v2.geo import user_geo
+
+    roles = parse_linkedin(h.get("experience_text", ""), now)
+    g = user_geo(roles)
+    f = extract_features(roles, destination_company=h.get("company"), use_cv_lines=True, now=now)
     ed = parse_education("Education: " + h.get("education_text", "").replace("\n", "; "), now) if h.get("education_text") else \
         {"ED": None, "technical": False, "degrees": []}
     ai_deg = 1.0 if any(AI_DEG.search(d["text"]) and not d["in_progress"] for d in ed["degrees"]) else 0.0
@@ -31,7 +34,9 @@ def derive(h: dict, now: tuple[int, int]) -> dict:
     row = {"company": h.get("company", "")[:200], "title": h.get("title", "")[:300],
            **{k: f.get(k) for k in ("YOE", "YOE_raw", "CT", "CT_tier_only", "tier", "LV", "LV_max", "FN", "DM", "AC", "AI", "TK")},
            "journey": bool(f.get("journey")), "ED": ed["ED"], "technical": bool(ed["technical"]),
-           "mba": any(d.get("mba") and not d["in_progress"] for d in ed["degrees"]), "tags": f["tags"]}
+           "mba": any(d.get("mba") and not d["in_progress"] for d in ed["degrees"]), "tags": f["tags"],
+           # Geography of all roles read (months; recorded for a future peer comparison, not yet scored).
+           "geo": {k: v for k, v in g["months"].items()}, "geo_us_months": g["us_role_months"]}
     return row
 
 
@@ -137,6 +142,8 @@ def apply(db: Session, prop: Proposal) -> str:
             feats = {k: r.get(k) for k in ("YOE", "YOE_raw", "CT", "tier", "LV", "LV_max", "FN", "DM", "AC", "ED", "mba",
                                            "technical", "AI", "TK", "CT_tier_only")}
             feats["tags"] = r["tags"]
+            if "geo" in r:
+                feats["geo"], feats["geo_us_months"] = r["geo"], r.get("geo_us_months")
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,
                                     source=p["source"], as_of=p["as_of"]))
         db.flush()

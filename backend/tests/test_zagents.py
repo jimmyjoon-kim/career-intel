@@ -452,3 +452,25 @@ def test_cv_and_linkedin_are_merged_not_replaced():
     assert f["merge"]["matched"] == 2 and f["merge"]["added"] == 1 and f["merge"]["lines_added"] >= 2
     assert f["ED"] is not None
     assert len(f["roles"]) == 3
+
+
+def test_geography_posting_and_user():
+    from app.v2.geo import posting_geo, user_geo
+    from app.v2.reader import parse_roles
+
+    filler = " We build products for advertisers and publishers. " * 12
+    g = posting_geo("Head of Ad Sales, US&C", filler + "US Market Mastery: Deep network and reputation within the US digital advertising ecosystem.")
+    assert "geo_us_market" in g["tags"] and "Deep network" in g["tags"]["geo_us_market"]
+    g = posting_geo("Senior Partner Account Manager", filler + "Global operating experience across NA, EMEA, and APAC, including time with India-based delivery.")
+    assert "geo_multi_region" in g["tags"] and "geo_us_market" not in g["tags"]
+    g = posting_geo("Director, Partnerships", filler + "Our global team is composed of people from many backgrounds. Relocation Statement: This position is not eligible for relocation assistance.")
+    assert g["tags"] == {} and g["relocation"] == "not offered"
+    cv = ("EXPERIENCE\nWortal.AI, DE, United States and Tokyo, Japan — Co-founder and Interim Chief Revenue Officer\nJanuary 2025 – January 2026\n"
+          "- Built go-to-market.\nFiksu, Asia-Pacific — Sales Director, APAC\nMarch 2013 – November 2015\n"
+          "- Managed the APAC business development organization across Japan, Korea and Singapore.\n"
+          "ironSource, Seoul, South Korea — General Manager, Korea\nJanuary 2016 – July 2023\n- Founded the Korea business.")
+    roles, fmt = parse_roles(cv, (2026, 10))
+    assert fmt == "cv" and roles[0]["location"].startswith("DE, United States")
+    u = user_geo(roles)
+    assert u["us_role_months"] == 0 and u["matches"]["geo_us_market"][0] == 0.5
+    assert u["matches"]["geo_multi_region"][0] == 1.0 and u["months"]["APAC"] > 90 and u["months"]["multi"] == 13

@@ -117,6 +117,11 @@ TAGS: dict[str, Tag] = {
         _t("skill_vertical_industry", "Vertical industry expertise", "skill",
            [r"vertical", r"cpg", r"retail", r"automotive", r"financial services", r"healthcare"], True),
         _t("skill_demand_gen", "Demand generation", "skill", [r"demand gen", r"lead gen", r"marketing qualified"], True),
+        # Geography: set from posting text and your role locations by app/v2/geo.py (no keyword patterns).
+        _t("geo_us_market", "US / North America market network or experience", "geography", (), True,
+           "Show US-facing work you have done (US-headquartered partners or clients you managed, US launches, work with US "
+           "teams) on Profile → Evidence; a US-based role adds it after the move."),
+        _t("geo_multi_region", "International / multi-region scope", "geography"),
     ]
 }
 
@@ -189,4 +194,4 @@ def keyword_tags(text: str) -> dict[str, str]:
 
 
 def taxonomy_for_prompt() -> str:
-    return "\n".join(f"- {t.key}: {t.label}" for t in TAGS.values())
+    return "\n".join(f"- {t.key}: {t.label}" for t in TAGS.values() if t.group != "geography")

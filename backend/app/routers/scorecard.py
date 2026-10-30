@@ -89,6 +89,16 @@ def get_focus(family: str = "Partnerships", user: User = Depends(current_user), 
 
 
 
+@router.get("/relocation")
+def get_relocation(family: str = "Partnerships", user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """APAC → US context: which US postings ask for US-market experience or value multi-region scope, measured effect."""
+    from ..v2.geo import relocation_view
+    from ..v2.service import user_features
+
+    prof = ensure_profile(db, user)
+    return relocation_view(db, prof, user_features(prof), evaluate(db, user), family)
+
+
 @router.get("/families")
 def list_families(user: User = Depends(current_user), db: Session = Depends(get_db)):
     from ..v2 import families

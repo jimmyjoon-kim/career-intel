@@ -47,6 +47,12 @@ def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
         for t, snip in keyword_tags(text.replace(CV_PREFIX, "")).items():
             if t not in current:
                 current[t] = {"match": 1.0, "source": "experience", "evidence": f'keyword in experience text: "{snip}"'[:500]}
+    if feats and feats.get("geo"):
+        for t, (m, ev) in feats["geo"]["matches"].items():
+            prev = current.get(t)
+            if prev and (prev.get("source") == "user" or float(prev.get("match", 0)) >= m):
+                continue
+            current[t] = {"match": m, "source": "experience", "evidence": ev[:500]}
     prof.tag_matches = current
 
 
@@ -110,6 +116,9 @@ def user_features(prof: Profile | None) -> dict | None:
     if prof and (prof.linkedin_education or "").strip():
         edu = merge_education(edu, parse_education("Education: " + prof.linkedin_education.replace("\n", "; ")))
     f["ED"], f["degrees"] = edu["ED"], edu["degrees"]
+    from .geo import user_geo
+
+    f["geo"] = user_geo(roles, edu["degrees"])
     target = (prof.target_date if prof else "") or ""
     f["target_date"] = target
     f["ED_target"] = education_by(edu["degrees"], target) if target else None

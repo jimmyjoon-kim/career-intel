@@ -5,6 +5,7 @@ import { Empty, ErrorBox, useFetch } from "../components";
 import { CardCompare, CardSection } from "../PlayerCards";
 import type { PlayerCard } from "../api";
 import FocusPanel from "../FocusPanel";
+import RelocationPanel from "../RelocationPanel";
 import { FamilyBar, ProvisionalView } from "../RoleFamilies";
 
 type Reading = NonNullable<Scorecard["reading"]>;
@@ -75,7 +76,7 @@ export default function ScorecardPage() {
       <div className="sc">
         <h1 style={{ margin: "4px 0 8px" }}>Your standing as {family}</h1>
         <FamilyBar value={family} onChange={setFamily} />
-        {noPeers ? <ProvisionalView key={family} fam={family} onRequest={() => undefined} />
+        {noPeers ? <><ProvisionalView key={family} fam={family} onRequest={() => undefined} /><RelocationPanel family={family} /></>
           : <Empty>{data.reason} <Link to="/profile">Go to Profile</Link></Empty>}
       </div>
     );
@@ -97,6 +98,8 @@ export default function ScorecardPage() {
       <FamilyBar value={family} onChange={setFamily} />
 
       <FocusPanel family={family} />
+
+      <RelocationPanel family={family} />
 
       <CardSection {...c.cards} onPick={(card) => setDetail({ kind: "card", card })} />
 
