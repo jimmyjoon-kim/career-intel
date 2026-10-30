@@ -213,7 +213,7 @@ def test_ask_agent_tools_and_loop(client, monkeypatch):
         u = db.query(User).filter(User.email == "v2@example.com").one()  # has experience text from test_api
         ctx = ask_agent.Ctx(db, u)
         sc = ask_agent.run_tool(ctx, "get_scorecard", {})
-        assert sc["score"] is not None and len(sc["factors"]) == 10 and sc["level_read_from"]["band"]
+        assert sc["score"] is not None and len(sc["factors"]) >= 10 and sc["level_read_from"]["band"]
         wi = ask_agent.run_tool(ctx, "what_if", {"changes": {"LV": 3}})
         assert wi["changes"] == {"LV": 3.0} and wi["delta"] <= 0
         assert "error" in ask_agent.run_tool(ctx, "what_if", {"changes": {"XX": 1}})

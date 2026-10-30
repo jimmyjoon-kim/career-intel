@@ -39,6 +39,7 @@ export type Card = {
   holders: { scores: number[]; tier_share: Record<string, number>; median: number; p25: number; p75: number; hist: { edges: number[]; counts: number[] } };
   prevalence: Record<string, number>; tag_labels: Record<string, string>;
   factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];
+  pending_factors?: Record<string, { label: string; holders_with_data: number; needed: number; you: number | null }>;
   focus_areas: { tag: string; label: string; holder_share: number; your_weight: number; status: string; note: string }[];
   rare_strengths: { tag: string; label: string; holder_share: number }[];
   cards: { you: PlayerCard; top: PlayerCard[]; nearest: PlayerCard[]; legend: Record<string, string>; note: string };

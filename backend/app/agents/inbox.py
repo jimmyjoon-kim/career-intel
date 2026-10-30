@@ -24,6 +24,7 @@ AI_DEG = re.compile(r"artificial intelligence|machine learning|\bAI\b", re.I)
 def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
     from ..v2.geo import user_geo
     from ..v2.industry import path as industry_path
+    from ..v2.pedigree import education_signals, employer_signal
 
     roles = parse_linkedin(h.get("experience_text", ""), now)
     g = user_geo(roles)
@@ -39,7 +40,10 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
            # Geography of all roles read (months; recorded for a future peer comparison, not yet scored).
            "geo": {k: v for k, v in g["months"].items()}, "geo_us_months": g["us_role_months"],
            # Industry path: sectors of the roles before the current employer (who switched in, and from where).
-           "ind": industry_path(roles, h.get("company"), cache)}
+           "ind": industry_path(roles, h.get("company"), cache),
+           # Selection signals: major-company hires before this role, school tier and field of the best completed degree.
+           **{k: v for k, v in employer_signal(roles, h.get("company"), now).items() if k != "PD_basis"},
+           **{k: v for k, v in education_signals(ed["degrees"]).items() if k != "SCH_basis"}}
     return row
 
 
@@ -154,6 +158,9 @@ def apply(db: Session, prop: Proposal) -> str:
                 feats["geo"], feats["geo_us_months"] = r["geo"], r.get("geo_us_months")
             if r.get("ind"):
                 feats["ind"] = r["ind"]
+            for k in ("PD", "PD_t1", "SCH", "FLD"):
+                if r.get(k) is not None:
+                    feats[k] = r[k]
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,
                                     source=p["source"], as_of=p["as_of"]))
         db.flush()
@@ -161,7 +168,7 @@ def apply(db: Session, prop: Proposal) -> str:
         from ..v2 import families
 
         req = db.scalar(select(PoolRequest).where(PoolRequest.family == p["cluster"]))
-        if req and families.holders(db, p["cluster"]) >= families.READY_AT:
+        if req and families.holders_full(db, p["cluster"]) >= families.TARGET:
             req.status = "ready"
         families.write_requests_file(db)
         db.flush()

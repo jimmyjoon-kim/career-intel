@@ -60,6 +60,12 @@ def holders(db: Session, key: str) -> int:
     return db.scalar(select(func.count(ReferenceProfile.id)).where(ReferenceProfile.cluster == key)) or 0
 
 
+def holders_full(db: Session, key: str) -> int:
+    """Holders read with the full field set (major-company hires, school tier, degree field, industry path)."""
+    return sum(1 for r in db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == key))
+               if (r.features or {}).get("PD") is not None)
+
+
 def status(db: Session) -> list[dict]:
     posts = list(db.scalars(select(Posting).where(Posting.status.in_(("open", "unverified")))))
     reqs = {r.family.lower(): r for r in db.scalars(select(PoolRequest))}
@@ -94,7 +100,7 @@ def write_requests_file(db: Session) -> None:
     pending = []
     for r in db.scalars(select(PoolRequest).where(PoolRequest.status == "pending")):
         f = family(db, r.family)
-        pending.append({"family": r.family, "have": holders(db, r.family), "target": TARGET,
+        pending.append({"family": r.family, "have": holders_full(db, r.family), "target": TARGET,
                         "title_keywords": f["title"], "requested_at": r.created_at.isoformat() if r.created_at else ""})
     (d / "requests.json").write_text(json.dumps({"pending": pending}, indent=1))
 

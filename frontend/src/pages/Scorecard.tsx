@@ -30,7 +30,7 @@ const MATRIX_TAGS: [string, string][] = [
   ["domain_mobile", "Mobile"], ["domain_ai", "AI"], ["domain_saas", "SaaS"],
 ];
 const RADAR_ORDER = ["LV", "FN", "DM", "AI", "TK", "YOE", "UQ", "AC", "ED", "CT"];
-const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", AI: "AI (current)", TK: "Technical", CT: "Tier & journey" };
+const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", AI: "AI (current)", TK: "Technical", CT: "Tier & journey", PD: "Major-co hires", SCH: "School tier", FLD: "Degree field" };
 const FACTOR_TAGS: Record<string, string[]> = {
   FN: ["func_partnerships", "func_bd", "func_channel"],
   DM: ["domain_ai", "domain_adtech", "domain_mobile", "domain_saas"],
@@ -97,6 +97,8 @@ export default function ScorecardPage() {
 
       <FocusPanel family={family} />
 
+      <NotMeasured c={c} />
+
       <IndustryPanel family={family} />
 
       <RelocationPanel family={family} />
@@ -123,7 +125,7 @@ export default function ScorecardPage() {
 
       <section className="sc-row2">
         <div className="tile">
-          <div className="tile-title">Ten factors, you vs the median holder</div>
+          <div className="tile-title">{RADAR_ORDER.length} factors, you vs the median holder</div>
           <div className="small muted">Percentile within holders. Select a factor for its evidence.</div>
           <Radar factors={c.factors} />
           <div className="legend-dots" style={{ marginBottom: 8 }}><span><span className="sq" style={{ background: "var(--accent-strong)" }} />You</span><span><span className="sq" style={{ background: "var(--holder)" }} />Median holder</span></div>
@@ -427,7 +429,7 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         <h2>Base score {c.base_score.toFixed(1)}</h2>
         <p className="small" style={{ color: "var(--ink-2)" }}>Weighted mean of your percentile on seven factors, within people who hold {c.cluster} roles. Weights blend an expert prior with how strongly each factor separates holders from other hires.</p>
         <h3>Weights and your contribution</h3>
-        {c.factors.slice().sort((a, b) => b.weight - a.weight).map((f) => (
+        {c.factors.filter((f) => f.weight > 0).sort((a, b) => b.weight - a.weight).map((f) => (
           <button key={f.factor} className="fac" onClick={() => onOpen({ kind: "factor", f })}>
             <span>{SHORT[f.factor]}</span>
             <span className="track"><span className="fill" style={{ width: `${f.weight * 2.5}%` }} /></span>
@@ -602,4 +604,30 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         <dl className="kv"><dt>Experience read from</dt><dd>{r.source === "experience" ? "your full experience text" : "your CV"} ({r.format})</dd><dt>Counted years</dt><dd>{r.years}</dd><dt>Highest band held 12+ months</dt><dd>{r.level_max ?? "—"}</dd></dl>
       </>);
   }
+}
+
+
+const PENDING_FMT: Record<string, (v: number | null) => string> = {
+  PD: (v) => (v == null ? "not read" : `${v} employer${v === 1 ? "" : "s"}`),
+  SCH: (v) => (v == null ? "no completed degree read" : v === 2 ? "QS top 30" : v === 1 ? "QS 31-100" : "outside QS top 100 / unranked"),
+  FLD: (v) => (v == null ? "no completed degree read" : v >= 1 ? "engineering / CS / science" : v > 0 ? "economics / business" : "other field"),
+};
+
+// What the score does not yet weigh, so it is not read as more than it is.
+function NotMeasured({ c }: { c: { pending_factors?: Record<string, { label: string; holders_with_data: number; needed: number; you: number | null }> } }) {
+  const p = Object.entries(c.pending_factors ?? {});
+  return (
+    <section className="tile">
+      <span className="tile-title">Not in your score yet: read this before trusting the number</span>
+      {p.length > 0 && (
+        <ul className="small" style={{ margin: "6px 0", paddingLeft: 18 }}>
+          {p.map(([k, v]) => (
+            <li key={k}><b>{v.label}</b>: you {PENDING_FMT[k]?.(v.you) ?? v.you} · peers with this data {v.holders_with_data} of the {v.needed} needed. It enters the score automatically once they are collected.</li>
+          ))}
+        </ul>
+      )}
+      <p className="small" style={{ margin: "4px 0" }}>Also not measured: US market network as a peer factor, the size and scope of each team and region beyond employer tier, references and reputation, interview performance. Profiles strong on these can rank below you here and still be stronger candidates.</p>
+      <p className="small muted" style={{ marginBottom: 0 }}>Level held is read one band lower for VP-or-above titles at Tier 3 (smaller or unlisted) employers, for you and for every holder.</p>
+    </section>
+  );
 }

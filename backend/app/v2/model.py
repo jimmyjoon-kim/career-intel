@@ -20,14 +20,18 @@ from .reader import LEVEL_NAMES, SCARCE_TAGS
 # Bump on any change to factors, weights or rules; every stored score carries it.
 MODEL_VERSION = "v3.0"
 
-FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK"]
+FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD"]
+# Factors read from new peer files only: they count once this many holders in the comparison group have a value.
+NEW_FACTORS = {"PD": 20, "SCH": 20, "FLD": 20}
 FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "AI": "Current AI relevance", "TK": "Technical depth", "LV": "Level held",
-                 "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)"}
-W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5, "ED": 5, "AI": 10, "TK": 5}
+                 "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)",
+                 "PD": "Hired into major companies", "SCH": "School tier", "FLD": "Degree field"}
+W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5, "ED": 5, "AI": 10, "TK": 5,
+            "PD": 15, "SCH": 5, "FLD": 3}
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
-GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2, "AI": 1, "TK": 1}
+GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2, "AI": 1, "TK": 1, "PD": 4, "SCH": 2, "FLD": 1}
 GAP_CLASS = {
     "YOE": ("structural", "Time at level; 12 months per year of gap."),
     "CT": ("structural", "Stepping stone: a role at a Tier 1/2 employer; counts once held 12+ months."),
@@ -39,8 +43,12 @@ GAP_CLASS = {
     "ED": ("capability", "Complete a graduate degree; counts from its completion date."),
     "AI": ("capability", "Commercial work on an AI product in the last 24 months, or an AI graduate degree."),
     "TK": ("capability", "Technical role, technical degree or technical product work (SDK/API, platform, ML)."),
+    "PD": ("structural", "A role of 12+ months at a Tier 1 or Tier 2 employer; each distinct employer counts once."),
+    "SCH": ("structural", "School tier of a completed degree (QS top 30 / 31-100); a new degree counts from completion."),
+    "FLD": ("structural", "Field of a completed degree."),
 }
-TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24, "AI": 6, "TK": 6}
+TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24, "AI": 6, "TK": 6,
+                 "PD": 24, "SCH": None, "FLD": None}
 TAG_LABELS = {
     "func_partnerships": "Partnerships / alliances", "func_bd": "Business development", "func_channel": "Channel / reseller / GSI",
     "domain_adtech": "Ad tech", "domain_ai": "AI", "domain_saas": "SaaS / cloud", "domain_mobile": "Mobile / gaming",
@@ -141,16 +149,33 @@ def _gower(a: dict, b: dict) -> float:
     return ds / n if n else 1.0
 
 
+def size_scaled(f: dict) -> dict:
+    """Level held is read one band lower when it was held at a Tier 3 (smaller or unlisted) employer and is VP or above:
+    a C-level title at a startup is not the same scope as at a large company. Same rule for you and every holder."""
+    f = dict(f)
+    if f.get("tier") == 3 and (f.get("LV") or 0) >= 3:
+        f["LV_title"], f["LV"] = f["LV"], f["LV"] - 1
+    return f
+
+
 def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = None, n_boot: int = 1000, seed: int = 7) -> dict:
     prev = scarcity(ref.rows)
-    rows = [with_uq(r, prev) for r in ref.rows]
-    uf = with_uq(user_f, prev)
+    rows = [size_scaled(with_uq(r, prev)) for r in ref.rows]
+    uf = size_scaled(with_uq(user_f, prev))
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
     ed_cov = sum(1 for r in rows if r.get("ED") is not None) / len(rows)
     w = hybrid_weights(ref.n)
     if ed_cov < 0.5:  # education enters the score only when at least half the holders' education is known
         w["ED"] = 0.0
+    pending = {}
+    for k, need in NEW_FACTORS.items():
+        have = sum(1 for r in rows if r.get(k) is not None)
+        if have < need:
+            w[k] = 0.0
+            pending[k] = {"label": FACTOR_LABELS[k], "holders_with_data": have, "needed": need, "you": uf.get(k)}
+    tot = sum(w.values()) or 1
+    w = {k: 100 * v / tot for k, v in w.items()}  # weights of the factors that count sum to 100
     wv = np.array([w[k] for k in FACTORS])
     P_h, P_u = pct_matrix(M, M), pct_matrix(U[None, :], M)[0]
     S_h, S_u = composite(P_h, wv), float(composite(P_u[None, :], wv)[0])
@@ -223,7 +248,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                     "tier_share": {f"Tier {t}": round(sum(1 for r in rows if r.get("tier") == t) / len(rows), 2) for t in (1, 2, 3)},
                     "median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "p75": _r(np.percentile(sc, 75)),
                     "hist": {"edges": [int(e) for e in edges], "counts": [int(c) for c in hist]}},
-        "factors": factors, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare,
+        "factors": factors, "pending_factors": pending, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare,
         "prevalence": {t: round(p, 2) for t, p in prevalence.items()}, "tag_labels": TAG_LABELS, "peers": peers,
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
         "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev),

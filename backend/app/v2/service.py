@@ -130,6 +130,10 @@ def user_features(prof: Profile | None) -> dict | None:
     except Exception:  # noqa: BLE001  (no database: listed companies only)
         cache = {}
     f["industry"] = user_path(roles, cache)
+    from .pedigree import education_signals, employer_signal
+
+    f.update(employer_signal(roles, now=_now_ym()))
+    f.update(education_signals(edu["degrees"]))
     target = (prof.target_date if prof else "") or ""
     f["target_date"] = target
     f["ED_target"] = education_by(edu["degrees"], target) if target else None
