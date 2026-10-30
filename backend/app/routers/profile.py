@@ -73,15 +73,22 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user), db: Sess
     if "min_level" in data and data["min_level"] not in LEVELS:
         raise HTTPException(422, f"min_level must be one of {LEVELS}")
     cv = data.pop("cv_text", None)
+    old_locations = list(prof.locations or [])
     for k, v in data.items():
         setattr(prof, k, v)
+    search_note = None
+    if "locations" in data and sorted(data["locations"]) != sorted(old_locations):
+        from ..agents.coordinator import enqueue
+
+        enqueue(db, "locations", trigger="event", user_id=user.id)
+        search_note = "Locations changed: a search for postings in your locations has started; results appear in a few minutes."
     if "experience_text" in data:
         _refresh_experience(prof)
     db.commit()
     if cv is not None and cv.strip() != (prof.cv_text or "").strip():
         return _apply_cv(db, user, prof, cv.strip())
     rebuild_user(db, user)
-    return {"profile": profile_dict(prof)}
+    return {"profile": profile_dict(prof), **({"note": search_note} if search_note else {})}
 
 
 @router.post("/cv")

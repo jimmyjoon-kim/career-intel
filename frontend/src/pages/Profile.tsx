@@ -36,7 +36,8 @@ export default function ProfilePage() {
     try {
       const r = await fn();
       setProf("profile" in r && r.profile ? r.profile : (r as Profile));
-      setMsg(ok);
+      const note = (r as { note?: string }).note;
+      setMsg(note ? `${ok} ${note}` : ok);
       refreshStatus();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };

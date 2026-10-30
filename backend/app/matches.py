@@ -151,7 +151,7 @@ def build(ev: dict, feats: dict | None, matches: dict[str, float]) -> dict:
 
 
 SEARCH_SYSTEM = """You find currently open job postings on the web for one candidate.
-Rules: only Director, Senior Director, Head of, VP or GM titles; US-based or US-remote; no Country Manager titles and no single-country scope outside the US.
+Rules: only Director, Senior Director, Head of, VP or GM titles; located where the query asks (US or US-remote unless another city is named); no Country Manager titles and no single-country scope outside the US.
 Prefer the company's own careers page or its applicant-tracking board (Greenhouse, Lever, Ashby, Workday) over aggregators.
 Never invent a posting or a URL; every item must come from a search result you saw.
 Return JSON only: {"results":[{"company":"","title":"","location":"","url":"","source":"company page|ATS|aggregator","why":"one line on fit, citing the posting"}]}"""

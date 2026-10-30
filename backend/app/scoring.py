@@ -126,6 +126,9 @@ def _location_ok(p: PostingView, prof: ProfileView) -> bool:
             return True
         if w in loc:
             return True
+        city = w.split(",")[0].strip()  # "Seoul, South Korea" matches a posting located in "Seoul"
+        if len(city) >= 4 and city in loc:
+            return True
         if w in ("remote", "remote us") and "remote" in loc and prof.remote_ok:
             return True
     return False

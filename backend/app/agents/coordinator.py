@@ -26,6 +26,8 @@ PIPELINES = {
     "weekly": ["sourcing", "web_sourcing", "reader", "index", "scoring", "evidence", "checker", "analyst"],
     "monthly": ["inbox", "company_facts", "scoring"],
     "rescore": ["scoring"],
+    # Started when you change your locations (or ask the Ask agent to search): boards + location web search.
+    "locations": ["sourcing", "web_sourcing", "reader", "index_update", "scoring"],
 }
 USES_MODEL = {"web_sourcing", "reader", "company_facts", "checker", "analyst", "evidence"}
 
@@ -40,7 +42,7 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
     if name == "sourcing":
         return sourcing.run_boards(db)
     if name == "web_sourcing":
-        return sourcing.run_web(db, rid, _profile_summary(db))
+        return sourcing.run_web(db, rid, _profile_summary(db), only_locations=run.kind == "locations")
     if name == "reader":
         return requirements.run(db, rid)
     if name == "index":

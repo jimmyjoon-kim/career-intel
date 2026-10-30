@@ -55,6 +55,12 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
     {"name": "get_agent_status", "description": "The agent team: latest weekly brief and its check, recent runs, decisions waiting for approval, API spend against the cap.",
      "input_schema": {"type": "object", "properties": {}}},
+    {"name": "find_new_postings", "description": "Start a search for new postings (employer job boards plus a web search) in locations. "
+     "With add_locations, those places are added to the user's profile locations first (only when the user asked for them). "
+     "Runs in the background; results appear in a few minutes. Country Manager and single-country roles are still excluded.",
+     "input_schema": {"type": "object", "properties": {"add_locations": {"type": "array", "items": {"type": "string"}}}}},
+    {"name": "get_profile_settings", "description": "The user's screen settings: minimum level, locations, remote, sponsorship need, excluded title words.",
+     "input_schema": {"type": "object", "properties": {}}},
     {"name": "get_score_history", "description": "Your stored scores over time with model version.",
      "input_schema": {"type": "object", "properties": {}}},
 ]
@@ -155,6 +161,28 @@ def run_tool(ctx: Ctx, name: str, args: dict) -> dict:
                                  "steps": [f'{x["agent"]}:{x["status"]}' for x in (r.steps or [])]} for r in runs],
                 "waiting_for_approval": [p.title for p in db.scalars(select(Proposal).where(Proposal.status == "pending"))],
                 "api_spend_month_usd": round(month_spend(db), 2), "api_cap_usd": s.monthly_cap_usd}
+    if name == "get_profile_settings":
+        prof = ensure_profile(ctx.db, ctx.user)
+        return {"min_level": prof.min_level, "locations": prof.locations, "remote_ok": prof.remote_ok,
+                "needs_sponsorship": prof.needs_sponsorship, "excluded_title_terms": prof.excluded_title_terms}
+    if name == "find_new_postings":
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from .coordinator import enqueue
+
+        prof = ensure_profile(ctx.db, ctx.user)
+        add = [a.strip() for a in (args.get("add_locations") or []) if a and a.strip()][:5]
+        locs = list(prof.locations or [])
+        added = [a for a in add if a.lower() not in {x.lower() for x in locs}]
+        if added:
+            prof.locations = locs + added
+            flag_modified(prof, "locations")
+            ctx.db.commit()
+        run = enqueue(ctx.db, "locations", trigger="manual", user_id=ctx.user.id)
+        return {"search_started": True, "run_id": run.id, "status": run.status, "locations_now": prof.locations,
+                "added_to_profile": added,
+                "note": "Runs in the background (job boards + web search); new postings are read, indexed and scored in a few minutes. "
+                        "Web-found postings stay 'unverified' until confirmed on the employer's board."}
     if name == "get_score_history":
         rows = ctx.db.scalars(select(ScoreSnapshot).where(ScoreSnapshot.user_id == ctx.user.id).order_by(ScoreSnapshot.id))
         return {"points": [{"date": str(r.created_at)[:16], "score": r.score, "position": r.position, "model_version": r.model_version}

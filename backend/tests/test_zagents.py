@@ -321,3 +321,29 @@ def test_tag_labels_examples_and_reader_test(client):
         other = db.query(Posting).filter(Posting.id != trid, Posting.status == "open").first()
         ex = requirements.examples_for(db, other, requirements.labeled(db))
         assert db.get(Posting, trid).company in ex and db.get(Posting, tid).title not in ex.split(":")[0]
+
+
+def test_location_driven_sourcing(client, monkeypatch):
+    from app.agents import sourcing
+    from app.agents.coordinator import PIPELINES
+    from app.db import SessionLocal
+    from app.models import AgentRun
+
+    assert "locations" in PIPELINES
+    pat = sourcing._loc_pattern(["Seoul, South Korea", "Singapore"])
+    assert sourcing.keep("Head of Partnerships, APAC", "Singapore", pat)[0]
+    assert sourcing.keep("Director, Business Development", "Seoul, Korea", pat)[0]
+    assert not sourcing.keep("Director, Business Development", "London, UK", pat)[0]
+    assert not sourcing.keep("Country Manager, Korea", "Seoul", pat)[0]  # country-scoped stays excluded
+    login = client.post("/api/auth/login", json={"email": "v2@example.com", "password": "password123"}).json()
+    h = {"Authorization": f"Bearer {login['token']}"}
+    r = client.put("/api/profile", json={"locations": ["SF Bay Area", "Seoul, South Korea"]}, headers=h).json()
+    assert "search" in r.get("note", "")
+    with SessionLocal() as db:
+        assert "Seoul, South Korea" in sourcing.profile_locations(db)
+        assert db.query(AgentRun).filter(AgentRun.kind == "locations").count() >= 1
+    from app.scoring import _location_ok
+    from types import SimpleNamespace as NS
+
+    assert _location_ok(NS(remote_flag="no", location="Seoul", bay_area=False),
+                        NS(remote_ok=True, locations=["Seoul, South Korea"]))

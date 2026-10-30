@@ -52,15 +52,38 @@ def fingerprint(title: str, description: str) -> str:
     return hashlib.sha256(f"{title.strip()}\n{re.sub(r'\s+', ' ', description).strip()}".encode()).hexdigest()
 
 
-def keep(title: str, location: str) -> tuple[bool, str]:
-    """Title and location screen before any model reads the posting."""
+US_NAMES = {"sf bay area", "bay area", "remote", "remote us", "united states", "us", "usa"}
+
+
+def profile_locations(db: Session) -> list[str]:
+    """Locations on any profile beyond the US default (e.g. "Seoul, South Korea", "Singapore")."""
+    from ..models import Profile
+
+    out: list[str] = []
+    for locs in db.scalars(select(Profile.locations)):
+        for loc in locs or []:
+            name = (loc or "").strip()
+            if name and name.lower() not in US_NAMES and not US.search(name) and name not in out:
+                out.append(name)
+    return out
+
+
+def _loc_pattern(names: list[str]) -> re.Pattern | None:
+    cities = [re.escape(n.split(",")[0].strip()) for n in names if len(n.split(",")[0].strip()) >= 4]
+    return re.compile("|".join(cities), re.I) if cities else None
+
+
+def keep(title: str, location: str, extra: re.Pattern | None = None) -> tuple[bool, str]:
+    """Title and location screen before any model reads the posting. extra: profile locations outside the US."""
     if not (LEVEL.search(title) and FUNC.search(title)):
         return False, "not a Director+ commercial title"
     if EXCLUDE.search(title):
         return False, "country-scoped or Country Manager title"
     loc = location or ""
+    if extra is not None and extra.search(loc):
+        return True, ""
     if NON_US.search(loc) and not US.search(loc):
-        return False, "outside the US"
+        return False, "outside your locations"
     return True, ""
 
 
@@ -145,6 +168,7 @@ def upsert(db: Session, company: str, src: str, j: dict, today: str) -> str:
 
 def run_boards(db: Session, client: httpx.Client | None = None) -> dict:
     seed_boards(db)
+    extra = _loc_pattern(profile_locations(db))
     today = date.today().isoformat()
     own = client is None
     client = client or httpx.Client(timeout=30, headers={"User-Agent": "career-intel/1.0"})
@@ -159,7 +183,7 @@ def run_boards(db: Session, client: httpx.Client | None = None) -> dict:
                 continue
             seen = set()
             for j in jobs:
-                ok, _ = keep(j["title"], j["location"])
+                ok, _ = keep(j["title"], j["location"], extra)
                 if not ok:
                     tally["screened_out"] += 1
                     continue
@@ -185,12 +209,21 @@ WEB_QUERIES = ["Director or VP of Partnerships, US or US-remote, ad tech or mobi
                "Director or VP of Ad Sales or Revenue, US, ad tech, retail media or gaming"]
 
 
-def run_web(db: Session, run_id: int | None, profile_summary: str) -> dict:
-    """Weekly backup for employers whose boards are not readable directly. Results are kept as 'unverified'."""
+def location_queries(names: list[str]) -> list[str]:
+    return [f"Director, Head of or VP of Partnerships, Business Development or Ad Sales with regional (APAC or global) scope, "
+            f"based in {n}; not Country Manager and not single-country roles" for n in names]
+
+
+def run_web(db: Session, run_id: int | None, profile_summary: str, only_locations: bool = False) -> dict:
+    """Web search for employers whose boards are not readable directly, and for profile locations outside the US.
+    Results are kept as 'unverified'."""
     from ..matches import web_search
 
+    names = profile_locations(db)
+    extra = _loc_pattern(names)
+    queries = location_queries(names) + ([] if only_locations else WEB_QUERIES)
     today, added, notes = date.today().isoformat(), 0, []
-    for q in WEB_QUERIES:
+    for q in queries:
         res = web_search(q, profile_summary, max_results=8, agent="sourcing", run_id=run_id, max_uses=3)
         if res.get("note", "").startswith("Search failed"):
             notes.append(res["note"])
@@ -200,7 +233,7 @@ def run_web(db: Session, run_id: int | None, profile_summary: str) -> dict:
         for r in res.get("results", []):
             if not (r.get("url") and r.get("seen_in_search")):
                 continue  # only URLs that appeared in actual search results
-            ok, _ = keep(r.get("title", ""), r.get("location", ""))
+            ok, _ = keep(r.get("title", ""), r.get("location", ""), extra)
             if not ok or db.scalar(select(Posting.id).where(Posting.url == r["url"])):
                 continue
             db.add(Posting(company=r.get("company", "")[:200], title=r.get("title", "")[:300], url=r["url"][:1000],
@@ -209,4 +242,4 @@ def run_web(db: Session, run_id: int | None, profile_summary: str) -> dict:
                            verification=f"found by web search {today}; not checked on the live board", read_check={}))
             added += 1
     db.commit()
-    return {"added_unverified": added, "notes": notes}
+    return {"added_unverified": added, "queries": len(queries), "locations": names, "notes": notes}

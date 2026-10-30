@@ -12,6 +12,7 @@ const SUGGESTIONS = [
 const TOOL_LABEL: Record<string, string> = {
   get_scorecard: "scorecard", what_if: "what-if", search_postings: "postings", get_market_requirements: "market requirements",
   search_documents: "documents", get_agent_status: "agent team", get_score_history: "score history", number_check: "number check",
+  find_new_postings: "new search started", get_profile_settings: "your settings",
 };
 
 function renderAnswer(text: string) {
