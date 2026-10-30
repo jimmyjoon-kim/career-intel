@@ -10,4 +10,7 @@ docker compose up -d db
 for i in {1..40}; do docker compose exec -T db pg_isready -U career -d career_intel >/dev/null 2>&1 && break; sleep 2; done
 docker compose exec -T db psql -U career -d career_intel -q -c "CREATE EXTENSION IF NOT EXISTS vector" >/dev/null
 gunzip -c "$1" | docker compose exec -T db psql -U career -d career_intel -q -v ON_ERROR_STOP=0 >/dev/null
-echo "Restored $1. Next: ./scripts/always-on.sh"
+# restart the app so it adds any columns/tables the backup's older version lacked
+docker compose up -d >/dev/null 2>&1 && docker compose restart api worker >/dev/null 2>&1 || true
+n=$(docker compose exec -T db psql -U career -d career_intel -tAc "select count(*) from users" 2>/dev/null)
+echo "Restored $1 (${n//[^0-9]/} accounts). Next, if not done yet: ./scripts/always-on.sh"
