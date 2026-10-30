@@ -40,27 +40,40 @@ for kv in MODEL_BULK=claude-haiku-5-5 MODEL_CRITICAL=claude-fable-5-1 MODEL_CRIT
   grep -q "^${kv%%=*}=" .env || { echo "$kv" >> .env; echo "  .env: added $kv"; }
 done
 mkdir -p inbox
+if ! grep -qE "^ANTHROPIC_API_KEY=.+" .env; then
+  echo "  No Anthropic API key in .env: running ./setup.sh to enter keys and load data."
+  ./setup.sh
+fi
 
-# 2. Docker Desktop starts at login
+# 2. Docker Desktop starts at login (macOS may block scripts from editing Docker's settings; then set it by hand)
+DOCKER_AUTOSTART=""
 for f in "$HOME/Library/Group Containers/group.com.docker/settings-store.json" \
          "$HOME/Library/Group Containers/group.com.docker/settings.json"; do
   if [[ -f "$f" ]]; then
-    /usr/bin/python3 - "$f" <<'PY'
+    if /usr/bin/python3 - "$f" <<'PY' 2>/dev/null
 import json, sys
 p = sys.argv[1]; d = json.load(open(p))
 key = "AutoStart" if "settings-store" in p else "autoStart"
 if d.get(key) is not True:
-    d[key] = True; json.dump(d, open(p, "w"), indent=2); print("  Docker Desktop: start at login turned on")
+    d[key] = True; json.dump(d, open(p, "w"), indent=2)
 PY
+    then DOCKER_AUTOSTART="on"; else DOCKER_AUTOSTART="manual"; fi
     break
   fi
 done
+[[ "$DOCKER_AUTOSTART" == "manual" ]] && echo "  Docker Desktop: macOS blocked the settings change; turn on Settings > General > 'Start Docker Desktop when you sign in'."
 
 # 3. Start Docker if needed, then the app
 open -ga Docker || true
 for i in {1..60}; do docker info >/dev/null 2>&1 && break; sleep 3; done
 docker info >/dev/null 2>&1 || { echo "Docker did not start; open Docker Desktop and re-run."; exit 1; }
 docker compose up -d --build
+for i in {1..60}; do curl -fs localhost:8000/api/health >/dev/null 2>&1 && break; sleep 2; done
+n=$(docker compose exec -T db psql -U career -d career_intel -tAc "select count(*) from reference_profiles" 2>/dev/null || echo 0)
+if [[ "${n//[^0-9]/}" == "0" || -z "${n//[^0-9]/}" ]]; then
+  echo "  Empty database: loading postings and role holders."
+  docker compose exec -T api python -m app.seed
+fi
 
 # 4. Helper scripts and login agents
 DOCKER_DIR="$(dirname "$(command -v docker)")"
