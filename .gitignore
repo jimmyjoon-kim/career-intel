@@ -10,3 +10,5 @@ dist/
 inbox/*
 !inbox/.gitkeep
 backups/
+scripts/.keepalive.sh
+scripts/.update.sh
