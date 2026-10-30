@@ -43,6 +43,9 @@ class Profile(Base):
     # Profile photo as a data URL (jpeg/png/webp, small); shown on your player card only.
     photo: Mapped[str] = mapped_column(Text, default="")
     years_experience: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Your own LinkedIn profile link, and the last import read from it (or from LinkedIn's PDF) awaiting your review.
+    linkedin_url: Mapped[str] = mapped_column(String(300), default="")
+    linkedin_import: Mapped[dict] = mapped_column(JSON, default=dict)
     # {tag: {"match": 0|0.5|1, "evidence": str, "source": "extracted"|"user"}}
     tag_matches: Mapped[dict] = mapped_column(JSON, default=dict)
     # Gate preferences — see scoring.gate()

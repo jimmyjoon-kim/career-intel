@@ -26,6 +26,8 @@ def init_db() -> None:
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_date VARCHAR(7) DEFAULT ''",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role_reviews JSON DEFAULT '{}'::json",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS photo TEXT DEFAULT ''",
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(300) DEFAULT ''",
+                    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_import JSON DEFAULT '{}'::json",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64) DEFAULT ''",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS source VARCHAR(40) DEFAULT 'csv'",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS read_check JSON DEFAULT '{}'::json",

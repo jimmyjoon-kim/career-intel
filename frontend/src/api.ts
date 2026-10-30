@@ -82,6 +82,9 @@ export type Profile = {
   headline: string; cv_text: string; experience_text: string; target_date: string; has_photo: boolean; years_experience: number | null;
   tag_matches: Record<string, TagMatch>; min_level: string; locations: string[];
   remote_ok: boolean; needs_sponsorship: boolean; excluded_title_terms: string[]; updated_at: string | null;
+  linkedin_url: string;
+  linkedin_import: { status?: "requested" | "ready" | "applied"; source?: "link" | "pdf"; roles?: number; read_at?: string;
+    requested_at?: string; experience_text?: string; education_text?: string };
 };
 
 export type Source = { n: number; title: string; type: string; url: string; similarity: number; excerpt: string };

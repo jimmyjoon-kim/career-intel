@@ -68,6 +68,8 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
                             payload={"cluster": data.get("cluster", "Partnerships"), "as_of": ym,
                                      "source": data.get("source", "monthly hire research"), "rows": rows}))
         result = {"file": path.name, "proposed": len(rows), "skipped": skipped}
+    elif kind == "self_profile":
+        result = _self_profile(db, data, path.name)
     elif kind == "company_events":
         ev = [e for e in data.get("events", []) if e.get("company") and e.get("event") and e.get("date")]
         if ev:
@@ -78,6 +80,35 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
     else:
         result = {"file": path.name, "rejected": f"unknown kind {kind}"}
     return _finish(db, path, result)
+
+
+def _self_profile(db: Session, data: dict, name: str) -> dict:
+    """Your own LinkedIn profile, read by the Mac task from the link you saved. Held for your review on Profile."""
+    from ..models import Profile
+
+    prof = db.scalar(select(Profile).where(Profile.user_id == int(data.get("user_id") or 0)))
+    exp = (data.get("experience_text") or "").strip()
+    if prof is None or not exp:
+        return {"file": name, "rejected": "no matching profile or no experience text"}
+    roles = parse_linkedin(exp)
+    prof.linkedin_import = {"experience_text": exp[:60000], "education_text": (data.get("education_text") or "")[:5000],
+                            "headline": (data.get("headline") or "")[:300], "roles": len(roles), "source": "link",
+                            "read_at": data.get("read_at") or date.today().isoformat(), "status": "ready"}
+    write_profile_requests(db)
+    return {"file": name, "self_profile": prof.user_id, "roles": len(roles)}
+
+
+def write_profile_requests(db: Session) -> None:
+    """Profile links waiting to be read by the hire-research task on your Mac."""
+    from ..models import Profile
+
+    d = Path(get_settings().inbox_dir)
+    if not d.exists():
+        return
+    pending = [{"user_id": p.user_id, "url": p.linkedin_url, "requested_at": (p.linkedin_import or {}).get("requested_at", "")}
+               for p in db.scalars(select(Profile).where(Profile.linkedin_url != ""))
+               if (p.linkedin_import or {}).get("status") == "requested"]
+    (d / "profile_requests.json").write_text(json.dumps({"pending": pending}, indent=1))
 
 
 def _finish(db: Session, path: Path, result: dict) -> dict:
@@ -92,7 +123,9 @@ def run(db: Session, run_id: int | None) -> dict:
     d = Path(get_settings().inbox_dir)
     if not d.exists():
         return {"files": 0, "note": f"inbox folder {d} not found"}
-    results = [process_file(db, f, run_id) for f in sorted(d.glob("*.json"))]
+    # Only research output; the request files the Mac task reads (requests.json, profile_requests.json) stay.
+    files = [f for f in sorted(d.glob("*.json")) if not f.name.endswith("requests.json")]
+    results = [process_file(db, f, run_id) for f in files]
     return {"files": len(results), "results": results}
 
 

@@ -32,6 +32,7 @@ def profile_dict(p: Profile) -> dict:
         "tag_matches": p.tag_matches or {}, "min_level": p.min_level, "locations": p.locations or [],
         "remote_ok": p.remote_ok, "needs_sponsorship": p.needs_sponsorship,
         "excluded_title_terms": p.excluded_title_terms or [],
+        "linkedin_url": p.linkedin_url or "", "linkedin_import": p.linkedin_import or {},
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     }
 
@@ -247,3 +248,74 @@ def decide_evidence(sid: int, body: EvidenceDecision, user: User = Depends(curre
         raise HTTPException(404, str(err)) from err
     snap = take(db, user, None) if body.confirm else None
     return {"ok": True, "status": s.status, "score": snap.score if snap else None}
+
+
+# ---- LinkedIn profile: paste your link (read by the Mac task), or upload LinkedIn's "Save to PDF" file ----
+import re as _re
+from datetime import datetime as _dt, timezone as _tz
+
+LI_URL = _re.compile(r"^https?://(?:[a-z]{2,3}\.)?(?:www\.)?linkedin\.com/in/([A-Za-z0-9\-_%]{3,100})/?(?:\?.*)?$")
+
+
+class LinkedInIn(BaseModel):
+    url: str
+
+
+@router.post("/linkedin")
+def linkedin_link(body: LinkedInIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    m = LI_URL.match(body.url.strip())
+    if not m:
+        raise HTTPException(422, "Use your public profile link, e.g. https://www.linkedin.com/in/your-name")
+    from ..agents.inbox import write_profile_requests
+
+    prof = ensure_profile(db, user)
+    prof.linkedin_url = f"https://www.linkedin.com/in/{m.group(1)}/"
+    prof.linkedin_import = {"status": "requested", "requested_at": _dt.now(_tz.utc).isoformat(timespec="seconds")}
+    db.commit()
+    write_profile_requests(db)
+    return {"profile": profile_dict(prof),
+            "note": "Link saved. LinkedIn does not let servers read profiles, so the research task on your Mac (signed in to "
+                    "LinkedIn, read-only) reads it on its next run (daily, 08:40 KST). The result waits here for your review. "
+                    "For an immediate import, upload LinkedIn's PDF (More → Save to PDF on your profile)."}
+
+
+@router.post("/linkedin/pdf")
+async def linkedin_pdf(file: UploadFile = File(...), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    data = await file.read()
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(413, "File too large (max 5 MB)")
+    from ..v2.linkedin_pdf import convert
+
+    r = convert(file_to_text(file.filename or "", data))
+    if not r["roles"]:
+        raise HTTPException(422, "No dated roles found. Use the PDF from your LinkedIn profile: More → Save to PDF.")
+    prof = ensure_profile(db, user)
+    prof.linkedin_import = {**r, "source": "pdf", "status": "ready", "read_at": _dt.now(_tz.utc).date().isoformat()}
+    db.commit()
+    return {"profile": profile_dict(prof), "note": f"{r['roles']} roles read. Review below, then apply."}
+
+
+@router.post("/linkedin/apply")
+def linkedin_apply(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    prof = ensure_profile(db, user)
+    imp = prof.linkedin_import or {}
+    if imp.get("status") != "ready" or not imp.get("experience_text"):
+        raise HTTPException(409, "No import waiting for review")
+    prof.experience_text = imp["experience_text"]
+    prof.linkedin_import = {**{k: v for k, v in imp.items() if k != "experience_text"}, "status": "applied"}
+    _refresh_experience(prof)
+    db.commit()
+    rebuild_user(db, user)
+    return {"profile": profile_dict(prof), "note": "Experience replaced with the LinkedIn import. Your scorecard has been recalculated; "
+                                                   "re-check Role review for any role whose name changed."}
+
+
+@router.delete("/linkedin/import")
+def linkedin_discard(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    prof = ensure_profile(db, user)
+    from ..agents.inbox import write_profile_requests
+
+    prof.linkedin_import = {}
+    db.commit()
+    write_profile_requests(db)
+    return {"profile": profile_dict(prof)}

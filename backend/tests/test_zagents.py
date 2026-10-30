@@ -417,3 +417,17 @@ def test_role_families(client, tmp_path, monkeypatch):
     req = json.loads((tmp_path / "requests.json").read_text())
     assert any(p["family"] == "Head of Developer Relations" for p in req["pending"])
     assert client.get("/api/scorecard", params={"family": "Partnerships"}, headers=h).json()["ready"] is True
+
+
+def test_linkedin_pdf_convert_and_inbox_keeps_request_files(tmp_path):
+    from app.v2.linkedin_pdf import convert
+    from app.v2.reader import parse_linkedin
+
+    t = ("Experience\nUnity\nGeneral Manager, Grow Korea\nJune 2023 - January 2025 (1 year 8 months)\nSeoul, South Korea\n"
+         "ironSource\n7 years 5 months\nVice President, Korea\nJanuary 2020 - June 2023 (3 years 6 months)\nSeoul\n"
+         "General Manager, Korea\nFebruary 2016 - January 2020 (4 years)\nEducation\nHanyang University\nBachelor of Engineering")
+    r = convert(t)
+    roles = parse_linkedin(r["experience_text"], (2026, 10))
+    assert [(x["title"], x["company"]) for x in roles] == [("General Manager, Grow Korea", "Unity"),
+                                                         ("Vice President, Korea", "ironSource"), ("General Manager, Korea", "ironSource")]
+    assert "Hanyang" in r["education_text"]

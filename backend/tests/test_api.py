@@ -197,3 +197,32 @@ def test_photo_upload(client):
     assert r.status_code == 200 and r.json()["has_photo"]
     assert client.post("/api/profile/photo", files={"file": ("x.txt", b"hello", "text/plain")}, headers=h).status_code == 422
     assert client.delete("/api/profile/photo", headers=h).json()["has_photo"] is False
+
+
+def test_linkedin_link_flow(client, tmp_path, monkeypatch):
+    import json
+
+    from app.agents import inbox
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "inbox_dir", str(tmp_path))
+    h, _ = signup(client, "li@example.com")
+    assert client.post("/api/profile/linkedin", json={"url": "https://example.com/x"}, headers=h).status_code == 422
+    r = client.post("/api/profile/linkedin", json={"url": "https://kr.linkedin.com/in/some-one?trk=x"}, headers=h).json()
+    assert r["profile"]["linkedin_url"] == "https://www.linkedin.com/in/some-one/"
+    req = json.loads((tmp_path / "profile_requests.json").read_text())["pending"]
+    assert len(req) == 1 and req[0]["url"].endswith("/some-one/")
+    uid = req[0]["user_id"]
+    (tmp_path / f"self_{uid}_2026-10-31.json").write_text(json.dumps({"kind": "self_profile", "user_id": uid,
+        "experience_text": "Experience\nDirector, Partnerships\nAcme · Full-time\nJan 2020 - Present · 6 yrs\nLed partnerships.",
+        "education_text": "BS Engineering"}))
+    from app.db import SessionLocal
+
+    with SessionLocal() as db:
+        out = inbox.run(db, None)
+    assert out["files"] == 1 and (tmp_path / "profile_requests.json").exists()
+    assert json.loads((tmp_path / "profile_requests.json").read_text())["pending"] == []
+    p = client.get("/api/profile", headers=h).json()
+    assert p["linkedin_import"]["status"] == "ready" and p["linkedin_import"]["roles"] == 1
+    p = client.post("/api/profile/linkedin/apply", headers=h).json()["profile"]
+    assert p["experience_text"].startswith("Experience\nDirector") and p["linkedin_import"]["status"] == "applied"

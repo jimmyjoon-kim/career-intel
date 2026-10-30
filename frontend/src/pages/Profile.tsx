@@ -3,6 +3,7 @@ import { api, upload, type Profile } from "../api";
 import { useAuth } from "../auth";
 import { ErrorBox, PageHead, useFetch } from "../components";
 import EvidencePanel from "../EvidencePanel";
+import LinkedInImport from "../LinkedInImport";
 
 type Tax = { levels: string[]; tags: { key: string; label: string; group: string; closable: boolean }[] };
 const GROUPS = ["function", "domain", "management", "skill", "education"];
@@ -37,7 +38,7 @@ export default function ProfilePage() {
       const r = await fn();
       setProf("profile" in r && r.profile ? r.profile : (r as Profile));
       const note = (r as { note?: string }).note;
-      setMsg(note ? `${ok} ${note}` : ok);
+      setMsg(note ? `${ok} ${note}`.trim() : ok || null);
       refreshStatus();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
@@ -127,6 +128,8 @@ export default function ProfilePage() {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) run(() => upload<Profile>("/api/profile/photo", f), "Photo saved."); }} />
         {prof.has_photo && <button className="btn" disabled={busy} onClick={() => run(() => api<Profile>("/api/profile/photo", { method: "DELETE" }), "Photo removed.")}>Remove photo</button>}
       </section>
+
+      <LinkedInImport prof={prof} busy={busy} run={run} />
 
       <section className="card">
         <h2>Full experience text</h2>
