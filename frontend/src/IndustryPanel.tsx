@@ -13,6 +13,11 @@ type Ind = {
   evidence_now: { n: number; of: number; tag: string } | null;
   gaps: { tag: string; label: string; share_target: number; share_home: number; specific: boolean; match: number; closable: boolean; how: string }[];
   method: string[];
+  overlap: number | null;
+  bridge: { same_function: number; same_avg: number | null; other: number; other_avg: number | null; best: { company: string; title: string; match: number; url: string }[] };
+  cases: { from: string; to: string; date: string; function: string; source: string; from_sector: string }[];
+  benchmarks: { text: string; scope: string; source: string }[];
+  not_found: string[];
 };
 const yrs = (m: number) => `${Math.round(m / 12)} yrs`;
 const pc = (x: number) => `${Math.round(100 * x)}%`;
@@ -67,6 +72,23 @@ export default function IndustryPanel({ family }: { family: string }) {
           {t && <p className="small" style={{ marginBottom: 0 }}>Postings here: {t.postings} · your average match {t.your_avg_match ?? "—"}% · strong matches {t.strong_matches}</p>}
         </div>
       </div>
+      <div className="grid2">
+        <div className="prop">
+          <b>Your function as the bridge</b>
+          <p className="small" style={{ margin: "4px 0" }}>Postings here in your functions: {d.bridge.same_function} · your avg match {d.bridge.same_avg ?? "—"}%
+            {" "}· other functions: {d.bridge.other} · avg {d.bridge.other_avg ?? "—"}%</p>
+          {d.bridge.best.length > 0 && <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{d.bridge.best.map((b) =>
+            <li key={b.url}><a href={b.url} target="_blank" rel="noreferrer">{b.company} — {b.title}</a> · {b.match}%</li>)}</ul>}
+          {d.overlap != null && <p className="small muted" style={{ marginBottom: 0 }}>Requirement overlap with your industry's postings: {d.overlap} (1 = same mix).</p>}
+        </div>
+        <div className="prop">
+          <b>Public cases: moves into this industry</b>
+          {d.cases.length === 0 ? <p className="small muted">No dated public case collected for this industry.</p> :
+            <ul className="small" style={{ margin: "4px 0", paddingLeft: 18 }}>{d.cases.map((c) =>
+              <li key={c.source + c.to}>{c.from} → {c.to} ({c.date}) <a href={c.source} target="_blank" rel="noreferrer">source</a></li>)}</ul>}
+          <p className="small muted" style={{ marginBottom: 0 }}>Context only; not used in any score.</p>
+        </div>
+      </div>
       <div className="prop">
         <b>What this industry asks for that you do not fully show</b>
         {d.gaps.length === 0 ? <p className="small muted">Nothing asked by 30%+ of its postings is missing.</p> :
@@ -74,6 +96,9 @@ export default function IndustryPanel({ family }: { family: string }) {
             <li key={g.tag}><b>{g.label}</b> · asked by {pc(g.share_target)} here vs {pc(g.share_home)} in your industry{g.specific && <span className="chip-d warn"> industry-specific</span>}
               {" "}· you: {g.match > 0 ? "partial" : "not shown"} · {g.closable ? `closable: ${g.how || "build or evidence it"}` : "not closable by current work; state it only if you have done it"}</li>))}</ul>}
       </div>
+      <details><summary className="small muted">Outside benchmarks and what research has not measured</summary>
+        <ul className="small">{d.benchmarks.map((b) => <li key={b.source}>{b.text} <span className="muted">({b.scope})</span> <a href={b.source} target="_blank" rel="noreferrer">source</a></li>)}</ul>
+        <p className="small muted">Not found: {d.not_found.join("; ")}. Your peer data fills these as holders' career paths are read.</p></details>
       <details><summary className="small muted">How this is measured</summary><ul className="small muted">{d.method.map((x) => <li key={x}>{x}</li>)}</ul></details>
     </section>
   );

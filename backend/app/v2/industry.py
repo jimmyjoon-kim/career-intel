@@ -258,7 +258,37 @@ def industry_view(db, prof, feats: dict | None, ev: dict, family: str = "Partner
         if sh >= 0.3 and m < 1:
             gaps.append({"tag": t, "label": TAGS[t].label, "share_target": round(sh, 2), "share_home": round(hs_.get(t, 0), 2),
                          "specific": sh - hs_.get(t, 0) >= 0.2, "match": m, "closable": TAGS[t].closable, "how": TAGS[t].close_hint})
+    # 4. Requirement overlap between your industry's postings and the target's (cosine of requirement shares).
+    overlap = None
+    if len(tb["postings"]) >= 5 and len(by.get(home or "", {}).get("postings", [])) >= 5:
+        keys = set(ts) | set(hs_)
+        num = sum(ts.get(k, 0) * hs_.get(k, 0) for k in keys)
+        den = (sum(v * v for v in ts.values()) ** 0.5) * (sum(v * v for v in hs_.values()) ** 0.5)
+        overlap = round(num / den, 2) if den else None
+
+    # 5. Function bridge: target-industry postings in your own functions vs the rest (research: function carries over).
+    mine = {t for t in ("func_partnerships", "func_bd", "func_ad_sales", "func_alliances_gsi", "func_channel", "func_sales_leadership")
+            if float(pv.matches.get(t, 0)) >= 1}
+    same = [r for r in tb["postings"] if set(r["posting"].tags or []) & mine]
+    other = [r for r in tb["postings"] if r not in same]
+    avg = lambda rs: round(100 * sum(r["rank_score"] for r in rs) / len(rs), 1) if rs else None  # noqa: E731
+    bridge = {"same_function": len(same), "same_avg": avg(same), "other": len(other), "other_avg": avg(other),
+              "best": [{"company": r["posting"].company, "title": r["posting"].title, "match": round(100 * r["rank_score"]),
+                        "url": r["posting"].url} for r in sorted(same, key=lambda r: -r["rank_score"])[:4]]}
+
+    import json
+    from pathlib import Path
+
+    ctx = {}
+    f = Path(__file__).resolve().parents[2] / "seed" / "industry_cases.json"
+    if not f.exists():
+        f = Path("/app/seed/industry_cases.json")
+    if f.exists():
+        ctx = json.loads(f.read_text())
+    cases = [c for c in ctx.get("cases", []) if c["to_sector"] == target]
     return {
+        "overlap": overlap, "bridge": bridge, "cases": cases, "benchmarks": ctx.get("benchmarks", []),
+        "not_found": ctx.get("not_found", []),
         "family": family, "you": {"home": home, "home_label": SECTORS.get(home or "", "unknown"),
                                   "months": {SECTORS.get(k, k): v for k, v in sorted(you.get("months", {}).items(), key=lambda x: -x[1])}},
         "sectors": table, "target": target, "target_label": SECTORS.get(target, target), "target_summary": tsum,
@@ -269,6 +299,9 @@ def industry_view(db, prof, feats: dict | None, ev: dict, family: str = "Partner
             "Switched in: the holder had no 12+ months in that industry before joining the current employer. Recorded for holders read from Oct 30, 2026 on; earlier holders have only their current employer.",
             "Your industry in career: the holder's text shows that domain anywhere, including the current role.",
             "Requirements: share of that industry's postings asking for each requirement vs your industry's postings; 'specific' when 20+ points higher.",
+            "Requirement overlap: similarity (0-1) of the requirement mix of the target industry's postings and your industry's (5+ postings each).",
+            "Function bridge: target-industry postings in functions you fully show (partnerships, BD, ad sales, alliances, channel, sales leadership).",
+            "Cases and benchmarks are cited outside context; they do not enter any score.",
             "No probabilities or hire likelihoods.",
         ],
     }
