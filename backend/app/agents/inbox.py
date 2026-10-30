@@ -55,7 +55,12 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
             if (h["company"].lower(), h["title"].lower()) in have:
                 skipped += 1
                 continue
-            rows.append(derive(h, now))
+            row = derive(h, now)
+            if not row.get("YOE"):  # no dated roles could be read (e.g. a short press bio): not usable as a peer
+                skipped += 1
+                continue
+            row["source_type"] = h.get("source_type", "linkedin")
+            rows.append(row)
         if rows:
             db.add(Proposal(run_id=run_id, kind="holders", title=f"Add {len(rows)} role holders to {data.get('cluster', 'Partnerships')}",
                             detail=f"Read {ym} from {data.get('source', 'monthly hire research')}. Derived values only; raw text discarded. "

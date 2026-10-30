@@ -22,6 +22,15 @@ Return JSON only: {{"band": "<one band>", "scope": "country"|"regional"|"global"
 "evidence": ["<quote>", ...up to 4], "summary": "<one line, plain words>"}}"""
 
 
+def _ladder(company: str) -> str:
+    from ..db import SessionLocal
+    from ..models import CompanyLevel
+
+    with SessionLocal() as db:
+        c = db.scalar(select(CompanyLevel).where(CompanyLevel.company == company))
+        return c.ladder if c and c.ladder else ""
+
+
 def _norm(s: str) -> str:
     return " ".join(s.split()).lower()
 
@@ -29,7 +38,9 @@ def _norm(s: str) -> str:
 def assess(p: Posting, run_id: int | None = None) -> dict | None:
     if len((p.description or "").strip()) < 400:
         return None
-    res = complete_json(SYSTEM, f"Title: {p.title}\nCompany: {p.company}\nLocation: {p.location}\nPay: {p.pay_range or 'not stated'}\n\n"
+    ladder = _ladder(p.company)
+    hint = f"Company level ladder (Levels.fyi, a hint only): {ladder}\n" if ladder else ""
+    res = complete_json(SYSTEM, f"Title: {p.title}\nCompany: {p.company}\nLocation: {p.location}\nPay: {p.pay_range or 'not stated'}\n{hint}\n"
                                 f"{p.description[:20000]}", max_tokens=700, role="research", agent="level", run_id=run_id)
     if not res or res.get("band") not in LEVEL_RANK:
         return None

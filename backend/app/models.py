@@ -261,3 +261,15 @@ class PoolRequest(Base):
     user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | ready
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CompanyLevel(Base):
+    """How a company's titles map to levels (from Levels.fyi via web search). A hint for the level assessor, not a rule."""
+
+    __tablename__ = "company_levels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company: Mapped[str] = mapped_column(String(200), unique=True)
+    ladder: Mapped[str] = mapped_column(Text, default="")  # e.g. "Director = L8 (manages managers); Head of = L7-L8; VP = L9"
+    source_url: Mapped[str] = mapped_column(String(1000), default="")
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

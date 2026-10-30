@@ -24,12 +24,12 @@ log = logging.getLogger(__name__)
 PIPELINES = {
     "daily": ["inbox", "sourcing", "reader", "level", "index_update"],
     "weekly": ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"],
-    "monthly": ["inbox", "company_facts", "scoring"],
+    "monthly": ["inbox", "company_facts", "company_levels", "scoring"],
     "rescore": ["scoring"],
     # Started when you change your locations (or ask the Ask agent to search): boards + location web search.
     "locations": ["sourcing", "web_sourcing", "reader", "level", "index_update", "scoring"],
 }
-USES_MODEL = {"web_sourcing", "reader", "level", "company_facts", "checker", "analyst", "evidence"}
+USES_MODEL = {"web_sourcing", "reader", "level", "company_facts", "company_levels", "checker", "analyst", "evidence"}
 
 
 def _profile_summary(db: Session) -> str:
@@ -98,6 +98,8 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
         return inbox.run(db, rid)
     if name == "company_facts":
         return company_facts.run(db, rid)
+    if name == "company_levels":
+        return company_facts.run_ladders(db, rid)
     raise ValueError(name)
 
 
