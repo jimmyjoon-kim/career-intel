@@ -4,6 +4,7 @@ import type { Card, Factor, RoleRead, Row, Scorecard } from "../api";
 import { Empty, ErrorBox, useFetch } from "../components";
 import { CardCompare, CardSection } from "../PlayerCards";
 import type { PlayerCard } from "../api";
+import FocusPanel from "../FocusPanel";
 
 type Reading = NonNullable<Scorecard["reading"]>;
 type Peer = Card["peers"][number];
@@ -78,6 +79,8 @@ export default function ScorecardPage() {
         </div>
         <button className="more-link" onClick={() => setDetail({ kind: "limits" })}>How this is measured ›</button>
       </header>
+
+      <FocusPanel />
 
       <CardSection {...c.cards} onPick={(card) => setDetail({ kind: "card", card })} />
 

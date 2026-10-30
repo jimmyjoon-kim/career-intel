@@ -62,3 +62,26 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
             "No probabilities or hire likelihoods are produced.",
         ],
     }
+
+
+@router.get("/focus")
+def get_focus(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Plain-language standing, you vs holders per factor, ranked actions with measured effect, and your edge."""
+    from sqlalchemy import select
+
+    from ..models import EvidenceSuggestion
+    from ..services import profile_view
+    from ..v2.focus import build
+
+    prof = ensure_profile(db, user)
+    card, feats, reason = scorecard(db, prof, n_boot=300)
+    if card is None:
+        return {"ready": False, "reason": reason}
+    ev = evaluate(db, user)
+    left = months_left(prof.target_date or "")
+    plan = build_gap_plan(card, ev["gap_summary"], left, _months_to_degree(feats))
+    pending = [{"tag": e.tag, "label": e.label, "quote": e.quote, "postings": e.postings}
+               for e in db.scalars(select(EvidenceSuggestion).where(EvidenceSuggestion.user_id == user.id,
+                                                                    EvidenceSuggestion.status == "pending"))]
+    out = build(card, ev, profile_view(prof, feats), plan, pending, left, prof.target_date or "")
+    return {"ready": True, **out}

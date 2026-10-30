@@ -386,3 +386,13 @@ def test_matches_worth_a_look(client):
     h = {"Authorization": f"Bearer {login['token']}"}
     m = client.get("/api/matches", headers=h).json()
     assert "worth_a_look" in m and all(w["outside"] for w in m["worth_a_look"])
+
+
+def test_focus_plan(client):
+    login = client.post("/api/auth/login", json={"email": "v2@example.com", "password": "password123"}).json()
+    h = {"Authorization": f"Bearer {login['token']}"}
+    f = client.get("/api/scorecard/focus", headers=h).json()
+    assert f["ready"] and f["standing"]["rank"] >= 1 and len(f["standing"]["lines"]) >= 3
+    assert {x["state"] for x in f["versus_peers"]} <= {"lead", "gap", "level"}
+    assert all({"kind", "title", "effect", "where"} <= set(a) for a in f["actions"])
+    assert f["postings_considered"] >= f["strong_matches_now"] >= 0
