@@ -17,11 +17,11 @@ def factor_rows(card: dict) -> list[dict]:
             for f in card["factors"]]
 
 
-def take(db: Session, user: User, run_id: int | None) -> ScoreSnapshot | None:
-    card, _, _ = scorecard(db, user.profile, n_boot=200)
+def take(db: Session, user: User, run_id: int | None, family: str = "Partnerships") -> ScoreSnapshot | None:
+    card, _, _ = scorecard(db, user.profile, n_boot=200, cluster=family)
     if card is None:
         return None
-    snap = ScoreSnapshot(user_id=user.id, run_id=run_id, model_version=MODEL_VERSION, score=card["base_score"],
+    snap = ScoreSnapshot(user_id=user.id, run_id=run_id, model_version=MODEL_VERSION, score=card["base_score"], family=family,
                          position=card["position"], factors=factor_rows(card))
     db.add(snap)
     db.commit()
@@ -29,11 +29,15 @@ def take(db: Session, user: User, run_id: int | None) -> ScoreSnapshot | None:
 
 
 def run(db: Session, run_id: int | None) -> dict:
+    from ..v2 import families
+
     users = list(db.scalars(select(User).join(Profile)))
-    made = [s for s in (take(db, u, run_id) for u in users) if s]
-    return {"users": len(users), "snapshots": len(made), "model_version": MODEL_VERSION}
+    ready = [f["key"] for f in families.status(db) if f["state"] == "ready"] or ["Partnerships"]
+    made = [s for s in (take(db, u, run_id, fam) for u in users for fam in ready) if s]
+    return {"users": len(users), "families": ready, "snapshots": len(made), "model_version": MODEL_VERSION}
 
 
-def previous(db: Session, user_id: int, before_id: int) -> ScoreSnapshot | None:
-    return db.scalar(select(ScoreSnapshot).where(ScoreSnapshot.user_id == user_id, ScoreSnapshot.id < before_id)
+def previous(db: Session, user_id: int, before_id: int, family: str = "Partnerships") -> ScoreSnapshot | None:
+    return db.scalar(select(ScoreSnapshot).where(ScoreSnapshot.user_id == user_id, ScoreSnapshot.id < before_id,
+                                                 ScoreSnapshot.family == family)
                      .order_by(ScoreSnapshot.id.desc()))

@@ -62,8 +62,18 @@ def current_market(db: Session) -> tuple[list[Posting], dict]:
 
 def evaluate(db: Session, user: User) -> dict:
     """Gate and score every posting for this user."""
+    from .v2 import families
+
     postings, stats = current_market(db)
     card, feats, _ = scorecard(db, user.profile, n_boot=0)
+    # One peer group per role family that has enough holders; each posting is scored against its own family's group.
+    fams = [f for f in families.all_families(db)]
+    ready = {f["key"] for f in families.status(db) if f["state"] == "ready"}
+    cards = {"Partnerships": card} if card else {}
+    for k in ready - set(cards):
+        c, _, _ = scorecard(db, user.profile, n_boot=0, cluster=k)
+        if c:
+            cards[k] = c
     prof = profile_view(user.profile, feats)
     rows = []
     for p in postings:
@@ -72,10 +82,16 @@ def evaluate(db: Session, user: User) -> dict:
         ok, reasons = not (hard or soft), hard + soft
         result = score(pv, prof, stats)
         opp = None
-        if card:
+        own = [f["key"] for f in fams if families.in_family(p, f)]
+        fam = next((k for k in own if k in cards), None)
+        use = cards.get(fam) if fam else card
+        if use:
             ctab = stats["clusters"].get(result["cluster"], stats["all"])["tags"]
-            opp = opportunity(card, pv.tags, {t: i["weight"] for t, i in ctab.items()},
+            opp = opportunity(use, pv.tags, {t: i["weight"] for t, i in ctab.items()},
                               posting_level=pv.level_band, years_required=pv.years_required)
+            opp["peer_group"] = fam or "Partnerships"
+            opp["peer_group_note"] = ("" if fam else f"No peer group for {own[0] if own else 'this role'} yet; "
+                                      "scored against Partnerships holders.")
         rows.append({"posting": p, "gate_pass": ok, "gate_reasons": reasons, "hard_reasons": hard, "soft_reasons": soft,
                      "opportunity": opp, **result})
     passing = sorted((r for r in rows if r["gate_pass"]), key=rank_key)
@@ -88,6 +104,7 @@ def evaluate(db: Session, user: User) -> dict:
         "adjacent": adjacent,
         "gap_summary": gap_summary(passing),
         "base": public(card) if card else None,
+        "_cards": cards,
     }
 
 
@@ -100,7 +117,8 @@ def for_family(db: Session, ev: dict, family: str | None) -> dict:
     fam = get_family(db, family)
     keep = lambda r: in_family(r["posting"], fam)  # noqa: E731
     passing = [r for r in ev["passing"] if keep(r)]
-    return {**ev, "rows": [r for r in ev["rows"] if keep(r)], "passing": passing,
+    c = ev.get("_cards", {}).get(fam["key"])
+    return {**ev, "base": public(c) if c else None, "rows": [r for r in ev["rows"] if keep(r)], "passing": passing,
             "adjacent": [r for r in ev["adjacent"] if keep(r)], "gap_summary": gap_summary(passing), "family": fam["key"]}
 
 

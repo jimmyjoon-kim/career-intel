@@ -41,7 +41,9 @@ no preamble, American spelling."""
 TOOLS = [
     {"name": "get_scorecard", "description": "Your base score (0-100), percentile position among role holders with 95% interval, "
      "each factor's value, percentile, weight and points, the largest gaps and leads versus the median holder, how your level was read, and the benchmark.",
-     "input_schema": {"type": "object", "properties": {}}},
+     "input_schema": {"type": "object", "properties": {"family": {"type": "string", "description":
+         "Role family to be scored against: Partnerships, Ad Sales, GM / Regional lead, BD / Alliances, Growth, or a custom one. "
+         "Default Partnerships. A family without 20 role holders returns an error saying so."}}}},
     {"name": "what_if", "description": "Rescore with factor values changed (others as read). Factors and ranges: YOE years 0-45, CT company tier & journey 1-4 "
      "(1 Tier 3, 2 Tier 2, 3 Tier 1, 4 Tier 1 with IPO/acquisition journey), LV level band 0-5 (0 Manager/IC, 1 Director, 2 Head/Sr Director, 3 VP/GM, 4 SVP/MD, 5 C-level), "
      "FN function evidence 0-1, DM domain 0-1, AC quantified outcomes count, ED degree 1-3 (1 bachelor, 2 master/MBA, 3 doctorate), AI 0-1, TK technical depth 0-1.",
@@ -76,11 +78,15 @@ class Ctx:
     def __init__(self, db: Session, user: User):
         self.db, self.user = db, user
         self._card = self._ev = None
+        self._fam = "Partnerships"
         self.sources: list[dict] = []
 
-    def card(self):
-        if self._card is None:
-            self._card, self.feats, self.reason = scorecard(self.db, ensure_profile(self.db, self.user), n_boot=300)
+    def card(self, family: str | None = None):
+        family = family or self._fam
+        if self._card is None or family != self._fam:
+            self._fam = family
+            self._card, self.feats, self.reason = scorecard(self.db, ensure_profile(self.db, self.user), n_boot=300,
+                                                            cluster=family)
         return self._card
 
     def ev(self):
@@ -95,7 +101,7 @@ def _r(x, n=1):
 
 def run_tool(ctx: Ctx, name: str, args: dict) -> dict:
     if name == "get_scorecard":
-        card = ctx.card()
+        card = ctx.card(args.get("family") if isinstance(args, dict) else None)
         if card is None:
             return {"error": ctx.reason}
         pub = public(card)
@@ -191,7 +197,8 @@ def run_tool(ctx: Ctx, name: str, args: dict) -> dict:
                         "Web-found postings stay 'unverified' until confirmed on the employer's board."}
     if name == "get_score_history":
         rows = ctx.db.scalars(select(ScoreSnapshot).where(ScoreSnapshot.user_id == ctx.user.id).order_by(ScoreSnapshot.id))
-        return {"points": [{"date": str(r.created_at)[:16], "score": r.score, "position": r.position, "model_version": r.model_version}
+        return {"points": [{"date": str(r.created_at)[:16], "family": r.family, "score": r.score, "position": r.position,
+                            "model_version": r.model_version}
                            for r in rows][-20:]}
     return {"error": f"unknown tool {name}"}
 

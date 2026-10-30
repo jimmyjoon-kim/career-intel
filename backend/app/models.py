@@ -219,6 +219,7 @@ class ScoreSnapshot(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    family: Mapped[str] = mapped_column(String(120), default="Partnerships")
     model_version: Mapped[str] = mapped_column(String(20))
     score: Mapped[float] = mapped_column(Float)
     position: Mapped[float] = mapped_column(Float)

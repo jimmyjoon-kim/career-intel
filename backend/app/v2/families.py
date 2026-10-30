@@ -92,6 +92,31 @@ def request_pool(db: Session, key: str, user_id: int | None, pattern: str = "") 
     return r
 
 
+def refresh_ready(db: Session) -> list[str]:
+    """Monthly: ask the Mac task for this month's recent hires in every family that already has a peer group, so all
+    groups stay current and carry the full field set (not only Partnerships)."""
+    out = []
+    for f in status(db):
+        if f["state"] == "ready":
+            r = db.scalar(select(PoolRequest).where(func.lower(PoolRequest.family) == f["key"].lower()))
+            if r is None:
+                r = PoolRequest(family=f["key"], pattern="", user_id=None)
+                db.add(r)
+            r.status, r.created_at = "pending", datetime.now(timezone.utc)
+            out.append(f["key"])
+    db.commit()
+    write_requests_file(db)
+    return out
+
+
+def _have(db: Session, key: str) -> int:
+    """Holders counted toward a request: for a family that already has a group, this month's full-field reads."""
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    rows = list(db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == key)))
+    full = [r for r in rows if (r.features or {}).get("PD") is not None]
+    return sum(1 for r in full if r.as_of == month) if len(rows) >= READY_AT and len(full) >= READY_AT else len(full)
+
+
 def write_requests_file(db: Session) -> None:
     """The hire-research task on your Mac reads this file and collects holders for each pending family."""
     d = Path(get_settings().inbox_dir)
@@ -100,7 +125,7 @@ def write_requests_file(db: Session) -> None:
     pending = []
     for r in db.scalars(select(PoolRequest).where(PoolRequest.status == "pending")):
         f = family(db, r.family)
-        pending.append({"family": r.family, "have": holders_full(db, r.family), "target": TARGET,
+        pending.append({"family": r.family, "have": _have(db, r.family), "target": TARGET,
                         "title_keywords": f["title"], "requested_at": r.created_at.isoformat() if r.created_at else ""})
     (d / "requests.json").write_text(json.dumps({"pending": pending}, indent=1))
 

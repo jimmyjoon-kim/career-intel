@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 PIPELINES = {
     "daily": ["inbox", "sourcing", "reader", "level", "index_update"],
     "weekly": ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"],
-    "monthly": ["inbox", "company_facts", "company_levels", "scoring"],
+    "monthly": ["inbox", "refresh_pools", "company_facts", "company_levels", "scoring"],
     "rescore": ["scoring"],
     # Started when you change your locations (or ask the Ask agent to search): boards + location web search.
     "locations": ["sourcing", "web_sourcing", "reader", "level", "index_update", "scoring"],
@@ -59,6 +59,10 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
             return update_postings(db)
         except Exception as err:  # noqa: BLE001 — search index is not critical to the run
             return {"skipped": f"index update failed: {err}"}
+    if name == "refresh_pools":
+        from ..v2.families import refresh_ready
+
+        return {"requested": refresh_ready(db)}
     if name == "level":
         return level.run(db, rid)
     if name == "evidence":
@@ -66,7 +70,8 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
     if name == "scoring":
         out = snapshots.run(db, rid)
         ctx["snapshots"] = {s.user_id: s for s in db.scalars(
-            select(snapshots.ScoreSnapshot).where(snapshots.ScoreSnapshot.run_id == rid))}
+            select(snapshots.ScoreSnapshot).where(snapshots.ScoreSnapshot.run_id == rid,
+                                                  snapshots.ScoreSnapshot.family == "Partnerships"))}
         return out
     if name == "checker":
         from ..services import evaluate

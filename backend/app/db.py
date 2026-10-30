@@ -29,6 +29,7 @@ def init_db() -> None:
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(300) DEFAULT ''",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_import JSON DEFAULT '{}'::json",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_text TEXT DEFAULT ''",
+                    "ALTER TABLE score_snapshots ADD COLUMN IF NOT EXISTS family VARCHAR(120) DEFAULT 'Partnerships'",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_education TEXT DEFAULT ''",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64) DEFAULT ''",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS source VARCHAR(40) DEFAULT 'csv'",
