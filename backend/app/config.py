@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     jwt_expiry_hours: int = 72
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
+    # Sign-up: open only while there are no accounts (the first account is admin) unless ALLOW_SIGNUP=true.
+    allow_signup: bool = False
+    # API docs (/docs) are off by default because the API can be reachable from the internet.
+    enable_docs: bool = False
+    # Failed logins allowed per email (and 10x that overall) in 15 minutes before a temporary lock.
+    login_max_failures: int = 5
+
     # Comma-separated emails that become admins on sign-up (can import postings, reindex).
     admin_emails: str = ""
 

@@ -17,7 +17,9 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Career Intel API", version="0.1.0", lifespan=lifespan)
+_docs = get_settings().enable_docs
+app = FastAPI(title="Career Intel API", version="0.1.0", lifespan=lifespan,
+              docs_url="/docs" if _docs else None, redoc_url=None, openapi_url="/openapi.json" if _docs else None)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in get_settings().cors_origins.split(",") if o.strip()],

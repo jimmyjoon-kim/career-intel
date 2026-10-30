@@ -5,6 +5,8 @@ import pytest
 # Offline mode for tests: no external AI calls.
 os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["VOYAGE_API_KEY"] = ""
+os.environ["ALLOW_SIGNUP"] = "true"
+os.environ["LOGIN_MAX_FAILURES"] = "50"
 os.environ.setdefault("DATABASE_URL", os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://career:career@localhost:5432/career_test"))
 

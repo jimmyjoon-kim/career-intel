@@ -100,6 +100,9 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+// Empty locally (same origin); set VITE_API_BASE to the public API address when the pages are hosted elsewhere (Netlify).
+export const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(/\/$/, "");
+
 export async function api<T>(path: string, opts: RequestInit & { json?: unknown } = {}): Promise<T> {
   const headers: Record<string, string> = { ...(opts.headers as Record<string, string>) };
   const token = getToken();
@@ -109,7 +112,7 @@ export async function api<T>(path: string, opts: RequestInit & { json?: unknown 
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(opts.json);
   }
-  const res = await fetch(path, { ...opts, headers, body });
+  const res = await fetch(API_BASE + path, { ...opts, headers, body });
   if (!res.ok) {
     let msg = res.statusText;
     try {

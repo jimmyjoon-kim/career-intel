@@ -1,0 +1,19 @@
+# Netlify hosts the web pages only. The API, database and agents run on the M2 and are reached through
+# a Tailscale Funnel address set in the Netlify site settings as VITE_API_BASE (e.g. https://<machine>.<tailnet>.ts.net).
+[build]
+  base = "frontend"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

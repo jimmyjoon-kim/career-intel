@@ -180,3 +180,22 @@ def test_inbox_proposal_and_approval(client, tmp_path, monkeypatch):
         assert db.query(ReferenceProfile).count() == n0 + 1
         db.query(ReferenceProfile).filter(ReferenceProfile.company == "NewCo").delete()
         db.commit()
+
+
+def test_signup_closed_and_login_lock(client, monkeypatch):
+    from app.config import get_settings
+    from app.routers import auth
+
+    s = get_settings()
+    monkeypatch.setattr(s, "allow_signup", False)
+    monkeypatch.setattr(s, "login_max_failures", 3)
+    assert client.get("/api/auth/config").json() == {"signup_open": False}
+    r = client.post("/api/auth/signup", json={"email": "new@example.com", "password": "password123", "name": "N"})
+    assert r.status_code == 403
+    auth._fails.clear()
+    for _ in range(3):
+        assert client.post("/api/auth/login", json={"email": "admin@example.com", "password": "wrong-one"}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": "admin@example.com", "password": "password123"}).status_code == 429
+    auth._fails.clear()
+    assert client.post("/api/auth/login", json={"email": "admin@example.com", "password": "password123"}).status_code == 200
+    assert client.get("/docs").status_code == 404

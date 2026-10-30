@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { api } from "../api";
 import { useAuth } from "../auth";
 
 export default function Login() {
@@ -9,6 +10,8 @@ export default function Login() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
+  useEffect(() => { api<{ signup_open: boolean }>("/api/auth/config").then((c) => setSignupOpen(c.signup_open)).catch(() => setSignupOpen(false)); }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,7 +36,7 @@ export default function Login() {
           ones that set candidates apart, and shows which gaps you can close.
         </p>
         <ul className="ticks">
-          <li>Gate first: level, location, authorisation, live status</li>
+          <li>Gate first: level, location, authorization, live status</li>
           <li>Weights from the market, not from job-ad wording</li>
           <li>Ask questions answered only from cited sources</li>
         </ul>
@@ -51,12 +54,12 @@ export default function Login() {
         </label>
         {error && <div className="error">{error}</div>}
         <button className="btn primary" disabled={busy}>{busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}</button>
-        <p className="muted small">
+        {(signupOpen || mode === "signup") && <p className="muted small">
           {mode === "login" ? "New here? " : "Already have an account? "}
           <button type="button" className="link" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
             {mode === "login" ? "Create an account" : "Sign in"}
           </button>
-        </p>
+        </p>}
       </form>
     </div>
   );
