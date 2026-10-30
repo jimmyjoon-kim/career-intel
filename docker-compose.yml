@@ -1,6 +1,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: career
       POSTGRES_PASSWORD: career
@@ -14,6 +15,7 @@ services:
 
   api:
     build: ./backend
+    restart: unless-stopped
     env_file:
       - path: .env
         required: false
@@ -26,8 +28,27 @@ services:
     ports:
       - "8000:8000"
 
+  # Agent team: schedule (Asia/Seoul) and queued runs. Same image as the API.
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.worker"]
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://career:career@db:5432/career_intel
+      INBOX_DIR: /data/inbox
+    volumes:
+      # The monthly hire-research task on your Mac writes its file into ./inbox; it is deleted after reading.
+      - ./inbox:/data/inbox
+    depends_on:
+      db:
+        condition: service_healthy
+
   web:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
       - api
     ports:

@@ -82,6 +82,11 @@ class Posting(Base):
     verification: Mapped[str] = mapped_column(Text, default="")
     first_seen: Mapped[str] = mapped_column(String(20), default="")
     last_seen: Mapped[str] = mapped_column(String(20), default="")
+    # Fingerprint of title + description; the requirement reader re-reads only when it changes.
+    content_hash: Mapped[str] = mapped_column(String(64), default="")
+    source: Mapped[str] = mapped_column(String(40), default="csv")  # csv | greenhouse | lever | ashby | web | manual
+    # Requirement reader agreement: {"runs": 3, "agreed": [...], "disputed": [...], "model": str}
+    read_check: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class Chunk(Base):
@@ -128,3 +133,99 @@ class ReferenceProfile(Base):
     features: Mapped[dict] = mapped_column(JSON, default=dict)  # YOE, CT, LV, LV_max, FN, DM, AC, tags
     source: Mapped[str] = mapped_column(String(300), default="")
     as_of: Mapped[str] = mapped_column(String(20), default="")
+
+
+# ---- Agent team -----------------------------------------------------------------------------------------
+
+class UsageLog(Base):
+    """One row per Claude call: which agent, which model, tokens and cost. Drives the monthly cap."""
+
+    __tablename__ = "usage_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    agent: Mapped[str] = mapped_column(String(40), index=True)
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    model: Mapped[str] = mapped_column(String(60))
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_write: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+
+
+class AgentRun(Base):
+    """A pipeline run (daily | weekly | monthly | rescore). status: queued | running | done | failed | stopped."""
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    trigger: Mapped[str] = mapped_column(String(20), default="schedule")  # schedule | manual | event
+    requested_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    steps: Mapped[list] = mapped_column(JSON, default=list)  # [{agent, status, seconds, result, error}]
+    error: Mapped[str] = mapped_column(Text, default="")
+
+
+class Brief(Base):
+    """The analyst's weekly brief with the checker's verdict."""
+
+    __tablename__ = "briefs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(Integer, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    body: Mapped[str] = mapped_column(Text, default="")
+    data: Mapped[dict] = mapped_column(JSON, default=dict)  # the facts the brief was written from
+    model: Mapped[str] = mapped_column(String(60), default="")
+    check: Mapped[dict] = mapped_column(JSON, default=dict)  # {passed, issues[], model}
+
+
+class Proposal(Base):
+    """A change an agent wants to make that needs your approval (new holders, company facts, reclassification)."""
+
+    __tablename__ = "proposals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    kind: Mapped[str] = mapped_column(String(40))  # holders | company_events | reclassify
+    title: Mapped[str] = mapped_column(String(300))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending | approved | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ScoreSnapshot(Base):
+    """A stored scorecard result, stamped with the model version, so scores have a history."""
+
+    __tablename__ = "score_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    model_version: Mapped[str] = mapped_column(String(20))
+    score: Mapped[float] = mapped_column(Float)
+    position: Mapped[float] = mapped_column(Float)
+    factors: Mapped[list] = mapped_column(JSON, default=list)  # [{factor, percentile, weight, points}]
+
+
+class Board(Base):
+    """An employer job board read directly (Greenhouse, Lever or Ashby)."""
+
+    __tablename__ = "boards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ats: Mapped[str] = mapped_column(String(20))  # greenhouse | lever | ashby
+    slug: Mapped[str] = mapped_column(String(120))
+    company: Mapped[str] = mapped_column(String(200), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_status: Mapped[str] = mapped_column(String(200), default="")
+    last_checked: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

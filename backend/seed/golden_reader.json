@@ -1,0 +1,53 @@
+[
+ {
+  "id": "vp_partnerships_tier1",
+  "note": "VP 2019-now at Google (Tier 1) after Director at Snap; level VP/GM band 3.",
+  "now": [
+   2026,
+   10
+  ],
+  "text": "Experience\nVice President, Global Partnerships\nGoogle \u00b7 Full-time\nJan 2019 - Present \u00b7 7 yrs 10 mos\nMountain View, California, United States\n- Led a team of 40 across business development and partner management.\n- Owned strategic partnerships with app publishers and ad networks, growing partner revenue 35% year over year.\nDirector, Business Development\nSnap Inc. \u00b7 Full-time\nMar 2014 - Dec 2018 \u00b7 4 yrs 10 mos\nLos Angeles, California, United States\n- Built the developer partnerships program from zero.",
+  "expect": {
+   "YOE": 12.5,
+   "LV": 3,
+   "LV_max": 3,
+   "tier": 1,
+   "FN": 0.67,
+   "DM": 0.5
+  }
+ },
+ {
+  "id": "director_sales_tier3",
+  "note": "Director of Sales at an unknown employer; sales is not a partnership function, so FN 0.",
+  "now": [
+   2026,
+   10
+  ],
+  "text": "Experience\nDirector of Sales\nAcme Widgets \u00b7 Full-time\nJun 2021 - Present \u00b7 5 yrs 5 mos\nAustin, Texas, United States\n- Managed regional sales for industrial customers.\nSales Manager\nAcme Widgets \u00b7 Full-time\nJan 2015 - May 2021 \u00b7 6 yrs 5 mos\nAustin, Texas, United States\n- Managed a team of 6 account executives.",
+  "expect": {
+   "YOE": 11.7,
+   "LV": 1,
+   "LV_max": 1,
+   "tier": 3,
+   "FN": 0.0,
+   "DM": 0.0
+  }
+ },
+ {
+  "id": "interim_cro_recent",
+  "note": "CRO held 14 months (over the 12-month rule), so the level band is C-level (5).",
+  "now": [
+   2026,
+   10
+  ],
+  "text": "Experience\nChief Revenue Officer\nBrightstart AI \u00b7 Full-time\nJan 2025 - Feb 2026 \u00b7 1 yr 2 mos\nSan Francisco, California, United States\n- Led go-to-market for an LLM-based developer platform.\nHead of Partnerships\nBrightstart AI \u00b7 Full-time\nJan 2023 - Dec 2024 \u00b7 2 yrs\nSan Francisco, California, United States\n- Built partnerships with cloud providers and AI model vendors.",
+  "expect": {
+   "YOE": 3.0,
+   "LV": 5,
+   "LV_max": 5,
+   "tier": 3,
+   "FN": 0.33,
+   "DM": 0.5
+  }
+ }
+]

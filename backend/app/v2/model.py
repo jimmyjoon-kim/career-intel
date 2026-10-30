@@ -17,6 +17,9 @@ import numpy as np
 
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
+# Bump on any change to factors, weights or rules; every stored score carries it.
+MODEL_VERSION = "v3.0"
+
 FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK"]
 FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "AI": "Current AI relevance", "TK": "Technical depth", "LV": "Level held",
                  "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)"}

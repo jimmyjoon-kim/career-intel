@@ -11,6 +11,7 @@ import Postings from "./pages/Postings";
 import Market from "./pages/Market";
 import ProfilePage from "./pages/Profile";
 import Ask from "./pages/Ask";
+import Agents from "./pages/Agents";
 import Admin from "./pages/Admin";
 
 const NAV = [
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/postings", label: "Postings" },
   { to: "/market", label: "Market" },
   { to: "/ask", label: "Ask" },
+  { to: "/agents", label: "Agents" },
   { to: "/profile", label: "Profile" },
   { to: "/dashboard", label: "Gate & gaps" },
 ];
@@ -66,6 +68,7 @@ export default function App() {
           <Route path="/market" element={<Market />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/ask" element={<Ask />} />
+          <Route path="/agents" element={<Agents />} />
           {user.is_admin && <Route path="/admin" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

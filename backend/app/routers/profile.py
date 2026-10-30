@@ -162,7 +162,11 @@ def refresh(user: User = Depends(current_user), db: Session = Depends(get_db)):
     db.commit()
     index = rebuild_user(db, user)
     feats = user_features(prof)
-    return {"ok": True, "roles_read": len(feats["roles"]) if feats else 0, "index": index}
+    from ..agents.snapshots import take
+
+    snap = take(db, user, None)  # event-driven rescore: stored with the model version
+    return {"ok": True, "roles_read": len(feats["roles"]) if feats else 0, "index": index,
+            "score": snap.score if snap else None}
 
 
 PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}

@@ -1,0 +1,11 @@
+[
+ {"ats": "greenhouse", "slug": "anthropic", "company": "Anthropic"},
+ {"ats": "greenhouse", "slug": "applovin", "company": "AppLovin"},
+ {"ats": "greenhouse", "slug": "doordashusa", "company": "DoorDash"},
+ {"ats": "greenhouse", "slug": "duolingo", "company": "Duolingo"},
+ {"ats": "greenhouse", "slug": "liftoff", "company": "Liftoff"},
+ {"ats": "greenhouse", "slug": "moloco", "company": "Moloco"},
+ {"ats": "greenhouse", "slug": "pinterest", "company": "Pinterest"},
+ {"ats": "greenhouse", "slug": "reddit", "company": "Reddit"},
+ {"ats": "greenhouse", "slug": "roblox", "company": "Roblox"}
+]

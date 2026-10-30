@@ -89,3 +89,21 @@ Interactive docs are served at `http://localhost:8000/docs`.
 Paste your LinkedIn Experience text (Experience, then Show all, select all) on the Profile page and set a target date. The Scorecard page shows your base score against people who hold the target roles, factor-by-factor gaps, focus areas, differentiators, nearest role holders, and exactly how each role was read. Postings show an opportunity score: your base score re-weighted by that posting's requirements.
 
 Reference holders are stored as derived factor values only (company and current title, no names, links or raw text): `backend/seed/reference_*.json`, loaded by the seed step or by admins via `POST /api/admin/reference/reload`.
+
+## Agent team (v4)
+
+A `worker` container runs the agents on a schedule (Asia/Seoul) and any runs queued from the **Agents** page.
+
+| When | Pipeline |
+|---|---|
+| Daily 06:00 | Job sourcing (Greenhouse / Lever / Ashby boards, read directly) → requirement reader (3 reads, majority kept) |
+| Mondays 09:00 | Sourcing + weekly web search → reader → search index → scoring snapshot → checker → analyst brief |
+| First Monday 08:40 | Scheduled task on the Mac reads recent hires (read-only) into `inbox/` |
+| First Monday 10:00 | Inbox → company facts check → rescoring |
+
+- Every Claude call goes through `app/llm.py`: model per job (`MODEL_BULK`, `ANTHROPIC_MODEL`, `MODEL_CRITICAL` with automatic fallback), cached system prompts, a usage row per call, and a hard monthly cap = `API_MONTHLY_ALLOWANCE_USD × BUDGET_SHARE`.
+- Changes to the holder pool or company facts are filed as proposals; nothing changes until approved on the Agents page.
+- Every stored score carries `MODEL_VERSION` (`app/v2/model.py`); bump it with any rule change.
+- CI: `.github/workflows/ci.yml` runs the tests (including pinned reader cases in `seed/golden_reader.json` and an offline pipeline run) and the frontend build on every push.
+
+After pulling: `docker compose up -d --build` (adds the `worker` service).

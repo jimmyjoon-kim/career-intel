@@ -30,7 +30,7 @@ def answer(db: Session, user_id: int, question: str) -> dict:
         return {"answer": "No indexed sources yet. Ask an admin to import postings and rebuild the index.",
                 "sources": [], "mode": "empty"}
     try:
-        text = complete(SYSTEM, f"Sources:\n{_format_sources(hits)}\n\nQuestion: {question}", max_tokens=1200)
+        text = complete(SYSTEM, f"Sources:\n{_format_sources(hits)}\n\nQuestion: {question}", max_tokens=1200, agent="ask")
     except Exception as err:  # noqa: BLE001 — show the reason instead of a server error
         lines = [f"Claude could not answer ({type(err).__name__}: {str(err)[:300]}). Check ANTHROPIC_API_KEY, "
                  "the model name and your API credit. The most relevant sources are below."]

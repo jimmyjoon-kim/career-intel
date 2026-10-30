@@ -62,9 +62,10 @@ def extract_cv(cv_text: str) -> dict:
     }
 
 
-def extract_posting(title: str, description: str) -> dict:
-    """Tag a posting from its title + description."""
-    result = complete_json(JD_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\nTitle: {title}\n\n{description[:30000]}")
+def extract_posting(title: str, description: str, **kw) -> dict:
+    """Tag a posting from its title + description. kw: role/agent/run_id for llm routing."""
+    kw.setdefault("role", "bulk")
+    result = complete_json(JD_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\nTitle: {title}\n\n{description[:30000]}", **kw)
     if result and isinstance(result.get("tags"), list):
         reqs, _ = split_tags([t for t in result["tags"] if isinstance(t, str)])
         return {
@@ -74,6 +75,7 @@ def extract_posting(title: str, description: str) -> dict:
             "role_cluster": result.get("role_cluster") or "Other",
             "scope": result.get("scope") or "",
             "no_sponsorship": bool(result.get("no_sponsorship")),
+            "mode": "llm",
         }
     text = f"{title}\n{description}"
     low = text.lower()
@@ -84,6 +86,7 @@ def extract_posting(title: str, description: str) -> dict:
         "role_cluster": _guess_cluster(title),
         "scope": "global" if "global" in low else "",
         "no_sponsorship": bool(re.search(r"(not|unable to) (be able to )?sponsor", low)),
+        "mode": "keyword",
     }
 
 

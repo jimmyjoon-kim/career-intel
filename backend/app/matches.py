@@ -157,22 +157,20 @@ Never invent a posting or a URL; every item must come from a search result you s
 Return JSON only: {"results":[{"company":"","title":"","location":"","url":"","source":"company page|ATS|aggregator","why":"one line on fit, citing the posting"}]}"""
 
 
-def web_search(query: str, profile_summary: str, max_results: int = 8) -> dict:
+def web_search(query: str, profile_summary: str, max_results: int = 8, *, agent: str = "matches",
+               run_id: int | None = None, max_uses: int = 6) -> dict:
     s = get_settings()
     if not s.anthropic_api_key:
         return {"available": False, "results": [], "note": "Web search needs an Anthropic API key (set in .env)."}
-    import anthropic
+    from .llm import create
 
-    client = anthropic.Anthropic(api_key=s.anthropic_api_key)
     user = (f"Candidate summary: {profile_summary}\n\nFind up to {max_results} open postings for: {query}\n"
             "Search the companies' careers pages first.")
     try:
-        msg = client.messages.create(
-            model=s.anthropic_model, max_tokens=3000, system=SEARCH_SYSTEM,
-            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}],
-            messages=[{"role": "user", "content": user}],
-        )
-    except Exception as err:  # noqa: BLE001 — surface any API failure to the user
+        msg, _ = create(role="research", agent=agent, run_id=run_id, system=SEARCH_SYSTEM, max_tokens=3000,
+                        tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}],
+                        messages=[{"role": "user", "content": user}])
+    except Exception as err:  # noqa: BLE001 — surface any API failure (including the spending cap) to the user
         log.warning("web search failed: %s", err)
         return {"available": True, "results": [], "note": f"Search failed: {err}"}
     text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")

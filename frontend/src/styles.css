@@ -372,3 +372,18 @@ button.pcard.hit:hover { transform: translateY(-2px); transition: transform 0.15
 .pc-photo { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; border: 2px solid var(--pc-glow); position: relative; z-index: 1; }
 .pcard.lg .pc-photo { width: 84px; height: 84px; }
 .pcard.sm .pc-photo { width: 44px; height: 44px; }
+
+/* Agent team page */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-2); }
+.prop { border-top: 1px solid var(--line); padding: 10px 0; }
+.prop:first-of-type { border-top: 0; }
+.brief h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); margin: 12px 0 4px; }
+.brief ul { margin: 0 0 6px; padding-left: 18px; }
+.brief p { margin: 4px 0; }
+@media (max-width: 720px) { .tbl { display: block; overflow-x: auto; } }
