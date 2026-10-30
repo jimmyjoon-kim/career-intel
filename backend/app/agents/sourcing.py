@@ -24,6 +24,12 @@ SEED_BOARDS = Path(__file__).resolve().parents[2] / "seed" / "ats_boards.json"
 LEVEL = re.compile(r"\b(director|head of|head,|vp|vice president|chief|general manager|svp|evp|gm)\b", re.I)
 FUNC = re.compile(r"partner|alliance|business development|\bbd\b|sales|revenue|growth|monetiz|advertis|commercial|"
                   r"\bads?\b|go[- ]to[- ]market|\bgtm\b|strategy|publisher|developer relations", re.I)
+# Commercial scope only: finance, accounting, legal, engineering, people and similar functions are out even with "revenue"
+# or "strategy" in the title.
+NON_COMMERCIAL = re.compile(r"accounting|accountant|controller|\bfinance\b|financial planning|\bfp&a\b|\btax\b|audit|treasury|"
+                            r"legal|counsel|compliance|privacy|security engineer|engineering|\bengineer\b|software|data scien|"
+                            r"recruit|talent acquisition|people (?:ops|operations|partner)|\bhr\b|human resources|"
+                            r"procurement|facilities|design(?:er)?\b|research scientist", re.I)
 EXCLUDE = re.compile(r"country manager|\b(korea|japan|china|germany|france|italy|spain|uk|united kingdom|india|brazil|"
                      r"mexico|canada|australia|singapore|dach|nordics|benelux)\b", re.I)
 US = re.compile(r"united states|\bu\.?s\.?a?\b|\bremote\b(?![^,]*(uk|europe|emea|canada|india|apac))|san francisco|bay area|"
@@ -79,6 +85,8 @@ def keep(title: str, location: str, extra: re.Pattern | None = None) -> tuple[bo
         return False, "not a Director+ commercial title"
     if EXCLUDE.search(title):
         return False, "country-scoped or Country Manager title"
+    if NON_COMMERCIAL.search(title):
+        return False, "not a commercial role"
     loc = location or ""
     if extra is not None and extra.search(loc):
         return True, ""

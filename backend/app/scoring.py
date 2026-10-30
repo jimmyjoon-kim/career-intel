@@ -135,7 +135,11 @@ def _location_ok(p: PostingView, prof: ProfileView) -> bool:
 
 
 def gate(p: PostingView, prof: ProfileView) -> tuple[bool, list[str]]:
+    from .agents.sourcing import NON_COMMERCIAL
+
     reasons: list[str] = []
+    if NON_COMMERCIAL.search(p.title or ""):
+        reasons.append("not a commercial role (finance, legal, engineering or similar)")
     if p.status != "open":
         reasons.append(f"posting status: {p.status}")
     if LEVEL_RANK.get(p.level_band, 0) < LEVEL_RANK.get(prof.min_level, LEVEL_RANK["Director"]):
@@ -197,11 +201,14 @@ def score(p: PostingView, prof: ProfileView, stats: dict) -> dict:
         "has_zero_hard_gap": zero_hard,
         "hard_gaps": hard_gaps,
         "gaps": gaps,
+        "tags": list(p.tags),
     }
 
 
 def rank_key(result: dict) -> tuple:
-    return (result["has_zero_hard_gap"], -result["rank_score"])
+    """Postings without hard gaps first, then by match; ties go to the posting with more tagged requirements,
+    since a full match on two requirements says less than a full match on ten."""
+    return (result["has_zero_hard_gap"], -result["rank_score"], -len(result.get("tags") or []))
 
 
 def gap_summary(results: list[dict], top_n: int = 10) -> list[dict]:
