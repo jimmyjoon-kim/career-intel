@@ -79,7 +79,8 @@ def request_pool(db: Session, key: str, user_id: int | None, pattern: str = "") 
     if r is None:
         r = PoolRequest(family=key.strip()[:120], pattern=pattern or "", user_id=user_id)
         db.add(r)
-    r.status, r.created_at = "pending", datetime.now(timezone.utc)
+    if r.status != "pending":  # a repeat press keeps the request's place in the queue
+        r.status, r.created_at = "pending", datetime.now(timezone.utc)
     db.commit()
     write_requests_file(db)
     return r
@@ -102,8 +103,12 @@ def provisional(db: Session, ev: dict, prof_view, fam: dict) -> dict:
     """Assessment from the family's open postings: what they require, your match on each, and your best postings."""
     rows = [r for r in ev["rows"] if in_family(r["posting"], fam) and r["posting"].status in ("open", "unverified")]
     n = len(rows)
+    req = db.scalar(select(PoolRequest).where(func.lower(PoolRequest.family) == fam["key"].lower()))
+    queue = [x.family for x in db.scalars(select(PoolRequest).where(PoolRequest.status == "pending").order_by(PoolRequest.created_at))]
+    request = ({"status": req.status, "requested_at": req.created_at.isoformat() if req.created_at else "",
+                "position": queue.index(req.family) + 1 if req.family in queue else None, "queue": len(queue)} if req else None)
     if not n:
-        return {"family": fam["key"], "postings": 0, "requirements": [], "fit": None, "top_postings": [], "gaps": []}
+        return {"family": fam["key"], "postings": 0, "requirements": [], "fit": None, "top_postings": [], "gaps": [], "request": request}
     from collections import Counter
 
     cnt = Counter(t for r in rows for t in set(r["posting"].tags or []) if t in TAGS)
@@ -117,7 +122,7 @@ def provisional(db: Session, ev: dict, prof_view, fam: dict) -> dict:
             den += share
     top = sorted(rows, key=lambda r: (not r["gate_pass"], bool(r["hard_reasons"]), -r["rank_score"]))[:8]
     return {
-        "family": fam["key"], "postings": n, "fit": round(100 * num / den, 1) if den else None,
+        "family": fam["key"], "request": request, "postings": n, "fit": round(100 * num / den, 1) if den else None,
         "requirements": reqs[:15],
         "gaps": [x for x in reqs if x["share"] >= 0.3 and x["match"] < 1][:6],
         "top_postings": [{"id": r["posting"].id, "company": r["posting"].company, "title": r["posting"].title,

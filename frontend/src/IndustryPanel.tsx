@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFetch } from "./components";
 
 type Row = { sector: string; label: string; holders: number; with_path: number; switched_in: number; from_your_industry: number;
@@ -25,7 +25,11 @@ const pc = (x: number) => `${Math.round(100 * x)}%`;
 // Switching industries: you against the people who hold these roles in the target industry.
 export default function IndustryPanel({ family }: { family: string }) {
   const [target, setTarget] = useState<string>("");
-  const { data: d } = useFetch<Ind>(`/api/scorecard/industry?family=${encodeURIComponent(family)}${target ? `&target=${target}` : ""}`);
+  const detail = useRef<HTMLHeadingElement>(null);
+  const { data: d, loading } = useFetch<Ind>(`/api/scorecard/industry?family=${encodeURIComponent(family)}${target ? `&target=${target}` : ""}`);
+  useEffect(() => {
+    if (target && !loading) detail.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [target, loading]);
   if (!d) return null;
   const t = d.target_summary, p = d.peer, s = d.switchers;
   return (
@@ -47,12 +51,14 @@ export default function IndustryPanel({ family }: { family: string }) {
               <td>{r.your_industry_in_career != null && r.holders ? `${r.your_industry_in_career} of ${r.holders}` : "—"}</td>
               <td>{r.postings}</td>
               <td>{r.your_avg_match != null ? `${r.your_avg_match}%` : "—"}</td>
-              <td>{r.sector !== d.target && <button className="btn ghost" onClick={() => setTarget(r.sector)}>Compare</button>}</td>
+              <td>{r.sector === d.target
+                ? <span className="chip-d acc">Comparing ↓</span>
+                : <button className="btn" disabled={loading} onClick={() => setTarget(r.sector)}>{loading && target === r.sector ? "Loading…" : "Compare"}</button>}</td>
             </tr>))}</tbody>
         </table>
       </div>
 
-      <h3 style={{ margin: "12px 0 4px" }}>Moving into {d.target_label}</h3>
+      <h3 ref={detail} style={{ margin: "12px 0 4px", scrollMarginTop: 12 }}>Moving into {d.target_label} <span className="small muted">· pick another industry with Compare above</span></h3>
       <div className="grid2">
         <div className="prop">
           <b>You vs {family} holders in this industry</b>

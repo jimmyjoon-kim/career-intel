@@ -38,6 +38,7 @@ export function FamilyBar({ value, onChange }: { value: string; onChange: (k: st
 
 type Prov = {
   family: string; postings: number; holders: number; fit: number | null; note?: string;
+  request: { status: string; requested_at: string; position: number | null; queue: number } | null;
   requirements: { tag: string; label: string; share: number; match: number; closable: boolean }[];
   gaps: { tag: string; label: string; share: number; match: number; closable: boolean }[];
   top_postings: { id: number; company: string; title: string; location: string; url: string; match: number; passes: boolean; outside: string[] }[];
@@ -60,8 +61,13 @@ export function ProvisionalView({ fam, onRequest }: { fam: string; onRequest: ()
           </div>
           <p className="small">{data.note ?? "No open postings match this role yet."}</p>
           <p className="small muted">Peers collected so far: {data.holders}. The full scorecard (percentile among holders, factor comparison, focus plan) appears once enough holders are collected and you approve them on the Agents page.</p>
-          {!sent && <button className="btn" onClick={request}>Collect peers for this role</button>}
-          {sent && <div className="small good">Requested. The hire-research task on your Mac picks it up.</div>}
+          {data.request?.status === "pending" || sent ? (
+            <div className="small good">
+              Peer collection requested{data.request?.requested_at ? ` ${data.request.requested_at.slice(0, 10)}` : ""}
+              {data.request?.position ? ` · position ${data.request.position} of ${data.request.queue} in the queue` : ""}.
+              {" "}The research task on your Mac (daily, 08:40 KST) collects up to 2 roles per run; approve the result on the Agents page.
+            </div>
+          ) : <button className="btn" onClick={request}>Collect peers for this role</button>}
         </div>
         <div className="tile">
           <span className="tile-title">What these postings require · your match</span>
