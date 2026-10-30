@@ -111,6 +111,14 @@ def parse_linkedin(text: str, now: tuple[int, int] | None = None) -> list[dict]:
     return roles
 
 
+SECTION = re.compile(r"^(EDUCATION|SKILLS|CERTIFICATIONS|LANGUAGES|AWARDS|PUBLICATIONS|INTERESTS)\b", re.M)
+
+
+def _experience_section(text: str) -> str:
+    m = SECTION.search(text)
+    return text[: m.start()] if m else text
+
+
 def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
     """CV-style text: each line carrying a date range starts a role."""
     now = now or _now()
@@ -124,21 +132,42 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
             continue
         head = (ln[: m.start()] + " " + ln[m.end():]).strip(" |,·—–-()\t")
         parts = [p.strip() for p in re.split(r"\s*[|·,—–]\s*|\s{2,}", head) if p.strip()]
+        cv_head = None
         if not parts and i >= 1:
-            parts = [p.strip() for p in re.split(r"\s*[|·,—–]\s*", L[i - 1]) if p.strip()]
-            if roles and roles[-1]["desc"] and roles[-1]["desc"][-1] == L[i - 1].lstrip("-•* ").strip():
+            prev = L[i - 1]
+            if roles and roles[-1]["desc"] and roles[-1]["desc"][-1] == prev.lstrip("-•* ").strip():
                 roles[-1]["desc"].pop()
-        titled = [p for p in parts if TITLE_WORDS.search(p)]
-        title = titled[0] if titled else (parts[0] if parts else "")
-        company = next((p for p in parts if p != title), "")
+            hm = CV_HEAD.match(prev)
+            if hm:
+                cv_head = (hm.group(1).split(",")[0].strip(), hm.group(2).strip())
+            parts = [p.strip() for p in re.split(r"\s*[|·,—–]\s*", prev) if p.strip()]
+        if cv_head:
+            company, title = cv_head
+        else:
+            titled = [p for p in parts if TITLE_WORDS.search(p)]
+            title = titled[0] if titled else (parts[0] if parts else "")
+            company = next((p for p in parts if p != title), "")
         roles.append(_finish({"title": title, "company": company, "emp_type": None,
                               "start_raw": m.group(1), "end_raw": m.group(2), "desc": []}, now))
     return roles
 
 
+# CV role heading: "Company, Location — Title" (em or en dash with spaces), with the dates on the next line.
+CV_HEAD = re.compile(r"^(?![-•*])(.+?)\s+[—–]\s+(.+)$")
+
+
+def _is_cv(text: str) -> bool:
+    """CV format: at least two date-range lines whose previous line is a 'Company — Title' heading."""
+    L = [ln.strip() for ln in text.split("\n") if ln.strip()]
+    hits = sum(1 for i in range(1, len(L)) if INLINE_DATE.fullmatch(L[i]) and CV_HEAD.match(L[i - 1]))
+    return hits >= 2
+
+
 def parse_roles(text: str, now: tuple[int, int] | None = None) -> tuple[list[dict], str]:
     if not text or not text.strip():
         return [], "empty"
+    if _is_cv(text):
+        return parse_inline(_experience_section(text), now), "cv"
     li = parse_linkedin(text, now)
     if li:
         return li, "linkedin"
@@ -506,9 +535,39 @@ def parse_education(text: str, now: tuple[int, int] | None = None) -> dict:
             degrees.append({"text": part[:160], "level": lvl, "end": f"{end[0]}-{end[1]:02d}" if end else None,
                             "in_progress": in_progress, "technical": bool(TECH_DEG.search(part)),
                             "mba": bool(re.search(r"\bmba\b|\bemba\b|business administration", part, re.I)) and lvl == 2})
+    if not degrees:
+        degrees = _cv_education(text, now)
     done = [d["level"] for d in degrees if not d["in_progress"]]
     return {"degrees": degrees, "ED": max(done) if done else None,
             "technical": any(d["technical"] and not d["in_progress"] for d in degrees)}
+
+
+def _cv_education(text: str, now: tuple[int, int]) -> list[dict]:
+    """CV 'EDUCATION' section: 'School — Degree' lines, each followed by a year or 'Expected Month Year' line."""
+    m = re.search(r"^EDUCATION\b.*$", text or "", re.M)
+    if not m:
+        return []
+    body = text[m.end():]
+    nxt = re.search(r"^(SKILLS|CERTIFICATIONS|LANGUAGES|AWARDS|PUBLICATIONS|INTERESTS|EXPERIENCE)\b", body, re.M)
+    L = [ln.strip() for ln in (body[: nxt.start()] if nxt else body).splitlines() if ln.strip()]
+    out = []
+    for i, ln in enumerate(L):
+        hm = CV_HEAD.match(ln)
+        deg = hm.group(2) if hm else ln  # the degree is after the dash; "Boston, MA" must not read as a master's
+        lvl = 3 if DEG3.search(deg) else 2 if DEG2.search(deg) else 1 if DEG1.search(deg) else None
+        if lvl is None:
+            continue
+        nxt_ln = L[i + 1] if i + 1 < len(L) else ""
+        dates = list(_DATE.finditer(nxt_ln if _DATE.search(nxt_ln) and not DEG1.search(nxt_ln) else ln))
+        end = None
+        if dates:
+            d = dates[-1]
+            end = (int(d.group(2)), MON[d.group(1)[:3].lower()] if d.group(1) else 12)
+        in_progress = bool(re.search(r"in progress|expected|candidate", nxt_ln + " " + ln, re.I)) or (end is not None and end > now)
+        out.append({"text": ln[:160], "level": lvl, "end": f"{end[0]}-{end[1]:02d}" if end else None, "in_progress": in_progress,
+                    "technical": bool(TECH_DEG.search(deg)),
+                    "mba": bool(re.search(r"\bmba\b|\bemba\b|business administration", deg, re.I)) and lvl == 2})
+    return out
 
 
 def education_by(degrees: list[dict], ym: str) -> int | None:

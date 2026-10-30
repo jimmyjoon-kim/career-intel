@@ -129,3 +129,21 @@ Jan 2012 - Jan 2014 · 2 yrs 1 mo
     old, _ = parse_roles(text.split("General Manager")[0].replace("Jan 2025 - Jan 2026", "Jan 2018 - Jan 2020"), NOW)
     g = combine(extract_features(old, now=NOW), tech_degree=False, ai_degree=0.0, now=NOW)
     assert g["AI"] == 0.06  # AI work older than three years counts 0.1 x 0.6
+
+
+def test_cv_format_heads_and_education():
+    """CV layout: 'Company, Location — Title' with dates on the next line, plus an EDUCATION section."""
+    from app.v2.reader import extract_features, parse_education, parse_roles
+
+    t = ("EXPERIENCE\nWortal.AI, DE, United States — Co-founder and Interim Chief Revenue Officer\nJanuary 2025 – January 2026\n"
+         "•\tBuilt the business.\nironSource, Seoul, South Korea — General Manager and Vice President, Korea\nJanuary 2016 – July 2023\n"
+         "•\tLaunched the Korea operation with P&L responsibility.\nEDUCATION\n"
+         "Quantic School of Business and Technology, Washington, DC — Master of Science, AI Engineering\nExpected May 2027\n"
+         "Boston University, Boston, MA, United States — Bachelor of Science, Mechanical Engineering\n2001\nSKILLS\n•\tx\n")
+    roles, fmt = parse_roles(t, (2026, 10))
+    assert fmt == "cv" and [r["company"] for r in roles] == ["Wortal.AI", "ironSource"]
+    assert roles[1]["title"] == "General Manager and Vice President, Korea"
+    f = extract_features(roles, now=(2026, 10))
+    assert f["LV"] == 5 and f["recent_role"]["company"] == "Wortal.AI"
+    ed = parse_education(t, (2026, 10))
+    assert ed["ED"] == 1 and [d["level"] for d in ed["degrees"]] == [2, 1] and ed["degrees"][0]["in_progress"]
