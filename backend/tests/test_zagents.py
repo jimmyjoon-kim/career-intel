@@ -27,7 +27,8 @@ def mock_client(payload):
 
 def test_title_and_location_screen():
     assert sourcing.keep("VP, Business Development", "Remote - US")[0]
-    assert not sourcing.keep("Country Manager, Japan", "Tokyo")[0]
+    assert not sourcing.keep("Country Manager, Japan", "Tokyo")[0]  # outside locations
+    assert sourcing.keep("Regional Manager, Ads Solutions (APAC)", "Singapore", sourcing._loc_pattern(["Singapore"]))[0]
     assert not sourcing.keep("Senior Software Engineer", "Remote")[0]
     assert not sourcing.keep("Director of Partnerships", "London, United Kingdom")[0]
     assert sourcing.keep("Director of Partnerships", "")[0]  # unstated location is kept for the reader
@@ -59,7 +60,7 @@ def test_board_run_fingerprint_and_close(client):
         db.add(Board(ats="greenhouse", slug="testco", company="TestCo"))
         db.commit()
         t1 = sourcing.run_boards(db, mock_client(GH))
-        assert t1["new"] == 1 and t1["screened_out"] == 3
+        assert t1["new"] == 1 and t1["screened_out"] == 3  # Seoul and London are outside the test profile's locations
         p = db.query(Posting).filter(Posting.url.like("%testco/jobs/1")).one()
         assert p.bay_area and p.source == "greenhouse" and p.content_hash
         p.read_check = {"hash": p.content_hash}
@@ -141,7 +142,7 @@ def test_weekly_pipeline_and_api(client):
             execute(db, run)
         finally:
             src.run_boards = src_run
-        assert [s["agent"] for s in run.steps] == ["sourcing", "web_sourcing", "reader", "index", "scoring", "evidence", "checker", "analyst"]
+        assert [s["agent"] for s in run.steps] == ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"]
         assert run.status == "done", run.steps
         chk = next(s for s in run.steps if s["agent"] == "checker")["result"]
         assert chk["golden"]["failed"] == [] and all(not u["rule_violations"] for u in chk["users"])
@@ -334,7 +335,7 @@ def test_location_driven_sourcing(client, monkeypatch):
     assert sourcing.keep("Head of Partnerships, APAC", "Singapore", pat)[0]
     assert sourcing.keep("Director, Business Development", "Seoul, Korea", pat)[0]
     assert not sourcing.keep("Director, Business Development", "London, UK", pat)[0]
-    assert not sourcing.keep("Country Manager, Korea", "Seoul", pat)[0]  # country-scoped stays excluded
+    assert sourcing.keep("Country Manager, Korea", "Seoul", pat)[0]  # kept; scored as outside your preferences
     login = client.post("/api/auth/login", json={"email": "v2@example.com", "password": "password123"}).json()
     h = {"Authorization": f"Bearer {login['token']}"}
     r = client.put("/api/profile", json={"locations": ["SF Bay Area", "Seoul, South Korea"]}, headers=h).json()
@@ -347,3 +348,41 @@ def test_location_driven_sourcing(client, monkeypatch):
 
     assert _location_ok(NS(remote_flag="no", location="Seoul", bay_area=False),
                         NS(remote_ok=True, locations=["Seoul, South Korea"]))
+
+
+def test_level_assessor_and_soft_screen(client, monkeypatch):
+    from types import SimpleNamespace as NS
+
+    from app.agents import level
+    from app.scoring import gate_split
+
+    desc = ("We are seeking a Regional Manager to lead and scale our advertising business across Asia-Pacific. "
+            "You will oversee a distributed team of Client Partners and Customer Success Managers. "
+            "Own regional revenue goals and business performance across multiple markets. " * 4)
+    p = NS(title="Regional Manager, Ads Solutions (APAC)", company="OpenAI", location="Singapore", pay_range="",
+           description=desc, content_hash="h1", read_check={}, level_band="Manager", scope="")
+    monkeypatch.setattr(level, "complete_json", lambda *a, **k: {
+        "band": "Director", "scope": "regional", "confidence": "high", "summary": "Runs APAC ads with a team",
+        "evidence": ["lead and scale our advertising business across Asia-Pacific", "an invented quote that is not there"]})
+    a = level.assess(p)
+    assert a["band"] == "Director" and a["title_band"] == "Manager" and len(a["evidence"]) == 1
+    level.apply(p, a)
+    assert p.level_band == "Director" and p.scope == "regional"
+    monkeypatch.setattr(level, "complete_json", lambda *a, **k: {"band": "VP", "confidence": "high", "evidence": ["made up"]})
+    b = level.assess(p)
+    assert b["confidence"] == "low"  # no verifiable quote: the title band stands
+
+    prof = NS(min_level="Director", locations=["SF Bay Area"], remote_ok=True, needs_sponsorship=False, excluded_title_terms=[])
+    pv = NS(title="Country Manager, Korea", status="open", no_sponsorship=False, level_band="Director", scope="country",
+            location="Seoul", remote_flag="no", bay_area=False)
+    hard, soft = gate_split(pv, prof)
+    assert not hard and any("single-country" in s for s in soft) and any("location" in s for s in soft)
+    pv.status = "closed"
+    assert gate_split(pv, prof)[0]
+
+
+def test_matches_worth_a_look(client):
+    login = client.post("/api/auth/login", json={"email": "v2@example.com", "password": "password123"}).json()
+    h = {"Authorization": f"Bearer {login['token']}"}
+    m = client.get("/api/matches", headers=h).json()
+    assert "worth_a_look" in m and all(w["outside"] for w in m["worth_a_look"])

@@ -72,7 +72,7 @@ def test_full_flow(client):
 
     rows = client.get("/api/postings", headers=user_h).json()
     assert len(rows) == 55
-    assert any("posting status" in r for row in rows for r in row["gate_reasons"])
+    assert any("posting status" in r or "not yet confirmed" in r for row in rows for r in row["gate_reasons"])
     detail = client.get(f"/api/postings/{rows[0]['posting']['id']}", headers=user_h).json()
     assert detail["posting"]["id"] == rows[0]["posting"]["id"]
 

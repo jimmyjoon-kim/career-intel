@@ -27,6 +27,7 @@ TEAM = [
     {"key": "reader", "name": "Requirement reader", "model": "bulk", "job": "Reads each new or changed posting 3 times; keeps the majority tags."},
     {"key": "hire_research", "name": "Hire research", "model": "monthly task on your Mac", "job": "Reads recent hires' profiles (read-only); derived values only, filed for approval."},
     {"key": "company_facts", "name": "Company facts", "model": "research", "job": "Checks unverified IPO and acquisition dates by web search; files confirmations for approval."},
+    {"key": "level", "name": "Level assessor", "model": "research", "job": "Reads each posting's full description and judges its real level from scope, team, revenue ownership and experience required, quoting the evidence; titles alone are not trusted."},
     {"key": "evidence", "name": "Evidence finder", "model": "bulk", "job": "Searches your own documents for lines that evidence requirements you are marked as missing; you confirm each."},
     {"key": "scoring", "name": "Scoring engine", "model": "none (code)", "job": "Scores every profile and stores the result with the model version."},
     {"key": "checker", "name": "Checker", "model": "critical", "job": "Rules, arithmetic, regression cases, and a review of every brief against its data."},

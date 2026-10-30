@@ -18,18 +18,18 @@ from sqlalchemy.orm import Session
 
 from ..llm import BudgetExceeded, check_budget, month_spend
 from ..models import AgentRun, Profile, User
-from . import analyst, checker, company_facts, evidence, inbox, requirements, snapshots, sourcing
+from . import analyst, checker, company_facts, evidence, inbox, level, requirements, snapshots, sourcing
 
 log = logging.getLogger(__name__)
 PIPELINES = {
-    "daily": ["sourcing", "reader", "index_update"],
-    "weekly": ["sourcing", "web_sourcing", "reader", "index", "scoring", "evidence", "checker", "analyst"],
+    "daily": ["sourcing", "reader", "level", "index_update"],
+    "weekly": ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"],
     "monthly": ["inbox", "company_facts", "scoring"],
     "rescore": ["scoring"],
     # Started when you change your locations (or ask the Ask agent to search): boards + location web search.
-    "locations": ["sourcing", "web_sourcing", "reader", "index_update", "scoring"],
+    "locations": ["sourcing", "web_sourcing", "reader", "level", "index_update", "scoring"],
 }
-USES_MODEL = {"web_sourcing", "reader", "company_facts", "checker", "analyst", "evidence"}
+USES_MODEL = {"web_sourcing", "reader", "level", "company_facts", "checker", "analyst", "evidence"}
 
 
 def _profile_summary(db: Session) -> str:
@@ -59,6 +59,8 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
             return update_postings(db)
         except Exception as err:  # noqa: BLE001 — search index is not critical to the run
             return {"skipped": f"index update failed: {err}"}
+    if name == "level":
+        return level.run(db, rid)
     if name == "evidence":
         return evidence.run(db, rid)
     if name == "scoring":

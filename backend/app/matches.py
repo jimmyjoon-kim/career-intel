@@ -143,11 +143,33 @@ def build(ev: dict, feats: dict | None, matches: dict[str, float]) -> dict:
             "level_relation": relation(band, est),
         })
     positions.sort(key=lambda x: (bool(x["hard_gaps"]), -x["rank_score"], -(x["opportunity"] or 0)))
-    return {"progression": prog, "role_types": types, "positions": positions[:15],
+
+    # Recommendations from your CV beyond your stated criteria: postings that miss only a preference
+    # (level by title, location, single-country scope, unconfirmed listing) but whose requirements you match well.
+    worth = []
+    for r in ev.get("adjacent", []):
+        if r["rank_score"] < 0.6 or len(r["posting"].tags or []) < 3:
+            continue
+        p = r["posting"]
+        lv = (p.read_check or {}).get("level") or {}
+        worth.append({
+            "id": p.id, "company": p.company, "title": p.title, "url": p.url, "location": p.location,
+            "level_band": p.level_band, "status": p.status, "requirement_match": round(100 * r["weighted_score"], 1),
+            "rank_score": r["rank_score"], "outside": r["soft_reasons"], "hard_gaps": [g["label"] for g in r["hard_gaps"]],
+            "gaps": [g["label"] for g in r["gaps"][:3]],
+            "level_note": (f'Title reads {lv.get("title_band")}; the description reads {lv.get("band")} ({lv.get("confidence")} confidence): '
+                           f'{lv.get("summary", "")}') if lv and lv.get("band") != lv.get("title_band") else "",
+            "level_evidence": lv.get("evidence", [])[:3] if lv else [],
+        })
+        if len(worth) >= 12:
+            break
+    return {"progression": prog, "role_types": types, "positions": positions[:15], "worth_a_look": worth,
             "method": ["Role types = open postings grouped by role cluster and industry vertical (groups of 2 or more).",
                        "Fit = share-weighted match on requirements that at least 30% of the group's postings ask for.",
                        "Level relation compares the group's median level with the band you held longest in the last 10 years.",
-                       "Open positions are gate-passing postings ranked by requirement match, then opportunity score."]}
+                       "Open positions are gate-passing postings ranked by requirement match, then opportunity score.",
+                       "Levels come from each posting's full description (scope, team, revenue ownership, experience), not the title alone.",
+                       "Worth a look = postings that miss only a stated preference but match your requirements at 60% or more."]}
 
 
 SEARCH_SYSTEM = """You find currently open job postings on the web for one candidate.

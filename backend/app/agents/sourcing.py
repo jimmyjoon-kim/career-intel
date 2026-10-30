@@ -21,9 +21,13 @@ from ..models import Board, Posting
 log = logging.getLogger(__name__)
 SEED_BOARDS = Path(__file__).resolve().parents[2] / "seed" / "ats_boards.json"
 
-LEVEL = re.compile(r"\b(director|head of|head,|vp|vice president|chief|general manager|svp|evp|gm)\b", re.I)
+LEVEL = re.compile(r"\b(director|head of|head,|vp|vice president|chief|general manager|svp|evp|gm)\b|"
+                   r"\b(regional|country|area|apac|emea|latam|global|international)\b[^,]{0,25}\bmanager\b|"
+                   r"\bmanager\b[^,]{0,40}\b(apac|emea|latam|regional|global|international)\b|"
+                   r"\b(business development|partnerships?|alliances?)\b[^,]{0,20}\blead\b", re.I)
 FUNC = re.compile(r"partner|alliance|business development|\bbd\b|sales|revenue|growth|monetiz|advertis|commercial|"
-                  r"\bads?\b|go[- ]to[- ]market|\bgtm\b|strategy|publisher|developer relations", re.I)
+                  r"\bads?\b|go[- ]to[- ]market|\bgtm\b|strategy|publisher|developer relations|"
+                  r"country manager|general manager|managing director|\bgm\b", re.I)
 # Commercial scope only: finance, accounting, legal, engineering, people and similar functions are out even with "revenue"
 # or "strategy" in the title.
 NON_COMMERCIAL = re.compile(r"accounting|accountant|controller|\bfinance\b|financial planning|\bfp&a\b|\btax\b|audit|treasury|"
@@ -80,11 +84,11 @@ def _loc_pattern(names: list[str]) -> re.Pattern | None:
 
 
 def keep(title: str, location: str, extra: re.Pattern | None = None) -> tuple[bool, str]:
-    """Title and location screen before any model reads the posting. extra: profile locations outside the US."""
+    """Collection screen (broad on purpose; the level assessor and your preferences decide later).
+    Keeps commercial titles that read as Director+ or as a regional/global leadership role whatever the title word."""
     if not (LEVEL.search(title) and FUNC.search(title)):
-        return False, "not a Director+ commercial title"
-    if EXCLUDE.search(title):
-        return False, "country-scoped or Country Manager title"
+        return False, "not a senior commercial title"
+    # Country-scoped and Country Manager titles are kept: whether they fit is a preference, judged at scoring time.
     if NON_COMMERCIAL.search(title):
         return False, "not a commercial role"
     loc = location or ""

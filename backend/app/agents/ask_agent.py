@@ -31,9 +31,11 @@ How to work:
 - Every number you write must come from a tool result. Never estimate, extrapolate or do arithmetic of your own beyond simple differences shown in tool data.
 - Cite documents from search_documents as [1], [2]. Name postings with company and title.
 - State what is verified and what is not. If the tools do not hold the answer, say so plainly and stop.
+Recommend from the CV and qualifications, not only the stated criteria: when relevant, also check include_adjacent and say
+which preference each such posting misses. Judge level from the posting's assessed level and quoted evidence, not the title.
 Rules: no probabilities, odds or likelihoods of being hired; no advice, strategy or next steps unless asked; never suggest
 contacting people above a counterpart; present gaps with evidence and whether they are closable, without over-weighting negatives;
-Director+ only, never Country Manager or single-country roles. Style: concise, short bullets or a few tight lines,
+Style: concise, short bullets or a few tight lines,
 no preamble, American spelling."""
 
 TOOLS = [
@@ -46,8 +48,10 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"changes": {"type": "object", "additionalProperties": {"type": "number"}}},
                       "required": ["changes"]}},
     {"name": "search_postings", "description": "Open postings that pass your screen (level, location, authorization, live status), ranked by requirement match. "
-     "Optional text filter on company, title or requirement. Set include_failing to see postings that fail the screen and why.",
-     "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "include_failing": {"type": "boolean"},
+     "Optional text filter on company, title or requirement. Set include_adjacent for postings that miss only a stated preference "
+     "(level by title, location, single-country scope, unconfirmed) but fit the CV; include_failing for every posting with reasons. "
+     "Each posting carries its assessed level and the evidence quoted from its description.",
+     "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "include_failing": {"type": "boolean"}, "include_adjacent": {"type": "boolean"},
                                                        "limit": {"type": "integer"}}}},
     {"name": "get_market_requirements", "description": "Requirement frequency per role cluster across open postings: common minimum (>=70%), mid (30-70%), discriminator (<30%).",
      "input_schema": {"type": "object", "properties": {"cluster": {"type": "string"}}}},
@@ -116,7 +120,7 @@ def run_tool(ctx: Ctx, name: str, args: dict) -> dict:
     if name == "search_postings":
         ev = ctx.ev()
         q = (args.get("query") or "").lower().strip()
-        rows = ev["rows"] if args.get("include_failing") else ev["passing"]
+        rows = ev["rows"] if args.get("include_failing") else (ev["passing"] + ev.get("adjacent", []) if args.get("include_adjacent") else ev["passing"])
         out = []
         for r in rows:
             p = r["posting"]
@@ -126,6 +130,8 @@ def run_tool(ctx: Ctx, name: str, args: dict) -> dict:
             out.append({"company": p.company, "title": p.title, "location": p.location, "status": p.status,
                         "level": p.level_band, "cluster": p.role_cluster, "match_score": round(r["rank_score"] * 100),
                         "passes_screen": r["gate_pass"], "screen_reasons": r["gate_reasons"],
+                        "outside_preferences": r.get("soft_reasons", []), "ruled_out_by": r.get("hard_reasons", []),
+                        "level_assessment": {k: ((p.read_check or {}).get("level") or {}).get(k) for k in ("band", "title_band", "scope", "confidence", "summary")},
                         "missing_minimums": [g["label"] for g in r["hard_gaps"]], "gaps": [g["label"] for g in r["gaps"][:4]],
                         "first_seen": p.first_seen, "source": p.source, "url": p.url})
             if len(out) >= min(int(args.get("limit") or 10), 25):

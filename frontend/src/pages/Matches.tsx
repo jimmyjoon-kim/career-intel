@@ -16,9 +16,13 @@ type Position = {
   cluster: string; pay_range: string; requirement_match: number; rank_score: number; hard_gaps: string[]; gaps: string[];
   opportunity: number | null; level_relation: string;
 };
+type Worth = {
+  id: number; company: string; title: string; url: string; location: string; level_band: string; status: string;
+  requirement_match: number; outside: string[]; hard_gaps: string[]; gaps: string[]; level_note: string; level_evidence: string[];
+};
 type Matches = {
   progression: { established: number | null; established_label: string | null; established_months: number; recent_label: string | null };
-  role_types: RoleType[]; positions: Position[]; method: string[];
+  role_types: RoleType[]; positions: Position[]; worth_a_look?: Worth[]; method: string[];
 };
 type Found = { company: string; title: string; location: string; url: string; source: string; why: string; seen_in_search: boolean; status: string };
 type SearchOut = { available: boolean; results: Found[]; note: string };
@@ -104,6 +108,29 @@ export default function MatchesPage() {
           </div>
         )}
       </section>
+
+      {(data.worth_a_look?.length ?? 0) > 0 && (
+        <section className="tile" style={{ marginBottom: 16 }}>
+          <div className="tile-head"><span className="tile-title">Worth a look: outside your stated criteria, strong fit on your CV</span></div>
+          <p className="small muted" style={{ marginTop: 0 }}>Each misses only a preference you set (shown in amber). Levels are read from the posting's description, not its title.</p>
+          {data.worth_a_look!.map((w) => (
+            <div key={w.id} className="prop">
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span><b>{w.company}</b> — {w.title} <span className="small muted">· {w.location} · {w.level_band}</span>{" "}
+                  <a className="small" href={w.url} target="_blank" rel="noreferrer">posting</a></span>
+                <b>{Math.round(w.requirement_match)}%</b>
+              </div>
+              <div className="chips" style={{ marginTop: 4 }}>
+                {w.outside.map((o) => <span key={o} className="chip-d warn">{o}</span>)}
+                {w.hard_gaps.map((g) => <span key={g} className="chip-d">missing: {g}</span>)}
+              </div>
+              {w.level_note && <div className="small" style={{ marginTop: 4 }}>{w.level_note}</div>}
+              {w.level_evidence.length > 0 && <details className="small"><summary>Level evidence from the posting</summary>
+                <ul>{w.level_evidence.map((q, i) => <li key={i}>“{q}”</li>)}</ul></details>}
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className="sc-row2">
         <div className="tile">

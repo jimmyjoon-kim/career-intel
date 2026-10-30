@@ -4,14 +4,14 @@ from sqlalchemy.orm import Session
 from .models import Posting, Profile, User
 from .v2.model import opportunity, public
 from .v2.service import SHARED_TAGS, scorecard
-from .scoring import PostingView, ProfileView, gap_summary, gate, market_stats, rank_key, score
+from .scoring import gate_split, PostingView, ProfileView, gap_summary, gate, market_stats, rank_key, score
 
 
 def posting_view(p: Posting) -> PostingView:
     return PostingView(
         id=p.id, company=p.company, title=p.title, level_band=p.level_band, role_cluster=p.role_cluster,
         location=p.location, remote_flag=p.remote_flag, bay_area=p.bay_area, no_sponsorship=p.no_sponsorship,
-        status=p.status, tags=list(p.tags or []), years_required=p.years_required,
+        status=p.status, tags=list(p.tags or []), years_required=p.years_required, scope=p.scope or "",
     )
 
 
@@ -61,19 +61,24 @@ def evaluate(db: Session, user: User) -> dict:
     rows = []
     for p in postings:
         pv = posting_view(p)
-        ok, reasons = gate(pv, prof)
+        hard, soft = gate_split(pv, prof)
+        ok, reasons = not (hard or soft), hard + soft
         result = score(pv, prof, stats)
         opp = None
         if card:
             ctab = stats["clusters"].get(result["cluster"], stats["all"])["tags"]
             opp = opportunity(card, pv.tags, {t: i["weight"] for t, i in ctab.items()},
                               posting_level=pv.level_band, years_required=pv.years_required)
-        rows.append({"posting": p, "gate_pass": ok, "gate_reasons": reasons, "opportunity": opp, **result})
+        rows.append({"posting": p, "gate_pass": ok, "gate_reasons": reasons, "hard_reasons": hard, "soft_reasons": soft,
+                     "opportunity": opp, **result})
     passing = sorted((r for r in rows if r["gate_pass"]), key=rank_key)
+    # Outside your stated preferences (level, location, scope, function, unconfirmed) but not ruled out: ranked by fit.
+    adjacent = sorted((r for r in rows if not r["gate_pass"] and not r["hard_reasons"]), key=rank_key)
     return {
         "stats": stats,
         "rows": rows,
         "passing": passing,
+        "adjacent": adjacent,
         "gap_summary": gap_summary(passing),
         "base": public(card) if card else None,
     }

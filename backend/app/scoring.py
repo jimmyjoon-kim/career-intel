@@ -38,6 +38,7 @@ class PostingView:
     status: str
     tags: list[str]
     years_required: int | None = None
+    scope: str = ""
 
 
 @dataclass
@@ -134,25 +135,38 @@ def _location_ok(p: PostingView, prof: ProfileView) -> bool:
     return False
 
 
-def gate(p: PostingView, prof: ProfileView) -> tuple[bool, list[str]]:
-    from .agents.sourcing import NON_COMMERCIAL
+def gate_split(p: PostingView, prof: ProfileView) -> tuple[list[str], list[str]]:
+    """(hard, soft). Hard rules end the match: closed posting, sponsorship you need but it rules out, words you excluded.
+    Soft rules are your stated preferences: level, location, single-country scope, function, unconfirmed listing.
+    Postings that miss only soft rules are still scored and shown as 'worth a look' with the reason."""
+    from .agents.sourcing import EXCLUDE, NON_COMMERCIAL
 
-    reasons: list[str] = []
-    if NON_COMMERCIAL.search(p.title or ""):
-        reasons.append("not a commercial role (finance, legal, engineering or similar)")
-    if p.status != "open":
-        reasons.append(f"posting status: {p.status}")
-    if LEVEL_RANK.get(p.level_band, 0) < LEVEL_RANK.get(prof.min_level, LEVEL_RANK["Director"]):
-        reasons.append(f"level {p.level_band or 'unknown'} below {prof.min_level}")
+    hard: list[str] = []
+    soft: list[str] = []
+    if p.status in ("closed", "stale"):
+        hard.append(f"posting status: {p.status}")
+    elif p.status != "open":
+        soft.append("not yet confirmed on the employer's job board")
+    if prof.needs_sponsorship and p.no_sponsorship:
+        hard.append("no visa sponsorship and candidate needs sponsorship")
     title = p.title.lower()
     for term in prof.excluded_title_terms:
         if term.strip() and term.lower().strip() in title:
-            reasons.append(f"title contains excluded term '{term}'")
+            hard.append(f"title contains excluded term '{term}'")
+    if NON_COMMERCIAL.search(p.title or ""):
+        soft.append("not a commercial role (finance, legal, engineering or similar)")
+    if LEVEL_RANK.get(p.level_band, 0) < LEVEL_RANK.get(prof.min_level, LEVEL_RANK["Director"]):
+        soft.append(f"level {p.level_band or 'unknown'} below your minimum ({prof.min_level})")
+    if (p.scope or "").lower() == "country" or EXCLUDE.search(p.title or ""):
+        soft.append("single-country scope or Country Manager title")
     if not _location_ok(p, prof):
-        reasons.append("location outside preferences and not remote-eligible")
-    if prof.needs_sponsorship and p.no_sponsorship:
-        reasons.append("no visa sponsorship and candidate needs sponsorship")
-    return (not reasons, reasons)
+        soft.append("location outside your locations and not remote")
+    return hard, soft
+
+
+def gate(p: PostingView, prof: ProfileView) -> tuple[bool, list[str]]:
+    hard, soft = gate_split(p, prof)
+    return (not (hard or soft), hard + soft)
 
 
 def score(p: PostingView, prof: ProfileView, stats: dict) -> dict:
