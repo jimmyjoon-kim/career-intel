@@ -94,7 +94,8 @@ def _voyage(texts: list[str], input_type: str, max_attempts: int = MAX_ATTEMPTS,
 
 
 # mxbai-embed-large was trained with this prefix on queries (not on documents).
-QUERY_PREFIX = {"mxbai-embed-large": "Represent this sentence for searching relevant passages: "}
+QUERY_PREFIX = {"mxbai-embed-large": "Represent this sentence for searching relevant passages: ",
+                "snowflake-arctic-embed2": "query: "}
 
 
 def _ollama(texts: list[str], input_type: str) -> list[list[float]]:
