@@ -44,11 +44,26 @@ def schedule(db, now: datetime) -> None:
             enqueue(db, kind, trigger="schedule")
 
 
+def arrivals(db) -> None:
+    """New files from the Mac research task are read within a minute of arriving."""
+    from pathlib import Path
+
+    from .agents.coordinator import enqueue
+
+    d = Path(get_settings().inbox_dir)
+    if not d.exists() or not any(f for f in d.glob("*.json") if not f.name.endswith("requests.json")):
+        return
+    busy = db.scalar(select(AgentRun.id).where(AgentRun.kind == "arrivals", AgentRun.status.in_(("queued", "running"))))
+    if not busy:
+        enqueue(db, "arrivals", trigger="event")
+
+
 def tick() -> None:
     from .agents.coordinator import execute
 
     with SessionLocal() as db:
         schedule(db, datetime.now(TZ))
+        arrivals(db)
         run = db.scalar(select(AgentRun).where(AgentRun.status == "queued").order_by(AgentRun.id))
         if run:
             log.info("run %s (%s) starting", run.id, run.kind)
