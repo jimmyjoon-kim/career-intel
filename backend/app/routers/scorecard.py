@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -25,9 +26,9 @@ def _months_to_degree(feats: dict) -> int | None:
 
 
 @router.get("")
-def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_scorecard(family: str = "Partnerships", user: User = Depends(current_user), db: Session = Depends(get_db)):
     prof = ensure_profile(db, user)
-    card, feats, reason = scorecard(db, prof)
+    card, feats, reason = scorecard(db, prof, cluster=family)
     if card is None:
         return {"ready": False, "reason": reason}
     left = months_left(prof.target_date or "")
@@ -39,7 +40,7 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
         "ready": True,
         "card": pub,
         "gap_plan": build_gap_plan(card, ev["gap_summary"], left, _months_to_degree(feats)),
-        "reference": reference_meta(db),
+        "reference": reference_meta(db, family),
         "months_left": months_left(prof.target_date or ""),
         "reading": {
             "source": feats["source"], "format": feats["format"], "years": feats["YOE_raw"],
@@ -65,7 +66,7 @@ def get_scorecard(user: User = Depends(current_user), db: Session = Depends(get_
 
 
 @router.get("/focus")
-def get_focus(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_focus(family: str = "Partnerships", user: User = Depends(current_user), db: Session = Depends(get_db)):
     """Plain-language standing, you vs holders per factor, ranked actions with measured effect, and your edge."""
     from sqlalchemy import select
 
@@ -74,7 +75,7 @@ def get_focus(user: User = Depends(current_user), db: Session = Depends(get_db))
     from ..v2.focus import build
 
     prof = ensure_profile(db, user)
-    card, feats, reason = scorecard(db, prof, n_boot=300)
+    card, feats, reason = scorecard(db, prof, n_boot=300, cluster=family)
     if card is None:
         return {"ready": False, "reason": reason}
     ev = evaluate(db, user)
@@ -85,3 +86,44 @@ def get_focus(user: User = Depends(current_user), db: Session = Depends(get_db))
                                                                     EvidenceSuggestion.status == "pending"))]
     out = build(card, ev, profile_view(prof, feats), plan, pending, left, prof.target_date or "")
     return {"ready": True, **out}
+
+
+
+@router.get("/families")
+def list_families(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..v2 import families
+
+    return {"families": families.status(db), "ready_at": families.READY_AT, "target": families.TARGET}
+
+
+@router.get("/provisional")
+def provisional(family: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..services import profile_view
+    from ..v2 import families
+    from ..v2.service import user_features
+
+    prof = ensure_profile(db, user)
+    fam = families.family(db, family)
+    out = families.provisional(db, evaluate(db, user), profile_view(prof, user_features(prof)), fam)
+    out["holders"] = families.holders(db, fam["key"])
+    return out
+
+
+class FamilyIn(BaseModel):
+    name: str
+
+
+@router.post("/families")
+def add_family(body: FamilyIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Name any role or position: it becomes a family with a provisional assessment, and holders are requested."""
+    from ..v2 import families
+
+    name = body.name.strip()
+    if len(name) < 3:
+        raise HTTPException(422, "Name the role, e.g. 'Head of Developer Relations'")
+    fam = families.family(db, name)
+    key = fam["key"] if fam["key"].lower() == name.lower() else name
+    r = families.request_pool(db, key, user.id, "" if fam["key"].lower() == name.lower() else families._custom_pattern(name))
+    return {"family": r.family, "status": r.status,
+            "note": "Added. A provisional assessment from open postings is shown now; role holders will be collected by the "
+                    "hire-research task on your Mac, and the full scorecard appears once you approve them."}

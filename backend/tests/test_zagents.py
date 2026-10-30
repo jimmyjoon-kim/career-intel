@@ -396,3 +396,24 @@ def test_focus_plan(client):
     assert {x["state"] for x in f["versus_peers"]} <= {"lead", "gap", "level"}
     assert all({"kind", "title", "effect", "where"} <= set(a) for a in f["actions"])
     assert f["postings_considered"] >= f["strong_matches_now"] >= 0
+
+
+def test_role_families(client, tmp_path, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "inbox_dir", str(tmp_path))
+    login = client.post("/api/auth/login", json={"email": "v2@example.com", "password": "password123"}).json()
+    h = {"Authorization": f"Bearer {login['token']}"}
+    fams = {f["key"]: f for f in client.get("/api/scorecard/families", headers=h).json()["families"]}
+    assert fams["Partnerships"]["state"] == "ready" and "Ad Sales" in fams and fams["Ad Sales"]["state"] != "ready"
+    assert client.get("/api/scorecard", params={"family": "Ad Sales"}, headers=h).json()["ready"] is False
+    prov = client.get("/api/scorecard/provisional", params={"family": "Ad Sales"}, headers=h).json()
+    assert prov["postings"] >= 0 and "note" in prov or prov["postings"] == 0
+    r = client.post("/api/scorecard/families", json={"name": "Head of Developer Relations"}, headers=h).json()
+    assert r["family"] == "Head of Developer Relations"
+    fams = {f["key"]: f for f in client.get("/api/scorecard/families", headers=h).json()["families"]}
+    assert fams["Head of Developer Relations"]["state"] == "requested" and fams["Head of Developer Relations"]["custom"]
+    import json
+    req = json.loads((tmp_path / "requests.json").read_text())
+    assert any(p["family"] == "Head of Developer Relations" for p in req["pending"])
+    assert client.get("/api/scorecard", params={"family": "Partnerships"}, headers=h).json()["ready"] is True

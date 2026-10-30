@@ -45,8 +45,8 @@ function PeerBars({ rows }: { rows: Peer[] }) {
   );
 }
 
-export default function FocusPanel() {
-  const { data } = useFetch<Focus>("/api/scorecard/focus");
+export default function FocusPanel({ family }: { family: string }) {
+  const { data } = useFetch<Focus>(`/api/scorecard/focus?family=${encodeURIComponent(family)}`);
   const [showAll, setShowAll] = useState(false);
   if (!data?.ready) return null;
   const s = data.standing;

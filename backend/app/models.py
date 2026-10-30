@@ -248,3 +248,16 @@ class EvidenceSuggestion(Base):
     postings: Mapped[int] = mapped_column(Integer, default=0)  # gate-passing postings that ask for this tag
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending | confirmed | rejected
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PoolRequest(Base):
+    """A role family you asked to be scored against; hire research collects holders for it."""
+
+    __tablename__ = "pool_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    family: Mapped[str] = mapped_column(String(120), unique=True)
+    pattern: Mapped[str] = mapped_column(String(300), default="")  # title keywords (regex) for a custom family
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | ready
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -101,5 +101,21 @@ def apply(db: Session, prop: Proposal) -> str:
             feats["tags"] = r["tags"]
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,
                                     source=p["source"], as_of=p["as_of"]))
+        db.flush()
+        from ..models import PoolRequest
+        from ..v2 import families
+
+        req = db.scalar(select(PoolRequest).where(PoolRequest.family == p["cluster"]))
+        if req and families.holders(db, p["cluster"]) >= families.READY_AT:
+            req.status = "ready"
+        families.write_requests_file(db)
+        db.flush()
+        from ..models import PoolRequest
+        from ..v2 import families
+
+        req = db.scalar(select(PoolRequest).where(PoolRequest.family == p["cluster"]))
+        if req and families.holders(db, p["cluster"]) >= families.READY_AT:
+            req.status = "ready"
+        families.write_requests_file(db)
         return f'{len(p["rows"])} holders added to {p["cluster"]}'
     return "recorded; takes effect in the next model release"

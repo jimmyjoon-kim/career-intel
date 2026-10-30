@@ -131,11 +131,13 @@ def months_left(target: str) -> int | None:
     return max(0, (y - t.year) * 12 + (m - t.month))
 
 
-def scorecard(db: Session, prof: Profile | None, *, n_boot: int = 1000) -> tuple[dict | None, dict | None, str]:
+def scorecard(db: Session, prof: Profile | None, *, n_boot: int = 1000,
+              cluster: str = DEFAULT_CLUSTER) -> tuple[dict | None, dict | None, str]:
     """(card, features, reason). card is None when there is no reference set or no readable experience."""
-    ref = load_reference(db)
-    if ref is None:
-        return None, None, "No reference holders loaded. Run the seed step."
+    ref = load_reference(db, cluster)
+    if ref is None or len(ref.rows) < 20:
+        return None, None, (f"No group of {cluster} role holders yet." if cluster != DEFAULT_CLUSTER
+                            else "No reference holders loaded. Run the seed step.")
     feats = user_features(prof)
     if feats is None:
         return None, None, "No roles could be read. Paste your LinkedIn Experience text on the Profile page."

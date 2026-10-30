@@ -5,6 +5,7 @@ import { Empty, ErrorBox, useFetch } from "../components";
 import { CardCompare, CardSection } from "../PlayerCards";
 import type { PlayerCard } from "../api";
 import FocusPanel from "../FocusPanel";
+import { FamilyBar, ProvisionalView } from "../RoleFamilies";
 
 type Reading = NonNullable<Scorecard["reading"]>;
 type Peer = Card["peers"][number];
@@ -47,8 +48,13 @@ function fmtVal(k: string, v: number | null | undefined) {
   return v.toFixed(2);
 }
 
+const FAM_KEY = "ci_family";
+const savedFamily = () => { try { return localStorage.getItem(FAM_KEY) || "Partnerships"; } catch { return "Partnerships"; } };
+
 export default function ScorecardPage() {
-  const { data, error, loading } = useFetch<Scorecard>("/api/scorecard");
+  const [family, setFamilyState] = useState(savedFamily);
+  const setFamily = (k: string) => { setFamilyState(k); try { localStorage.setItem(FAM_KEY, k); } catch { /* storage unavailable */ } };
+  const { data, error, loading } = useFetch<Scorecard>(`/api/scorecard?family=${encodeURIComponent(family)}`);
   const { data: rows } = useFetch<Row[]>("/api/postings");
   const [detail, setDetail] = useState<Detail | null>(null);
 
@@ -64,7 +70,15 @@ export default function ScorecardPage() {
   if (loading && !data) return <div className="muted">Loading…</div>;
   if (!data) return <ErrorBox msg={error} />;
   if (!data.ready || !data.card || !data.reading) {
-    return <><h1>Your standing</h1><Empty>{data.reason} <Link to="/profile">Go to Profile</Link></Empty></>;
+    const noPeers = (data.reason ?? "").startsWith("No group of");
+    return (
+      <div className="sc">
+        <h1 style={{ margin: "4px 0 8px" }}>Your standing as {family}</h1>
+        <FamilyBar value={family} onChange={setFamily} />
+        {noPeers ? <ProvisionalView key={family} fam={family} onRequest={() => undefined} />
+          : <Empty>{data.reason} <Link to="/profile">Go to Profile</Link></Empty>}
+      </div>
+    );
   }
   const c = data.card, r = data.reading;
   const fac = (k: string) => c.factors.find((f) => f.factor === k)!;
@@ -80,7 +94,9 @@ export default function ScorecardPage() {
         <button className="more-link" onClick={() => setDetail({ kind: "limits" })}>How this is measured ›</button>
       </header>
 
-      <FocusPanel />
+      <FamilyBar value={family} onChange={setFamily} />
+
+      <FocusPanel family={family} />
 
       <CardSection {...c.cards} onPick={(card) => setDetail({ kind: "card", card })} />
 
