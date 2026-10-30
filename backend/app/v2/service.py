@@ -119,6 +119,17 @@ def user_features(prof: Profile | None) -> dict | None:
     from .geo import user_geo
 
     f["geo"] = user_geo(roles, edu["degrees"])
+    from .industry import user_path
+
+    try:
+        from ..db import SessionLocal
+        from .industry import load_cache
+
+        with SessionLocal() as s:
+            cache = load_cache(s)
+    except Exception:  # noqa: BLE001  (no database: listed companies only)
+        cache = {}
+    f["industry"] = user_path(roles, cache)
     target = (prof.target_date if prof else "") or ""
     f["target_date"] = target
     f["ED_target"] = education_by(edu["degrees"], target) if target else None

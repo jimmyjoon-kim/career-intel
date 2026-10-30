@@ -99,6 +99,17 @@ def get_relocation(family: str = "Partnerships", user: User = Depends(current_us
     return relocation_view(db, prof, user_features(prof), evaluate(db, user), family)
 
 
+@router.get("/industry")
+def get_industry(family: str = "Partnerships", target: str | None = None, user: User = Depends(current_user),
+                 db: Session = Depends(get_db)):
+    """Switching industries: you vs holders in the target industry, who switched in and from where, and the gaps."""
+    from ..v2.industry import industry_view
+    from ..v2.service import user_features
+
+    prof = ensure_profile(db, user)
+    return industry_view(db, prof, user_features(prof), evaluate(db, user), family, target)
+
+
 @router.get("/families")
 def list_families(user: User = Depends(current_user), db: Session = Depends(get_db)):
     from ..v2 import families

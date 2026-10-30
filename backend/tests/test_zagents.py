@@ -474,3 +474,20 @@ def test_geography_posting_and_user():
     u = user_geo(roles)
     assert u["us_role_months"] == 0 and u["matches"]["geo_us_market"][0] == 0.5
     assert u["matches"]["geo_multi_region"][0] == 1.0 and u["months"]["APAC"] > 90 and u["months"]["multi"] == 13
+
+
+def test_industry_sectors_and_paths():
+    from app.v2.industry import path, sector_of, user_path
+    from app.v2.reader import parse_linkedin
+
+    assert sector_of("Amazon Ads")[0] == "adtech" and sector_of("Amazon Web Services")[0] == "cloud"
+    assert sector_of("OpenAI")[0] == "ai" and sector_of("Wortal.AI")[0] == "ai" and sector_of("Uber (Uber Advertising)")[0] == "adtech"
+    assert sector_of("Charm Industries")[1] == "unclassified"
+    li = ("Experience\nHead of Ads Partnerships\nOpenAI · Full-time\nJan 2025 - Present · 1 yr 10 mos\n\n"
+          "Director, Partnerships\nAppLovin · Full-time\nJan 2019 - Dec 2024 · 6 yrs\n\n"
+          "Account Manager\nFacebook · Full-time\nJan 2015 - Dec 2018 · 4 yrs")
+    p = path(parse_linkedin(li, (2026, 10)), "OpenAI")
+    assert p["current_sector"] == "ai" and p["switched_in"] and p["entry_from"] == "adtech"
+    assert p["before_months"] == {"adtech": 72, "consumer": 48} and p["home_before"] == "adtech"
+    u = user_path(parse_linkedin(li, (2026, 10)))
+    assert u["home"] == "adtech" and "ai" in u["sectors_12m"]

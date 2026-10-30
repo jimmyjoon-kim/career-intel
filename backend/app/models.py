@@ -279,3 +279,14 @@ class CompanyLevel(Base):
     ladder: Mapped[str] = mapped_column(Text, default="")  # e.g. "Director = L8 (manages managers); Head of = L7-L8; VP = L9"
     source_url: Mapped[str] = mapped_column(String(1000), default="")
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CompanySector(Base):
+    """Sector of a company not on the listed set: classified once (source 'model') and reused."""
+
+    __tablename__ = "company_sectors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company: Mapped[str] = mapped_column(String(200), unique=True)
+    sector: Mapped[str] = mapped_column(String(20))
+    source: Mapped[str] = mapped_column(String(20), default="model")

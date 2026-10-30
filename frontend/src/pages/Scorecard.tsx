@@ -6,6 +6,7 @@ import { CardCompare, CardSection } from "../PlayerCards";
 import type { PlayerCard } from "../api";
 import FocusPanel from "../FocusPanel";
 import RelocationPanel from "../RelocationPanel";
+import IndustryPanel from "../IndustryPanel";
 import { FamilyBar, ProvisionalView } from "../RoleFamilies";
 
 type Reading = NonNullable<Scorecard["reading"]>;
@@ -76,7 +77,7 @@ export default function ScorecardPage() {
       <div className="sc">
         <h1 style={{ margin: "4px 0 8px" }}>Your standing as {family}</h1>
         <FamilyBar value={family} onChange={setFamily} />
-        {noPeers ? <><ProvisionalView key={family} fam={family} onRequest={() => undefined} /><RelocationPanel family={family} /></>
+        {noPeers ? <><ProvisionalView key={family} fam={family} onRequest={() => undefined} /><IndustryPanel family={family} /><RelocationPanel family={family} /></>
           : <Empty>{data.reason} <Link to="/profile">Go to Profile</Link></Empty>}
       </div>
     );
@@ -98,6 +99,8 @@ export default function ScorecardPage() {
       <FamilyBar value={family} onChange={setFamily} />
 
       <FocusPanel family={family} />
+
+      <IndustryPanel family={family} />
 
       <RelocationPanel family={family} />
 

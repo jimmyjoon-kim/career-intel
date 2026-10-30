@@ -21,8 +21,9 @@ FORBIDDEN = {"name", "full_name", "first_name", "last_name", "linkedin_url", "pr
 AI_DEG = re.compile(r"artificial intelligence|machine learning|\bAI\b", re.I)
 
 
-def derive(h: dict, now: tuple[int, int]) -> dict:
+def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
     from ..v2.geo import user_geo
+    from ..v2.industry import path as industry_path
 
     roles = parse_linkedin(h.get("experience_text", ""), now)
     g = user_geo(roles)
@@ -36,7 +37,9 @@ def derive(h: dict, now: tuple[int, int]) -> dict:
            "journey": bool(f.get("journey")), "ED": ed["ED"], "technical": bool(ed["technical"]),
            "mba": any(d.get("mba") and not d["in_progress"] for d in ed["degrees"]), "tags": f["tags"],
            # Geography of all roles read (months; recorded for a future peer comparison, not yet scored).
-           "geo": {k: v for k, v in g["months"].items()}, "geo_us_months": g["us_role_months"]}
+           "geo": {k: v for k, v in g["months"].items()}, "geo_us_months": g["us_role_months"],
+           # Industry path: sectors of the roles before the current employer (who switched in, and from where).
+           "ind": industry_path(roles, h.get("company"), cache)}
     return row
 
 
@@ -52,6 +55,11 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
         ym = data.get("as_of") or date.today().strftime("%Y-%m")
         now = (int(ym[:4]), int(ym[5:7]))
         rows, skipped = [], 0
+        from ..v2.industry import classify_companies
+
+        names = [r["company"] for h in holders for r in parse_linkedin(h.get("experience_text", ""), now)] + \
+                [h.get("company", "") for h in holders]
+        cache = classify_companies(db, names, run_id)
         have = {(r.company.lower(), r.title.lower()) for r in db.scalars(select(ReferenceProfile))}
         for h in holders:
             if not (h.get("experience_text") and h.get("company") and h.get("title")):
@@ -60,7 +68,7 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
             if (h["company"].lower(), h["title"].lower()) in have:
                 skipped += 1
                 continue
-            row = derive(h, now)
+            row = derive(h, now, cache)
             if not row.get("YOE"):  # no dated roles could be read (e.g. a short press bio): not usable as a peer
                 skipped += 1
                 continue
@@ -144,6 +152,8 @@ def apply(db: Session, prop: Proposal) -> str:
             feats["tags"] = r["tags"]
             if "geo" in r:
                 feats["geo"], feats["geo_us_months"] = r["geo"], r.get("geo_us_months")
+            if r.get("ind"):
+                feats["ind"] = r["ind"]
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,
                                     source=p["source"], as_of=p["as_of"]))
         db.flush()
