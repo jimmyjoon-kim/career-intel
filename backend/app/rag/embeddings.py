@@ -1,4 +1,4 @@
-"""Embeddings: Voyage AI when VOYAGE_API_KEY is set, otherwise a local hashing embedder.
+"""Embeddings: a local Ollama model (EMBEDDING_PROVIDER=ollama), Voyage AI (hosted), or a local hashing embedder.
 
 The local embedder (feature hashing of word unigrams + bigrams, L2-normalised) is a
 deterministic offline fallback for development and tests; retrieval quality is lower.
@@ -93,11 +93,35 @@ def _voyage(texts: list[str], input_type: str, max_attempts: int = MAX_ATTEMPTS,
     return out
 
 
+# mxbai-embed-large was trained with this prefix on queries (not on documents).
+QUERY_PREFIX = {"mxbai-embed-large": "Represent this sentence for searching relevant passages: "}
+
+
+def _ollama(texts: list[str], input_type: str) -> list[list[float]]:
+    s = get_settings()
+    prefix = QUERY_PREFIX.get(s.ollama_embed_model.split(":")[0], "") if input_type == "query" else ""
+    out: list[list[float]] = []
+    with httpx.Client(timeout=120) as client:
+        for i in range(0, len(texts), 32):
+            batch = [prefix + t[:8000] for t in texts[i:i + 32]]
+            r = client.post(f"{s.ollama_url.rstrip('/')}/api/embed", json={"model": s.ollama_embed_model, "input": batch})
+            if r.status_code == 404:
+                raise RuntimeError(f"Ollama has no model {s.ollama_embed_model}; run: ollama pull {s.ollama_embed_model}")
+            r.raise_for_status()
+            vecs = r.json()["embeddings"]
+            if vecs and len(vecs[0]) != s.embedding_dim:
+                raise RuntimeError(f"{s.ollama_embed_model} returns {len(vecs[0])} dimensions; EMBEDDING_DIM is {s.embedding_dim}")
+            out.extend(vecs)
+    return out
+
+
 def embed(texts: list[str], input_type: str = "document", quick: bool = False) -> list[list[float]]:
     """quick=True (interactive queries): at most 2 attempts, 5 s wait, so a request never hangs on rate limits."""
     s = get_settings()
     if not texts:
         return []
-    if s.voyage_api_key:
+    if s.embedding_backend == "ollama":
+        return _ollama(texts, input_type)
+    if s.embedding_backend == "voyage":
         return _voyage(texts, input_type, 2, 5) if quick else _voyage(texts, input_type)
     return [_hash_embed(t, s.embedding_dim) for t in texts]

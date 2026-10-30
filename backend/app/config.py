@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Agent team
     inbox_dir: str = "/data/inbox"
     agents_enabled: bool = True
+    # Search vectors: "ollama" (local model on this Mac), "voyage" (hosted), or "auto" = voyage if a key is set, else hashing.
+    embedding_provider: str = "auto"
+    ollama_url: str = "http://host.docker.internal:11434"
+    ollama_embed_model: str = "mxbai-embed-large"  # 1024 dimensions, same as the database column
     voyage_api_key: str = ""
     voyage_model: str = "voyage-3.5"
     embedding_dim: int = 1024
@@ -52,8 +56,14 @@ class Settings(BaseSettings):
         return round(self.api_monthly_allowance_usd * self.budget_share, 2)
 
     @property
+    def embedding_backend(self) -> str:
+        if self.embedding_provider in ("ollama", "voyage", "hash"):
+            return self.embedding_provider
+        return "voyage" if self.voyage_api_key else "hash"
+
+    @property
     def embedding_model_name(self) -> str:
-        return self.voyage_model if self.voyage_api_key else "local-hash-v1"
+        return {"ollama": f"ollama:{self.ollama_embed_model}", "voyage": self.voyage_model}.get(self.embedding_backend, "local-hash-v1")
 
 
 @lru_cache
