@@ -1,0 +1,13 @@
+#!/bin/zsh
+# Run on the NEW Mac: ./scripts/db-import.sh backups/career_intel_<date>.sql.gz
+# Replaces this Mac's app database with the backup, then starts the app.
+set -e
+cd "$(dirname "$0")/.."; source scripts/_docker_path.sh
+[[ -f "$1" ]] || { echo "Usage: ./scripts/db-import.sh backups/<file>.sql.gz"; exit 1; }
+open -ga Docker 2>/dev/null || true
+for i in {1..60}; do docker info >/dev/null 2>&1 && break; sleep 3; done
+docker compose up -d db
+for i in {1..40}; do docker compose exec -T db pg_isready -U career -d career_intel >/dev/null 2>&1 && break; sleep 2; done
+docker compose exec -T db psql -U career -d career_intel -q -c "CREATE EXTENSION IF NOT EXISTS vector" >/dev/null
+gunzip -c "$1" | docker compose exec -T db psql -U career -d career_intel -q -v ON_ERROR_STOP=0 >/dev/null
+echo "Restored $1. Next: ./scripts/always-on.sh"

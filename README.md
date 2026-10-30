@@ -107,3 +107,15 @@ A `worker` container runs the agents on a schedule (Asia/Seoul) and any runs que
 - CI: `.github/workflows/ci.yml` runs the tests (including pinned reader cases in `seed/golden_reader.json` and an offline pipeline run) and the frontend build on every push.
 
 After pulling: `docker compose up -d --build` (adds the `worker` service).
+
+## Run it 24/7 on a Mac
+
+On the Mac that will host it (Docker Desktop and git installed):
+
+1. `git clone https://github.com/jimmyjoon-kim/career-intel.git ~/career-intel`
+2. Copy `.env` from the current Mac into `~/career-intel/` (AirDrop), or run `./setup.sh` to enter the API keys.
+3. Move your data: on the old Mac `./scripts/db-export.sh`; AirDrop the file into `~/career-intel/backups/`; on the new Mac `./scripts/db-import.sh backups/<file>.sql.gz`.
+4. `./scripts/always-on.sh` — Docker at login, app started, keep-alive every 10 minutes, daily auto-update at 05:30, no sleep on power, Claude app at login.
+5. On the old Mac: `docker compose down` so only one copy runs the agents.
+
+Logs: `~/Library/Logs/career-intel/`. Undo: `./scripts/always-on.sh --remove`.
