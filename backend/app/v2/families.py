@@ -114,7 +114,15 @@ def _have(db: Session, key: str) -> int:
     month = datetime.now(timezone.utc).strftime("%Y-%m")
     rows = list(db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == key)))
     full = [r for r in rows if (r.features or {}).get("PD") is not None]
-    return sum(1 for r in full if r.as_of == month) if len(rows) >= READY_AT and len(full) >= READY_AT else len(full)
+    # Holders already collected and waiting for your approval count too, so the Mac task does not collect them again.
+    from ..models import Proposal
+
+    waiting = sum(len([x for x in (p.payload or {}).get("rows", []) if x.get("PD") is not None])
+                  for p in db.scalars(select(Proposal).where(Proposal.kind == "holders", Proposal.status == "pending"))
+                  if (p.payload or {}).get("cluster", "").lower() == key.lower())
+    if len(rows) >= READY_AT and len(full) >= READY_AT:
+        return sum(1 for r in full if r.as_of == month) + waiting
+    return len(full) + waiting
 
 
 def write_requests_file(db: Session) -> None:

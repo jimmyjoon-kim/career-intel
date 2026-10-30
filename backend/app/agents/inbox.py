@@ -65,6 +65,9 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
                 [h.get("company", "") for h in holders]
         cache = classify_companies(db, names, run_id)
         have = {(r.company.lower(), r.title.lower()) for r in db.scalars(select(ReferenceProfile))}
+        have |= {(x.get("company", "").lower(), x.get("title", "").lower())  # also holders waiting for your approval
+                 for pr in db.scalars(select(Proposal).where(Proposal.kind == "holders", Proposal.status == "pending"))
+                 for x in (pr.payload or {}).get("rows", [])}
         for h in holders:
             if not (h.get("experience_text") and h.get("company") and h.get("title")):
                 skipped += 1
@@ -143,6 +146,10 @@ def run(db: Session, run_id: int | None) -> dict:
     # Only research output; the request files the Mac task reads (requests.json, profile_requests.json) stay.
     files = [f for f in sorted(d.glob("*.json")) if not f.name.endswith("requests.json")]
     results = [process_file(db, f, run_id) for f in files]
+    if results:
+        from ..v2 import families
+
+        families.write_requests_file(db)  # the Mac task sees the new counts before its next run
     return {"files": len(results), "results": results}
 
 
