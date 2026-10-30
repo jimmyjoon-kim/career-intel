@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "./api";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -12,6 +12,7 @@ import Market from "./pages/Market";
 import ProfilePage from "./pages/Profile";
 import Ask from "./pages/Ask";
 import Agents from "./pages/Agents";
+import ErrorBoundary from "./ErrorBoundary";
 import Admin from "./pages/Admin";
 
 const NAV = [
@@ -28,6 +29,7 @@ const NAV = [
 
 export default function App() {
   const { user, status, loading, logout } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="center muted">Loading…</div>;
   if (!user) return <Login />;
 
@@ -58,6 +60,7 @@ export default function App() {
         </div>
       </aside>
       <main className="main">
+        <ErrorBoundary key={location.pathname}>
         <Routes>
           <Route path="/" element={<ScorecardPage />} />
           <Route path="/scorecard" element={<ScorecardPage />} />
@@ -72,6 +75,7 @@ export default function App() {
           {user.is_admin && <Route path="/admin" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   );
