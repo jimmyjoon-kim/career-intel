@@ -85,7 +85,8 @@ export type Profile = {
 };
 
 export type Source = { n: number; title: string; type: string; url: string; similarity: number; excerpt: string };
-export type Answer = { id?: number; question?: string; answer: string; sources: Source[]; mode: string; created_at?: string };
+export type AgentStep = { tool: string; input: Record<string, unknown> };
+export type Answer = { id?: number; question?: string; answer: string; sources: Source[]; mode: string; created_at?: string; steps?: AgentStep[]; model?: string };
 
 const TOKEN_KEY = "ci_token";
 

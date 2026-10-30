@@ -228,7 +228,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
         "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev),
         "cards": _cards(S_u, S_h, P_h, P_u, rows, uf, order),
-        "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf},
+        "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf, "prev": prev},
     }
 
 
@@ -381,3 +381,23 @@ def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev) -> dict:
 
 def public(card: dict) -> dict:
     return {k: v for k, v in card.items() if not k.startswith("_")}
+
+
+WHATIF_RANGES = {"YOE": (0, 45), "CT": (1, 4), "LV": (0, 5), "FN": (0, 1), "DM": (0, 1), "AC": (0, 20),
+                 "ED": (1, 3), "AI": (0, 1), "TK": (0, 1)}
+
+
+def what_if(card: dict, changes: dict) -> dict:
+    """Rescore with some factor values changed (everything else as read). Values are clipped to valid ranges."""
+    it = card["_internal"]
+    uf = it["user"]
+    applied = {}
+    for k, v in (changes or {}).items():
+        if k in WHATIF_RANGES and isinstance(v, (int, float)):
+            lo, hi = WHATIF_RANGES[k]
+            applied[k] = max(lo, min(hi, float(v)))
+    if not applied:
+        return {"error": f"no valid changes; factors and ranges: {WHATIF_RANGES}"}
+    s, p = _score_with({**uf, **applied}, it["M"], it["wv"], it["prev"])
+    return {"changes": applied, "before": {k: uf.get(k) for k in applied}, "score": _r(s), "position": _r(p),
+            "delta": _r(s - card["base_score"]), "base_score": card["base_score"]}

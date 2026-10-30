@@ -199,3 +199,46 @@ def test_signup_closed_and_login_lock(client, monkeypatch):
     auth._fails.clear()
     assert client.post("/api/auth/login", json={"email": "admin@example.com", "password": "password123"}).status_code == 200
     assert client.get("/docs").status_code == 404
+
+
+def test_ask_agent_tools_and_loop(client, monkeypatch):
+    from types import SimpleNamespace as NS
+
+    from app.agents import ask_agent
+    from app.db import SessionLocal
+    from app.models import User
+
+    with SessionLocal() as db:
+        u = db.query(User).filter(User.email == "v2@example.com").one()  # has experience text from test_api
+        ctx = ask_agent.Ctx(db, u)
+        sc = ask_agent.run_tool(ctx, "get_scorecard", {})
+        assert sc["score"] is not None and len(sc["factors"]) == 10 and sc["level_read_from"]["band"]
+        wi = ask_agent.run_tool(ctx, "what_if", {"changes": {"LV": 3}})
+        assert wi["changes"] == {"LV": 3.0} and wi["delta"] <= 0
+        assert "error" in ask_agent.run_tool(ctx, "what_if", {"changes": {"XX": 1}})
+        ps = ask_agent.run_tool(ctx, "search_postings", {"limit": 3})
+        assert ps["returned"] <= 3
+        mk = ask_agent.run_tool(ctx, "get_market_requirements", {})
+        assert mk["clusters"]
+        assert "api_cap_usd" in ask_agent.run_tool(ctx, "get_agent_status", {})
+
+        # Simulated model: one tool call, then an answer with one number that is not in tool data.
+        score = sc["score"]
+        block = lambda **k: NS(model_dump=lambda exclude_none=True: k, **k)  # noqa: E731
+        script = [
+            [block(type="tool_use", id="t1", name="what_if", input={"changes": {"LV": 3}})],
+            [block(type="text", text=f"- Score {score}; at VP it would be {wi['score']}.\n- 97 percent of roles fit.")],
+            [block(type="text", text=f"- Score {score}; at VP it would be {wi['score']}.")],
+        ]
+        calls = []
+
+        def fake_create(**kw):
+            calls.append(kw)
+            return NS(content=script[len(calls) - 1]), "test-model"
+
+        monkeypatch.setattr(ask_agent, "create", fake_create)
+        monkeypatch.setattr(ask_agent, "run_tool", lambda c, n, a: {**wi, "score_now": score})
+        out = ask_agent.answer(db, u, "What if I were VP?")
+        assert out["mode"] == "agent" and "97" not in out["answer"]
+        assert [s["tool"] for s in out["steps"]] == ["what_if", "number_check"]
+        assert calls[-1]["tool_choice"] == {"type": "none"}

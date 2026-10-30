@@ -4,10 +4,15 @@ import { ErrorBox, PageHead } from "../components";
 
 const SUGGESTIONS = [
   "Which open roles fit me best, and what are the hard gaps on each?",
-  "What do Partnerships roles require that I do not yet evidence?",
-  "Which of my gaps are closable before I move?",
-  "What pay ranges are posted for Director-level ad sales roles?",
+  "What would my score be if my level were read as VP instead of C-level?",
+  "Which of my gaps are closable before I move, and how much would each move my score?",
+  "What did the agents find this week, and is anything waiting for my approval?",
 ];
+
+const TOOL_LABEL: Record<string, string> = {
+  get_scorecard: "scorecard", what_if: "what-if", search_postings: "postings", get_market_requirements: "market requirements",
+  search_documents: "documents", get_agent_status: "agent team", get_score_history: "score history", number_check: "number check",
+};
 
 function renderAnswer(text: string) {
   return text.split("\n").map((line, i) => (
@@ -39,7 +44,7 @@ export default function Ask() {
 
   return (
     <div className="ask">
-      <PageHead title="Ask" sub="Answers come only from cited sources: postings, market statistics, the method, your CV and your scorecard." />
+      <PageHead title="Ask" sub="An agent answers from your scorecard, what-if rescoring, live postings, market requirements, your documents and the agent team. Every number comes from those lookups." />
       <div className="thread">
         {items.length === 0 && (
           <div className="suggest">
@@ -50,7 +55,16 @@ export default function Ask() {
           <div key={a.id ?? i} className="qa">
             <div className="q">{a.question}</div>
             <div className="a card">
-              {a.mode !== "llm" && <div className="muted small">{a.mode === "extractive" ? "Offline mode — sources only" : ""}</div>}
+              {a.mode === "extractive" && <div className="muted small">Offline mode — sources only</div>}
+              {a.steps && a.steps.length > 0 && (
+                <div className="chips" style={{ marginBottom: 8 }} title="What the agent looked up">
+                  {a.steps.map((s, k) => (
+                    <span key={k} className="chip-d acc" title={JSON.stringify(s.input)}>
+                      {TOOL_LABEL[s.tool] ?? s.tool}{s.tool === "what_if" ? `: ${Object.entries((s.input as { changes?: Record<string, number> }).changes ?? {}).map(([f, v]) => `${f}=${v}`).join(", ")}` : ""}
+                    </span>
+                  ))}
+                </div>
+              )}
               {renderAnswer(a.answer)}
               {a.sources.length > 0 && (
                 <details className="sources">
@@ -69,7 +83,7 @@ export default function Ask() {
             </div>
           </div>
         ))}
-        {busy && <div className="muted">Searching sources…</div>}
+        {busy && <div className="muted">The agent is looking things up…</div>}
         <div ref={endRef} />
       </div>
       <ErrorBox msg={err} />
