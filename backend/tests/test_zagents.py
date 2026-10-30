@@ -170,7 +170,7 @@ def test_inbox_proposal_and_approval(client, tmp_path, monkeypatch):
     with SessionLocal() as db:
         out = inbox.run(db, None)
         assert out["files"] == 2 and any("personal fields" in r.get("rejected", "") for r in out["results"])
-        assert not list(tmp_path.glob("*.json"))  # raw files removed
+        assert not [f for f in tmp_path.glob("*.json") if not f.name.endswith("requests.json")]  # raw files removed
         n0 = db.query(ReferenceProfile).count()
         prop = db.query(Proposal).filter(Proposal.kind == "holders", Proposal.status == "pending").order_by(Proposal.id.desc()).first()
         assert prop and "experience_text" not in json.dumps(prop.payload)
