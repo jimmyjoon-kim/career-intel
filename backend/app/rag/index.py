@@ -230,6 +230,13 @@ def rebuild_user(db: Session, user: User) -> int:
             body = "\n".join(r.get("desc") or [])
             for part in chunk_text(f"{head}\n{body}", 1200, 150):
                 items.append(("experience", f"Your experience: {r['title']} @ {r['company']}"[:400], part))
+    if prof and (prof.linkedin_text or "").strip():
+        from ..v2.reader import parse_linkedin
+
+        for r in parse_linkedin(prof.linkedin_text):
+            head = f'{r["title"]} @ {r["company"]} ({r["start_raw"]} – {r["end_raw"]})'
+            for part in chunk_text(f"{head}\n" + "\n".join(r.get("desc") or []), 1200, 150):
+                items.append(("linkedin", f"Your LinkedIn: {r['title']} @ {r['company']}"[:400], part))
     if prof and prof.cv_text.strip() and prof.cv_text.strip() != (prof.experience_text or "").strip():
         items.extend(("cv", "Your CV", t) for t in chunk_text(prof.cv_text))
     if prof:

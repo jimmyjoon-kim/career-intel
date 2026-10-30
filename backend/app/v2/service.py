@@ -90,15 +90,25 @@ def experience_source(prof: Profile | None) -> tuple[str, str]:
 
 
 def user_features(prof: Profile | None) -> dict | None:
+    from .reader import merge_education, merge_roles, parse_linkedin
+
     text, source = experience_source(prof)
     roles, fmt = parse_roles(text)
+    li_text = (prof.linkedin_text or "") if prof else ""
+    li_roles = parse_linkedin(li_text) if li_text.strip() else []
+    merge = None
+    if li_roles:
+        roles, merge = merge_roles(roles, li_roles)  # CV stays the base; LinkedIn adds detail and missing roles
+        source = f"{source}+linkedin" if source != "none" else "linkedin"
     if not roles:
         return None
     f = extract_features(roles, overrides=(prof.role_reviews or {}) if prof else None)
-    f["source"], f["format"] = source, fmt
+    f["source"], f["format"], f["merge"] = source, fmt, merge
     edu = parse_education(text)
     if edu["ED"] is None and prof and prof.cv_text and text is not prof.cv_text:
         edu = parse_education(prof.cv_text) if parse_education(prof.cv_text)["degrees"] else edu
+    if prof and (prof.linkedin_education or "").strip():
+        edu = merge_education(edu, parse_education("Education: " + prof.linkedin_education.replace("\n", "; ")))
     f["ED"], f["degrees"] = edu["ED"], edu["degrees"]
     target = (prof.target_date if prof else "") or ""
     f["target_date"] = target

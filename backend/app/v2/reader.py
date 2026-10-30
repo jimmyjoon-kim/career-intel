@@ -512,7 +512,7 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
                          "level_cue": recent["level_cue"], "tier": tier} if recent else None),
         "roles": [{"title": r["title"], "company": r["company"], "start": r["start_raw"], "end": r["end_raw"],
                    "months": r["months"], "level": r.get("level"), "counted": r in counted,
-                   "tier": company_tier(r["company"], strict_tier), **r["review"]} for r in ev_roles],
+                   "tier": company_tier(r["company"], strict_tier), "sources": r.get("sources", ["cv"]), **r["review"]} for r in ev_roles],
     }
 
 
@@ -588,3 +588,56 @@ def education_by(degrees: list[dict], ym: str) -> int | None:
     """Highest level completed by a YYYY-MM date (in-progress degrees count once their end date has passed)."""
     lv = [d["level"] for d in degrees if not d["in_progress"] or (d["end"] and d["end"] <= ym)]
     return max(lv) if lv else None
+
+
+# ------------------------------------------------------------------ CV + LinkedIn
+def _co(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower().split("(")[0])
+
+
+def _same_company(a: str, b: str) -> bool:
+    x, y = _co(a), _co(b)
+    return bool(x and y) and (x.startswith(y) or y.startswith(x))
+
+
+def _norm_line(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+
+def merge_roles(primary: list[dict], extra: list[dict]) -> tuple[list[dict], dict]:
+    """Your CV / experience text stays the base (its titles, dates and your role reviews are kept). Each LinkedIn role is
+    matched to a base role at the same company starting within 3 months, or lying inside a base role's dates at that
+    company; its description lines are added where new. Unmatched LinkedIn roles (not covered by the base) are added."""
+    out = [dict(r, desc=list(r.get("desc") or []), sources=["cv"]) for r in primary]
+    stats = {"matched": 0, "added": 0, "lines_added": 0}
+    for e in extra:
+        host = next((r for r in out if "cv" in r["sources"] and _same_company(r["company"], e["company"])
+                     and abs(months_between(r["start"], e["start"])) <= 3), None)
+        if host is None:
+            host = next((r for r in out if "cv" in r["sources"] and _same_company(r["company"], e["company"])
+                         and r["start"] <= e["start"] and e["end"] <= r["end"]), None)
+        if host is None:
+            out.append(dict(e, desc=list(e.get("desc") or []), sources=["linkedin"]))
+            stats["added"] += 1
+            continue
+        seen = {_norm_line(x) for x in host["desc"]}
+        new = [x for x in e.get("desc") or [] if _norm_line(x) and _norm_line(x) not in seen]
+        if e["title"].strip().lower() != host["title"].strip().lower() and new:
+            new = [f"({e['title']}, {e['start_raw']} - {e['end_raw']})"] + new
+        host["desc"] += new
+        if "linkedin" not in host["sources"]:
+            host["sources"].append("linkedin")
+        stats["matched"] += 1
+        stats["lines_added"] += len(new)
+    out.sort(key=lambda r: r["start"], reverse=True)
+    return out, stats
+
+
+def merge_education(a: dict, b: dict) -> dict:
+    degrees = list(a["degrees"])
+    for d in b["degrees"]:
+        if not any(x["level"] == d["level"] and (x["end"] or "")[:4] == (d["end"] or "")[:4] for x in degrees):
+            degrees.append(d)
+    done = [d["level"] for d in degrees if not d["in_progress"]]
+    return {"degrees": degrees, "ED": max(done) if done else None,
+            "technical": any(d["technical"] and not d["in_progress"] for d in degrees)}

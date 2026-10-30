@@ -225,4 +225,5 @@ def test_linkedin_link_flow(client, tmp_path, monkeypatch):
     p = client.get("/api/profile", headers=h).json()
     assert p["linkedin_import"]["status"] == "ready" and p["linkedin_import"]["roles"] == 1
     p = client.post("/api/profile/linkedin/apply", headers=h).json()["profile"]
-    assert p["experience_text"].startswith("Experience\nDirector") and p["linkedin_import"]["status"] == "applied"
+    assert p["experience_text"] == "" and p["linkedin_chars"] > 0 and p["linkedin_import"]["status"] == "applied"
+    assert client.get("/api/profile/roles", headers=h).json()["roles"][0]["company"] == "Acme"

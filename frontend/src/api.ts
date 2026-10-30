@@ -84,7 +84,9 @@ export type Profile = {
   remote_ok: boolean; needs_sponsorship: boolean; excluded_title_terms: string[]; updated_at: string | null;
   linkedin_url: string;
   linkedin_import: { status?: "requested" | "ready" | "applied"; source?: "link" | "pdf"; roles?: number; read_at?: string;
-    requested_at?: string; experience_text?: string; education_text?: string };
+    requested_at?: string; experience_text?: string; education_text?: string;
+    merge?: { matched: number; added: number; lines_added: number }; tags_added?: number };
+  linkedin_chars: number;
 };
 
 export type Source = { n: number; title: string; type: string; url: string; similarity: number; excerpt: string };

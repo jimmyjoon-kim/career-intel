@@ -46,6 +46,9 @@ class Profile(Base):
     # Your own LinkedIn profile link, and the last import read from it (or from LinkedIn's PDF) awaiting your review.
     linkedin_url: Mapped[str] = mapped_column(String(300), default="")
     linkedin_import: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Applied LinkedIn experience and education: used together with the CV, never in place of it.
+    linkedin_text: Mapped[str] = mapped_column(Text, default="")
+    linkedin_education: Mapped[str] = mapped_column(Text, default="")
     # {tag: {"match": 0|0.5|1, "evidence": str, "source": "extracted"|"user"}}
     tag_matches: Mapped[dict] = mapped_column(JSON, default=dict)
     # Gate preferences — see scoring.gate()

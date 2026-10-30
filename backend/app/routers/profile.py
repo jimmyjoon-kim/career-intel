@@ -33,6 +33,7 @@ def profile_dict(p: Profile) -> dict:
         "remote_ok": p.remote_ok, "needs_sponsorship": p.needs_sponsorship,
         "excluded_title_terms": p.excluded_title_terms or [],
         "linkedin_url": p.linkedin_url or "", "linkedin_import": p.linkedin_import or {},
+        "linkedin_chars": len(p.linkedin_text or ""),
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     }
 
@@ -40,9 +41,13 @@ def profile_dict(p: Profile) -> dict:
 def _apply_cv(db: Session, user: User, prof: Profile, text: str) -> dict:
     result = extract_cv(text)
     # User-confirmed matches survive re-extraction.
-    kept = {k: v for k, v in (prof.tag_matches or {}).items() if v.get("source") == "user"}
+    old = prof.tag_matches or {}
+    kept = {k: v for k, v in old.items() if v.get("source") == "user"}
+    # LinkedIn readings stay unless the new CV reading is at least as strong.
+    li = {k: v for k, v in old.items() if v.get("source") == "linkedin"
+          and float(v.get("match", 0)) > float(result["tags"].get(k, {}).get("match", 0))}
     prof.cv_text = text
-    prof.tag_matches = {**result["tags"], **kept}
+    prof.tag_matches = {**result["tags"], **li, **kept}
     flag_modified(prof, "tag_matches")
     if result["headline"] and not prof.headline:
         prof.headline = result["headline"]
@@ -301,13 +306,45 @@ def linkedin_apply(user: User = Depends(current_user), db: Session = Depends(get
     imp = prof.linkedin_import or {}
     if imp.get("status") != "ready" or not imp.get("experience_text"):
         raise HTTPException(409, "No import waiting for review")
-    prof.experience_text = imp["experience_text"]
-    prof.linkedin_import = {**{k: v for k, v in imp.items() if k != "experience_text"}, "status": "applied"}
+    prof.linkedin_text = imp["experience_text"]
+    prof.linkedin_education = imp.get("education_text") or ""
+    # Requirements: read the LinkedIn text too; keep the stronger reading per requirement; your own settings always win.
+    from ..extract import extract_cv
+
+    found = extract_cv(prof.linkedin_text)["tags"]
+    tm = dict(prof.tag_matches or {})
+    added = 0
+    for k, v in found.items():
+        cur = tm.get(k)
+        if cur is None or (cur.get("source") != "user" and v.get("match", 0) > cur.get("match", 0)):
+            tm[k] = {**v, "source": "linkedin"}
+            added += 1
+    prof.tag_matches = tm
+    _refresh_experience(prof)
+    from ..v2.service import user_features
+
+    m = (user_features(prof) or {}).get("merge") or {}
+    prof.linkedin_import = {**{k: v for k, v in imp.items() if k != "experience_text"}, "status": "applied", "merge": m,
+                            "tags_added": added}
+    db.commit()
+    rebuild_user(db, user)
+    return {"profile": profile_dict(prof),
+            "note": f"LinkedIn added alongside your CV (CV unchanged): {m.get('matched', 0)} roles matched to your CV roles "
+                    f"({m.get('lines_added', 0)} new detail lines), {m.get('added', 0)} roles not in your CV added, "
+                    f"{added} requirement readings added or strengthened. Scorecard recalculated."}
+
+
+@router.delete("/linkedin")
+def linkedin_remove(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Stop using the applied LinkedIn text; the CV is untouched."""
+    prof = ensure_profile(db, user)
+    prof.linkedin_text, prof.linkedin_education = "", ""
+    prof.tag_matches = {k: v for k, v in (prof.tag_matches or {}).items() if v.get("source") != "linkedin"}
+    prof.linkedin_import = {}
     _refresh_experience(prof)
     db.commit()
     rebuild_user(db, user)
-    return {"profile": profile_dict(prof), "note": "Experience replaced with the LinkedIn import. Your scorecard has been recalculated; "
-                                                   "re-check Role review for any role whose name changed."}
+    return {"profile": profile_dict(prof), "note": "LinkedIn removed from scoring; your CV is unchanged."}
 
 
 @router.delete("/linkedin/import")

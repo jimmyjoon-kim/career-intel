@@ -431,3 +431,24 @@ def test_linkedin_pdf_convert_and_inbox_keeps_request_files(tmp_path):
     assert [(x["title"], x["company"]) for x in roles] == [("General Manager, Grow Korea", "Unity"),
                                                          ("Vice President, Korea", "ironSource"), ("General Manager, Korea", "ironSource")]
     assert "Hanyang" in r["education_text"]
+
+
+def test_cv_and_linkedin_are_merged_not_replaced():
+    from app.models import Profile
+    from app.v2.service import user_features
+
+    cv = ("EXPERIENCE\nironSource — General Manager / VP, Korea, Feb 2016 – Jun 2023\n- Founded the Korea business.\n"
+          "Unity — General Manager, Grow Korea, Jun 2023 – Jan 2025\n- Ran Grow Korea.\nEDUCATION\nHanyang University — BS Engineering, 2000")
+    li = ("Experience\nVice President, Korea\nironSource · Full-time\nJan 2020 - Jun 2023 · 3 yrs 6 mos\nLed a team of 25 across sales and BD.\n\n"
+          "General Manager, Grow Korea\nUnity · Full-time\nJun 2023 - Jan 2025 · 1 yr 8 mos\nRan Grow Korea.\nOwned the P&L for Korea.\n\n"
+          "Interim CRO\nWortal.AI · Full-time\nJan 2025 - Jan 2026 · 1 yr 1 mo\nBuilt go-to-market.")
+    p = Profile(cv_text=cv, experience_text="", linkedin_text=li, linkedin_education="Executive MBA, Quantic, 2027",
+                role_reviews={}, tag_matches={}, target_date="")
+    f = user_features(p)
+    roles = {(r["company"], r["title"]): r for r in f["roles"]}
+    assert ("ironSource", "General Manager / VP") in roles and ("Unity", "General Manager") in roles
+    assert ("Wortal.AI", "Interim CRO") in roles and roles[("Wortal.AI", "Interim CRO")]["sources"] == ["linkedin"]
+    assert sorted(roles[("Unity", "General Manager")]["sources"]) == ["cv", "linkedin"]
+    assert f["merge"]["matched"] == 2 and f["merge"]["added"] == 1 and f["merge"]["lines_added"] >= 2
+    assert f["ED"] is not None
+    assert len(f["roles"]) == 3

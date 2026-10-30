@@ -5,7 +5,7 @@ import { Empty, ErrorBox, PageHead, useFetch } from "../components";
 
 type AutoHit = { source: string; phrase: string };
 type RoleRev = {
-  key: string; title: string; company: string; start: string; end: string; months: number; counted: boolean;
+  key: string; title: string; company: string; start: string; end: string; months: number; counted: boolean; sources?: string[];
   families: string[]; auto: Record<string, AutoHit>; auto_team_size: number | null;
   final: Record<string, number>; team_size: number | null; reviewed: boolean; recency_weight: number;
 };
@@ -68,7 +68,7 @@ function RoleCard({ role, quals, onSaved }: { role: RoleRev; quals: Payload["qua
     <section className="card role-card">
       <div className="role-head">
         <div>
-          <p className="eyebrow">{role.company}</p>
+          <p className="eyebrow">{role.company}{role.sources && <span className="small muted"> · {role.sources.includes("cv") ? (role.sources.includes("linkedin") ? "CV + LinkedIn" : "CV") : "LinkedIn only"}</span>}</p>
           <h2>{role.title}</h2>
           <p className="muted small">
             {role.start} – {role.end} · {role.months} months{role.counted ? "" : " · evidence only (not counted in years)"}

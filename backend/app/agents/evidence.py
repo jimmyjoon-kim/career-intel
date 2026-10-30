@@ -49,7 +49,7 @@ def run_for_user(db: Session, user: User, run_id: int | None = None) -> dict:
     for tag, n in todo:
         t = TAGS[tag]
         hits = search(db, user.id, f"{t.label}. " + " ".join(p.replace("\\b", "") for p in t.patterns[:6]), k=4,
-                      types=("experience", "cv"), own_only=True)
+                      types=("experience", "cv", "linkedin"), own_only=True)
         if not hits:
             continue
         excerpts = "\n\n".join(f"[{i}] {c.title}\n{c.text}" for i, (c, _) in enumerate(hits, 1))
