@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from "r
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { Bar, Empty, ErrorBox, PageHead, useFetch } from "../components";
+import TagReview from "../TagReview";
 
 type Step = { agent: string; status: string; seconds?: number; cost_usd?: number; result?: unknown; error?: string };
 type Run = { id: number; kind: string; status: string; trigger: string; created_at: string; started_at: string | null;
@@ -155,6 +156,8 @@ export default function Agents() {
           ))}
         </section>
       )}
+
+      {admin && <TagReview />}
 
       <section className="card">
         <h2>Runs</h2>

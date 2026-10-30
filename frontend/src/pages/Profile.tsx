@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, upload, type Profile } from "../api";
 import { useAuth } from "../auth";
 import { ErrorBox, PageHead, useFetch } from "../components";
+import EvidencePanel from "../EvidencePanel";
 
 type Tax = { levels: string[]; tags: { key: string; label: string; group: string; closable: boolean }[] };
 const GROUPS = ["function", "domain", "management", "skill", "education"];
@@ -79,6 +80,7 @@ export default function ProfilePage() {
       <PageHead title="Profile" sub="Your evidence and your gate. Scores update everywhere when you save." />
       {msg && <div className="ok-box">{msg}</div>}
       <ErrorBox msg={err} />
+      <EvidencePanel />
 
       <div className="grid2">
         <section className="card">

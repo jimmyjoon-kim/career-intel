@@ -103,6 +103,8 @@ class Chunk(Base):
     text: Mapped[str] = mapped_column(Text)
     embedding_model: Mapped[str] = mapped_column(String(60), index=True)
     embedding = mapped_column(Vector(get_settings().embedding_dim))
+    # Fingerprint of the source text, so the daily update re-embeds only what changed.
+    content_hash: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -229,3 +231,20 @@ class Board(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_status: Mapped[str] = mapped_column(String(200), default="")
     last_checked: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EvidenceSuggestion(Base):
+    """A line from your own documents that may evidence a requirement postings ask for. You confirm or reject it."""
+
+    __tablename__ = "evidence_suggestions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    tag: Mapped[str] = mapped_column(String(80))
+    label: Mapped[str] = mapped_column(String(200), default="")
+    match: Mapped[float] = mapped_column(Float, default=1.0)  # 1 = clearly evidenced, 0.5 = partial
+    quote: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(200), default="")  # e.g. "Your experience: General Manager @ Unity"
+    postings: Mapped[int] = mapped_column(Integer, default=0)  # gate-passing postings that ask for this tag
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending | confirmed | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

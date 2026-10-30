@@ -141,7 +141,7 @@ def test_weekly_pipeline_and_api(client):
             execute(db, run)
         finally:
             src.run_boards = src_run
-        assert [s["agent"] for s in run.steps] == ["sourcing", "web_sourcing", "reader", "index", "scoring", "checker", "analyst"]
+        assert [s["agent"] for s in run.steps] == ["sourcing", "web_sourcing", "reader", "index", "scoring", "evidence", "checker", "analyst"]
         assert run.status == "done", run.steps
         chk = next(s for s in run.steps if s["agent"] == "checker")["result"]
         assert chk["golden"]["failed"] == [] and all(not u["rule_violations"] for u in chk["users"])
@@ -242,3 +242,82 @@ def test_ask_agent_tools_and_loop(client, monkeypatch):
         assert out["mode"] == "agent" and "97" not in out["answer"]
         assert [s["tool"] for s in out["steps"]] == ["what_if", "number_check"]
         assert calls[-1]["tool_choice"] == {"type": "none"}
+
+
+def test_posting_sections_and_incremental_index(client):
+    from app.db import SessionLocal
+    from app.models import Chunk, Posting
+    from app.rag.index import posting_sections, update_postings
+
+    secs = posting_sections("About the role\nLead partners.\nWhat you'll do\nOwn deals.\nQualifications:\n10+ years\nBenefits\nGood")
+    assert [n for n, _ in secs] == ["About the role", "What you'll do", "Qualifications", "Benefits"]
+    with SessionLocal() as db:
+        first = update_postings(db)
+        assert first["postings_indexed"] > 0
+        again = update_postings(db)
+        assert again["postings_reindexed"] == 0  # nothing changed
+        p = db.query(Posting).filter(Posting.status == "open").first()
+        p.description = (p.description or "") + "\nRequirements\nNew requirement line."
+        db.commit()
+        assert update_postings(db)["postings_reindexed"] == 1
+        assert db.query(Chunk).filter(Chunk.source_ref == str(p.id), Chunk.title.like("%Requirements%")).count() == 1
+
+
+def test_evidence_finder_guardrail_and_confirm(client, monkeypatch):
+    from app.agents import evidence
+    from app.db import SessionLocal
+    from app.models import EvidenceSuggestion, User
+    from app.rag.index import rebuild_user
+
+    with SessionLocal() as db:
+        u = db.query(User).filter(User.email == "v2@example.com").one()
+        rebuild_user(db, u)
+        db.refresh(u)
+        tags = evidence.missing_tags(evidence.evaluate(db, u), u.profile)
+        assert tags, "expected at least one requirement the profile does not show"
+        from app.rag.index import search
+
+        own = search(db, u.id, "partnerships", k=1, types=("experience", "cv"), own_only=True)
+        assert own and own[0][0].owner_id == u.id
+        real = " ".join(own[0][0].text.split("\n")[1].split()[:8])
+        answers = iter([{"match": 1, "quote": real, "excerpt": 1}, {"match": 1, "quote": "Invented line that is not in the text", "excerpt": 1}]
+                       + [{"match": 0, "quote": "", "excerpt": 1}] * 20)
+        monkeypatch.setattr(evidence, "llm_available", lambda: True)
+        monkeypatch.setattr(evidence, "complete_json", lambda *a, **k: next(answers))
+        db.query(EvidenceSuggestion).delete()
+        db.commit()
+        out = evidence.run_for_user(db, u)
+        assert out["suggested"] == 1  # the invented quote was dropped
+        s = db.query(EvidenceSuggestion).one()
+        evidence.decide(db, u, s.id, True)
+        db.refresh(u.profile)
+        assert u.profile.tag_matches[s.tag]["source"] == "user"
+
+
+def test_tag_labels_examples_and_reader_test(client):
+    from app.agents import requirements
+    from app.db import SessionLocal
+    from app.models import Posting
+
+    login = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "password123"}).json()
+    ah = {"Authorization": f"Bearer {login['token']}"}
+    with SessionLocal() as db:
+        ps = db.query(Posting).filter(Posting.status == "open").order_by(Posting.id).limit(10).all()
+        test_p = next(p for p in ps if requirements.is_test(p))
+        train_p = next(p for p in ps if not requirements.is_test(p))
+        for p in (test_p, train_p):
+            p.read_check = {"hash": p.content_hash, "model_tags": ["func_partnerships", "domain_ai"], "disputed": ["domain_ai"]}
+        db.commit()
+        tid, trid = test_p.id, train_p.id
+    r = client.get("/api/agents/tag-review", headers=ah).json()
+    assert any(x["id"] == tid for x in r["postings"])
+    for pid in (tid, trid):
+        assert client.post(f"/api/agents/tag-review/{pid}", headers=ah,
+                           json={"labels": {"func_partnerships": True, "domain_ai": False}}).json()["tags"].count("domain_ai") == 0
+    with SessionLocal() as db:
+        ev = requirements.evaluate_reader(db)
+        assert ev["test_postings"] >= 1 and ev["precision"] == 0.5 and ev["recall"] == 1.0
+        assert any(t == "domain_ai" for t, _ in ev["most_missed_tags"])
+        other = db.query(Posting).filter(Posting.id != trid, Posting.status == "open").first()
+        ex = requirements.examples_for(db, other, requirements.labeled(db))
+        assert db.get(Posting, trid).company in ex and db.get(Posting, tid).title not in ex.split(":")[0]

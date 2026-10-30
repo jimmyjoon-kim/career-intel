@@ -5,6 +5,7 @@ and the method documents in backend/knowledge/. Private corpus (owner_id = user)
 user's CV chunks and a generated scorecard of their matches and gaps.
 """
 
+import hashlib
 import logging
 import re
 from pathlib import Path
@@ -52,7 +53,44 @@ def _label(tag: str) -> str:
     return f"{t.label} ({tag})" if t else tag
 
 
-def posting_text(p: Posting) -> str:
+SECTION_HEAD = re.compile(
+    r"^(?:#+\s*)?(about (?:the|this) (?:role|team|job|opportunity)|about us|about [A-Z][\w ]{0,30}|the role|overview|"
+    r"(?:what|things) you(?:'ll| will) (?:do|own|work on)|responsibilities|key responsibilities|in this role|your impact|"
+    r"(?:what|who) you(?:'ll| will)? (?:bring|need|have|are)|requirements|qualifications|minimum qualifications|"
+    r"preferred qualifications|basic qualifications|you may be a good fit|nice to haves?|bonus points|"
+    r"compensation|pay|benefits|what we offer|why join)\s*:?\s*$", re.I)
+
+
+def _h(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def posting_sections(description: str) -> list[tuple[str, str]]:
+    """Split a posting into (section name, text) by its own headings; content-aware chunking."""
+    out, name, buf = [], "Description", []
+    for ln in (description or "").splitlines():
+        if SECTION_HEAD.match(ln.strip()) and len(ln.strip()) < 70:
+            if buf:
+                out.append((name, "\n".join(buf)))
+            name, buf = ln.strip().rstrip(":"), []
+        elif ln.strip():
+            buf.append(ln.strip())
+    if buf:
+        out.append((name, "\n".join(buf)))
+    return out
+
+
+def posting_chunks(p: Posting) -> list[tuple[str, str]]:
+    """(title, text) chunks for one posting: a summary chunk, then one chunk per section (long ones split)."""
+    head = f"{p.company} — {p.title}"
+    chunks = [(head, posting_text(p, with_description=False))]
+    for name, body in posting_sections(p.description or ""):
+        for part in chunk_text(body.replace("\n", "\n\n"), 1000, 150):
+            chunks.append((f"{head} · {name}", f"{head}\nSection: {name}\n{part}"))
+    return chunks
+
+
+def posting_text(p: Posting, with_description: bool = True) -> str:
     lines = [
         f"{p.title} at {p.company}",
         f"Role cluster: {p.role_cluster}. Level: {p.level_band}. Location: {p.location} (remote: {p.remote_flag}).",
@@ -61,7 +99,7 @@ def posting_text(p: Posting) -> str:
         f"Years required: {p.years_required or 'unstated'}.",
         "Requirements: " + ("; ".join(_label(t) for t in p.tags) or "not tagged"),
     ]
-    if p.description:
+    if with_description and p.description:
         lines.append(p.description[:3000])
     return "\n".join(lines)
 
@@ -93,7 +131,7 @@ def rebuild_shared(db: Session) -> int:
     items: list[tuple[str, str, str, str, str]] = []
     for p in postings:
         if p.status in ("open", "unverified"):
-            items.append(("posting", str(p.id), f"{p.company} — {p.title}", p.url, posting_text(p)))
+            items.extend(("posting", str(p.id), t, p.url, x) for t, x in posting_chunks(p))
     for title, text in market_texts(stats):
         items.append(("market", title, title, "", text))
     for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
@@ -104,10 +142,39 @@ def rebuild_shared(db: Session) -> int:
     vecs = embed([it[4] for it in items], "document")  # before deleting, so a failure keeps the old index
     db.execute(delete(Chunk).where(Chunk.owner_id.is_(None)))
     for (stype, ref, title, url, text), v in zip(items, vecs):
-        db.add(Chunk(owner_id=None, source_type=stype, source_ref=ref, title=title, url=url,
-                     text=text, embedding_model=s.embedding_model_name, embedding=v))
+        db.add(Chunk(owner_id=None, source_type=stype, source_ref=ref, title=title, url=url, text=text,
+                     content_hash=_h(text), embedding_model=s.embedding_model_name, embedding=v))
     db.commit()
     return len(items)
+
+
+def update_postings(db: Session) -> dict:
+    """Daily: embed only new or changed postings, drop chunks of postings no longer open."""
+    s = get_settings()
+    live = {str(p.id): p for p in db.scalars(select(Posting).where(Posting.status.in_(("open", "unverified"))))}
+    have: dict[str, set[str]] = {}
+    for c in db.scalars(select(Chunk).where(Chunk.owner_id.is_(None), Chunk.source_type == "posting")):
+        have.setdefault(c.source_ref, set()).add(c.content_hash or "")
+    gone = [ref for ref in have if ref not in live]
+    if gone:
+        db.execute(delete(Chunk).where(Chunk.owner_id.is_(None), Chunk.source_type == "posting", Chunk.source_ref.in_(gone)))
+    todo = []
+    for ref, p in live.items():
+        chunks = posting_chunks(p)
+        if {_h(x) for _, x in chunks} != have.get(ref, set()):
+            todo.append((ref, p, chunks))
+    flat = [x for _, _, ch in todo for _, x in ch]
+    vecs = embed(flat, "document") if flat else []
+    i = 0
+    for ref, p, chunks in todo:
+        db.execute(delete(Chunk).where(Chunk.owner_id.is_(None), Chunk.source_type == "posting", Chunk.source_ref == ref))
+        for t, x in chunks:
+            db.add(Chunk(owner_id=None, source_type="posting", source_ref=ref, title=t, url=p.url, text=x,
+                         content_hash=_h(x), embedding_model=s.embedding_model_name, embedding=vecs[i]))
+            i += 1
+    db.commit()
+    return {"postings_reindexed": len(todo), "chunks_added": len(flat), "postings_removed": len(gone),
+            "postings_indexed": len(live)}
 
 
 def scorecard_text(evaluation: dict) -> str:
@@ -154,7 +221,16 @@ def rebuild_user(db: Session, user: User) -> int:
     s = get_settings()
     prof = user.profile
     items: list[tuple[str, str, str]] = []  # (source_type, title, text)
-    if prof and prof.cv_text.strip():
+    if prof and (prof.experience_text or "").strip():
+        from ..v2.reader import parse_roles
+
+        roles, _ = parse_roles(prof.experience_text)
+        for r in roles:
+            head = f'{r["title"]} @ {r["company"]} ({r["start_raw"]} – {r["end_raw"]})'
+            body = "\n".join(r.get("desc") or [])
+            for part in chunk_text(f"{head}\n{body}", 1200, 150):
+                items.append(("experience", f"Your experience: {r['title']} @ {r['company']}"[:400], part))
+    if prof and prof.cv_text.strip() and prof.cv_text.strip() != (prof.experience_text or "").strip():
         items.extend(("cv", "Your CV", t) for t in chunk_text(prof.cv_text))
     if prof:
         ev = evaluate(db, user)
@@ -164,8 +240,8 @@ def rebuild_user(db: Session, user: User) -> int:
     vecs = embed([t for _, _, t in items], "document")
     db.execute(delete(Chunk).where(Chunk.owner_id == user.id))
     for (stype, title, text), v in zip(items, vecs):
-        db.add(Chunk(owner_id=user.id, source_type=stype, source_ref=stype, title=title, url="",
-                     text=text, embedding_model=s.embedding_model_name, embedding=v))
+        db.add(Chunk(owner_id=user.id, source_type=stype, source_ref=stype, title=title, url="", text=text,
+                     content_hash=_h(text), embedding_model=s.embedding_model_name, embedding=v))
     db.commit()
     return len(items)
 
@@ -199,20 +275,21 @@ def keyword_search(db: Session, user_id: int, query: str, k: int) -> list[tuple[
     return [(c, round(h / mx, 4)) for c, h in top]
 
 
-def search(db: Session, user_id: int, query: str, k: int | None = None) -> list[tuple[Chunk, float]]:
+def search(db: Session, user_id: int, query: str, k: int | None = None, *, types: tuple[str, ...] | None = None,
+           own_only: bool = False) -> list[tuple[Chunk, float]]:
+    """Semantic search. types limits source types (e.g. ("experience", "cv")); own_only searches only your documents."""
     s = get_settings()
     k = k or s.rag_top_k
     try:
         qv = embed([query], "query", quick=True)[0]
     except Exception as err:  # noqa: BLE001
         log.warning("query embedding failed, using keyword search: %s", err)
-        return keyword_search(db, user_id, query, k)
+        return [h for h in keyword_search(db, user_id, query, k * 3)
+                if (not types or h[0].source_type in types) and (not own_only or h[0].owner_id == user_id)][:k]
     dist = Chunk.embedding.cosine_distance(qv)
-    stmt = (
-        select(Chunk, dist.label("dist"))
-        .where(Chunk.embedding_model == s.embedding_model_name)
-        .where(or_(Chunk.owner_id.is_(None), Chunk.owner_id == user_id))
-        .order_by(dist)
-        .limit(k)
-    )
+    owner = Chunk.owner_id == user_id if own_only else or_(Chunk.owner_id.is_(None), Chunk.owner_id == user_id)
+    stmt = select(Chunk, dist.label("dist")).where(Chunk.embedding_model == s.embedding_model_name).where(owner)
+    if types:
+        stmt = stmt.where(Chunk.source_type.in_(types))
+    stmt = stmt.order_by(dist).limit(k)
     return [(c, round(1 - float(d), 4)) for c, d in db.execute(stmt).all()]

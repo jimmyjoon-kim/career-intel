@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -202,3 +204,39 @@ def delete_photo(user: User = Depends(current_user), db: Session = Depends(get_d
     prof.photo = ""
     db.commit()
     return profile_dict(prof)
+
+
+
+@router.get("/evidence")
+def list_evidence(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..models import EvidenceSuggestion
+
+    rows = db.scalars(select(EvidenceSuggestion).where(EvidenceSuggestion.user_id == user.id)
+                      .order_by(EvidenceSuggestion.status != "pending", EvidenceSuggestion.postings.desc()).limit(60))
+    return [{"id": e.id, "tag": e.tag, "label": e.label, "match": e.match, "quote": e.quote, "source": e.source,
+             "postings": e.postings, "status": e.status} for e in rows]
+
+
+@router.post("/evidence/find")
+def find_evidence(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..agents.evidence import run_for_user
+
+    ensure_profile(db, user)
+    return run_for_user(db, user)
+
+
+class EvidenceDecision(BaseModel):
+    confirm: bool
+
+
+@router.post("/evidence/{sid}")
+def decide_evidence(sid: int, body: EvidenceDecision, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..agents.evidence import decide
+    from ..agents.snapshots import take
+
+    try:
+        s = decide(db, user, sid, body.confirm)
+    except LookupError as err:
+        raise HTTPException(404, str(err)) from err
+    snap = take(db, user, None) if body.confirm else None
+    return {"ok": True, "status": s.status, "score": snap.score if snap else None}

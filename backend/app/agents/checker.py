@@ -111,7 +111,9 @@ def check_brief(body: str, data: dict, run_id: int | None) -> dict:
 
 def run(db: Session, run_id: int | None, per_user: list[dict]) -> dict:
     """per_user: [{"user_id", "passing", "snapshot"}] from the coordinator."""
-    report = {"golden": golden(), "reader": reader_quality(db), "users": []}
+    from .requirements import evaluate_reader
+
+    report = {"golden": golden(), "reader": reader_quality(db), "reader_test": evaluate_reader(db), "users": []}
     for u in per_user:
         report["users"].append({"user_id": u["user_id"], "rule_violations": rule_violations(u["passing"]),
                                 "arithmetic": arithmetic(u["snapshot"])})

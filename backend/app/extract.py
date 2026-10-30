@@ -62,10 +62,13 @@ def extract_cv(cv_text: str) -> dict:
     }
 
 
-def extract_posting(title: str, description: str, **kw) -> dict:
-    """Tag a posting from its title + description. kw: role/agent/run_id for llm routing."""
+def extract_posting(title: str, description: str, examples: str = "", **kw) -> dict:
+    """Tag a posting from its title + description. examples: labeled postings shown as references.
+    kw: role/agent/run_id for llm routing."""
     kw.setdefault("role", "bulk")
-    result = complete_json(JD_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\nTitle: {title}\n\n{description[:30000]}", **kw)
+    ref = (f"Reference examples (similar postings with confirmed tags; use them to calibrate, do not copy):\n{examples}\n\n"
+           if examples else "")
+    result = complete_json(JD_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\n{ref}Title: {title}\n\n{description[:30000]}", **kw)
     if result and isinstance(result.get("tags"), list):
         reqs, _ = split_tags([t for t in result["tags"] if isinstance(t, str)])
         return {

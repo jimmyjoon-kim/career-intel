@@ -28,7 +28,8 @@ def init_db() -> None:
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS photo TEXT DEFAULT ''",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64) DEFAULT ''",
                     "ALTER TABLE postings ADD COLUMN IF NOT EXISTS source VARCHAR(40) DEFAULT 'csv'",
-                    "ALTER TABLE postings ADD COLUMN IF NOT EXISTS read_check JSON DEFAULT '{}'::json"):
+                    "ALTER TABLE postings ADD COLUMN IF NOT EXISTS read_check JSON DEFAULT '{}'::json",
+                    "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64) DEFAULT ''"):
             conn.execute(text(ddl))
 
 

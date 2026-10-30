@@ -27,6 +27,7 @@ TEAM = [
     {"key": "reader", "name": "Requirement reader", "model": "bulk", "job": "Reads each new or changed posting 3 times; keeps the majority tags."},
     {"key": "hire_research", "name": "Hire research", "model": "monthly task on your Mac", "job": "Reads recent hires' profiles (read-only); derived values only, filed for approval."},
     {"key": "company_facts", "name": "Company facts", "model": "research", "job": "Checks unverified IPO and acquisition dates by web search; files confirmations for approval."},
+    {"key": "evidence", "name": "Evidence finder", "model": "bulk", "job": "Searches your own documents for lines that evidence requirements you are marked as missing; you confirm each."},
     {"key": "scoring", "name": "Scoring engine", "model": "none (code)", "job": "Scores every profile and stores the result with the model version."},
     {"key": "checker", "name": "Checker", "model": "critical", "job": "Rules, arithmetic, regression cases, and a review of every brief against its data."},
     {"key": "analyst", "name": "Analyst", "model": "critical", "job": "Writes the weekly brief from facts assembled in code. Reports only."},
@@ -63,8 +64,8 @@ def status(user: User = Depends(current_user), db: Session = Depends(get_db)):
                    "spent_usd": round(month_spend(db), 4), "calls": calls,
                    "by_agent": {k: round(v, 4) for k, v in sorted(by_agent.items(), key=lambda x: -x[1])},
                    "by_model": {k: round(v, 4) for k, v in sorted(by_model.items(), key=lambda x: -x[1])}},
-        "schedule": ["Daily 06:00 KST — job boards and requirement reader",
-                     "Mondays 09:00 KST — full run: sourcing, reader, scoring, checker, brief",
+        "schedule": ["Daily 06:00 KST — job boards, requirement reader, search index update",
+                     "Mondays 09:00 KST — full run: sourcing, reader, index, scoring, evidence finder, checker, brief",
                      "First Monday 08:40 KST — hire research on your Mac (scheduled task)",
                      "First Monday 10:00 KST — hire-research inbox, company facts, rescoring"],
         "runs": [_run(r) for r in runs],
@@ -146,3 +147,44 @@ def add_board(body: BoardReq, _: User = Depends(admin_user), db: Session = Depen
     db.add(Board(ats=body.ats, slug=body.slug.strip(), company=body.company.strip() or body.slug.strip()))
     db.commit()
     return {"ok": True}
+
+
+
+# ---- Tag review: settle the requirement reader's disputed tags; settled postings become labeled examples ----
+
+@router.get("/tag-review")
+def tag_review(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+    from ..agents.requirements import evaluate_reader, is_test
+    from ..models import Posting
+    from ..taxonomy import TAGS
+
+    rows = []
+    for p in db.scalars(select(Posting).where(Posting.status.in_(("open", "unverified"))).order_by(Posting.id.desc())):
+        rc = p.read_check or {}
+        if not rc.get("disputed") or rc.get("labels"):
+            continue
+        lab = lambda t: TAGS[t].label if t in TAGS else t  # noqa: E731
+        rows.append({"id": p.id, "company": p.company, "title": p.title, "url": p.url, "test_split": is_test(p),
+                     "agreed": [{"tag": t, "label": lab(t)} for t in rc.get("model_tags", p.tags or [])],
+                     "disputed": [{"tag": t, "label": lab(t)} for t in rc["disputed"]]})
+    return {"postings": rows[:40], "remaining": len(rows), "reader_test": evaluate_reader(db)}
+
+
+class TagLabels(BaseModel):
+    labels: dict[str, bool]  # tag -> required by this posting?
+
+
+@router.post("/tag-review/{pid}")
+def settle_tags(pid: int, body: TagLabels, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    from ..agents.requirements import apply_labels
+    from ..models import Posting
+    from ..taxonomy import TAGS
+
+    p = db.get(Posting, pid)
+    if not p:
+        raise HTTPException(404, "No such posting")
+    labels = {t: bool(v) for t, v in body.labels.items() if t in TAGS}
+    p.read_check = {**(p.read_check or {}), "labels": labels}
+    apply_labels(p)
+    db.commit()
+    return {"ok": True, "tags": p.tags}

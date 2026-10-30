@@ -1,7 +1,7 @@
 """Coordinator (plain code). Runs pipelines step by step, records each step, and stops cleanly at the spending cap.
 
-daily   : sourcing (boards) -> requirement reader
-weekly  : sourcing (boards + web) -> requirement reader -> index -> scoring -> checker -> analyst
+daily   : sourcing (boards) -> requirement reader -> search index update (new/changed postings only)
+weekly  : sourcing (boards + web) -> requirement reader -> index -> scoring -> evidence finder -> checker -> analyst
 monthly : hire-research inbox -> company facts -> scoring
 rescore : scoring only (profile change or Refresh)
 """
@@ -18,16 +18,16 @@ from sqlalchemy.orm import Session
 
 from ..llm import BudgetExceeded, check_budget, month_spend
 from ..models import AgentRun, Profile, User
-from . import analyst, checker, company_facts, inbox, requirements, snapshots, sourcing
+from . import analyst, checker, company_facts, evidence, inbox, requirements, snapshots, sourcing
 
 log = logging.getLogger(__name__)
 PIPELINES = {
-    "daily": ["sourcing", "reader"],
-    "weekly": ["sourcing", "web_sourcing", "reader", "index", "scoring", "checker", "analyst"],
+    "daily": ["sourcing", "reader", "index_update"],
+    "weekly": ["sourcing", "web_sourcing", "reader", "index", "scoring", "evidence", "checker", "analyst"],
     "monthly": ["inbox", "company_facts", "scoring"],
     "rescore": ["scoring"],
 }
-USES_MODEL = {"web_sourcing", "reader", "company_facts", "checker", "analyst"}
+USES_MODEL = {"web_sourcing", "reader", "company_facts", "checker", "analyst", "evidence"}
 
 
 def _profile_summary(db: Session) -> str:
@@ -50,6 +50,15 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
             return {"chunks": rebuild_shared(db)}
         except Exception as err:  # noqa: BLE001 — search index is not critical to the run
             return {"skipped": f"index rebuild failed: {err}"}
+    if name == "index_update":
+        from ..rag.index import update_postings
+
+        try:
+            return update_postings(db)
+        except Exception as err:  # noqa: BLE001 — search index is not critical to the run
+            return {"skipped": f"index update failed: {err}"}
+    if name == "evidence":
+        return evidence.run(db, rid)
     if name == "scoring":
         out = snapshots.run(db, rid)
         ctx["snapshots"] = {s.user_id: s for s in db.scalars(
