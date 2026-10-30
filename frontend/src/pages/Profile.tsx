@@ -161,7 +161,7 @@ function TagRowEditor({ t, m, busy, onSave }: {
 }) {
   const value = m?.match ?? 0;
   const [ev, setEv] = useState(m?.evidence ?? "");
-  useEffect(() => setEv(m?.evidence ?? ""), [m?.evidence]);
+  useEffect(() => { setEv(m?.evidence ?? ""); }, [m?.evidence]);
   return (
     <div className="tag-row">
       <div className="tag-name">

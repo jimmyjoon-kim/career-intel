@@ -30,7 +30,7 @@ export default function Ask() {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { api<Answer[]>("/api/ask/history").then((h) => setItems(h.reverse())).catch(() => {}); }, []);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [items.length, busy]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [items.length, busy]);
 
   const ask = async (question: string) => {
     if (!question.trim()) return;
