@@ -22,7 +22,7 @@ from . import analyst, checker, company_facts, evidence, inbox, level, requireme
 
 log = logging.getLogger(__name__)
 PIPELINES = {
-    "daily": ["sourcing", "reader", "level", "index_update"],
+    "daily": ["inbox", "sourcing", "reader", "level", "index_update"],
     "weekly": ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"],
     "monthly": ["inbox", "company_facts", "scoring"],
     "rescore": ["scoring"],

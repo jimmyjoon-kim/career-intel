@@ -65,7 +65,7 @@ def status(user: User = Depends(current_user), db: Session = Depends(get_db)):
                    "spent_usd": round(month_spend(db), 4), "calls": calls,
                    "by_agent": {k: round(v, 4) for k, v in sorted(by_agent.items(), key=lambda x: -x[1])},
                    "by_model": {k: round(v, 4) for k, v in sorted(by_model.items(), key=lambda x: -x[1])}},
-        "schedule": ["Daily 06:00 KST — job boards, requirement reader, search index update",
+        "schedule": ["Daily 06:00 KST — hire-research inbox, job boards, requirement reader, level assessor, search index update",
                      "Mondays 09:00 KST — full run: sourcing, reader, index, scoring, evidence finder, checker, brief",
                      "First Monday 08:40 KST — hire research on your Mac (scheduled task)",
                      "First Monday 10:00 KST — hire-research inbox, company facts, rescoring"],
