@@ -147,3 +147,16 @@ def test_cv_format_heads_and_education():
     assert f["LV"] == 5 and f["recent_role"]["company"] == "Wortal.AI"
     ed = parse_education(t, (2026, 10))
     assert ed["ED"] == 1 and [d["level"] for d in ed["degrees"]] == [2, 1] and ed["degrees"][0]["in_progress"]
+
+
+def test_review_survives_reader_fix():
+    """A review saved under an older (mis-read) role name still applies after the reader reads the role correctly."""
+    from app.v2.reader import extract_features, parse_roles
+
+    t = ("EXPERIENCE\nUnity Technologies, Seoul, South Korea — General Manager, Grow Korea\nJuly 2023 – April 2025\n"
+         "•\tManaged the P&L.\nironSource, Seoul — General Manager and Vice President, Korea\nJanuary 2016 – July 2023\n•\tLaunched Korea.\n")
+    roles, _ = parse_roles(t, (2026, 10))
+    old_key = "unity technologies, seoul, south korea — general manager, grow korea|•\tsome bullet|July 2023"
+    f = extract_features(roles, overrides={old_key: {"team_size": 35, "tags": {"team_large": 1.0, "team_mgmt": 1.0}, "confirmed": True}},
+                         now=(2026, 10))
+    assert f["tags"]["team_large"] == 1.0

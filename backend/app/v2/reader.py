@@ -355,6 +355,20 @@ def team_size(lines: list[str]) -> tuple[int, str]:
     return best, best_line
 
 
+def find_review(overrides: dict | None, r: dict) -> dict:
+    """Your review for this role. Falls back to a review saved under an older reading of the same role
+    (same start date, same company at the start of the saved name), so a reader fix never drops your confirmations."""
+    if not overrides:
+        return {}
+    ov = overrides.get(role_key(r))
+    if ov is not None:
+        return ov
+    co, start = r["company"].strip().lower(), r["start_raw"]
+    cands = [v for k, v in overrides.items()
+             if k.rsplit("|", 1)[-1] == start and co and k.split("|", 1)[0].startswith(co)]
+    return cands[0] if len(cands) == 1 else {}
+
+
 def role_key(r: dict) -> str:
     return f'{r["company"].strip().lower()}|{r["title"].strip().lower()}|{r["start_raw"]}'
 
@@ -445,7 +459,7 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
                 hit("team_large", size_src, size_line[:120])
         auto = {t: {"source": src, "phrase": phrase} for t, (src, phrase) in found.items()}
         # Your review of this role: confirmed values replace the automatic reading.
-        ov = (overrides or {}).get(role_key(r)) or {}
+        ov = find_review(overrides, r)
         values = {t: 1.0 for t in found}
         if ov.get("team_size") is not None:
             size, size_src = int(ov["team_size"]), "you confirmed"
