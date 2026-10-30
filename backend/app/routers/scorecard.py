@@ -32,7 +32,9 @@ def get_scorecard(family: str = "Partnerships", user: User = Depends(current_use
     if card is None:
         return {"ready": False, "reason": reason}
     left = months_left(prof.target_date or "")
-    ev = evaluate(db, user)
+    from ..services import for_family
+
+    ev = for_family(db, evaluate(db, user), family)
     pub = public(card)
     pub["cards"]["you"]["photo"] = prof.photo or None
     pub["cards"]["you"]["name"] = user.name or "You"
@@ -78,7 +80,9 @@ def get_focus(family: str = "Partnerships", user: User = Depends(current_user), 
     card, feats, reason = scorecard(db, prof, n_boot=300, cluster=family)
     if card is None:
         return {"ready": False, "reason": reason}
-    ev = evaluate(db, user)
+    from ..services import for_family
+
+    ev = for_family(db, evaluate(db, user), family)
     left = months_left(prof.target_date or "")
     plan = build_gap_plan(card, ev["gap_summary"], left, _months_to_degree(feats))
     pending = [{"tag": e.tag, "label": e.label, "quote": e.quote, "postings": e.postings}
@@ -96,7 +100,9 @@ def get_relocation(family: str = "Partnerships", user: User = Depends(current_us
     from ..v2.service import user_features
 
     prof = ensure_profile(db, user)
-    return relocation_view(db, prof, user_features(prof), evaluate(db, user), family)
+    from ..services import for_family
+
+    return relocation_view(db, prof, user_features(prof), for_family(db, evaluate(db, user), family), family)
 
 
 @router.get("/industry")
@@ -107,7 +113,9 @@ def get_industry(family: str = "Partnerships", target: str | None = None, user: 
     from ..v2.service import user_features
 
     prof = ensure_profile(db, user)
-    return industry_view(db, prof, user_features(prof), evaluate(db, user), family, target)
+    from ..services import for_family
+
+    return industry_view(db, prof, user_features(prof), for_family(db, evaluate(db, user), family), family, target)
 
 
 @router.get("/families")

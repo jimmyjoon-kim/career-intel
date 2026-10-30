@@ -18,8 +18,10 @@ router = APIRouter(prefix="/api", tags=["market"])
 
 
 @router.get("/dashboard")
-def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    ev = evaluate(db, user)
+def dashboard(family: str | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..services import for_family
+
+    ev = for_family(db, evaluate(db, user), family)
     rows = ev["rows"]
     prof = user.profile
     return {
@@ -29,7 +31,7 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
             "gate_pass": len(ev["passing"]),
             "no_zero_hard_gap": sum(1 for r in ev["passing"] if not r["has_zero_hard_gap"]),
         },
-        "profile_ready": bool(prof and prof.tag_matches),
+        "profile_ready": bool(prof and prof.tag_matches), "family": ev.get("family"),
         "top": [row_dict(r) for r in ev["passing"][:10]],
         "gaps": ev["gap_summary"],
         "gate_fail_reasons": _reason_counts(rows),

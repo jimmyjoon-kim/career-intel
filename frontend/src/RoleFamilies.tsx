@@ -2,6 +2,16 @@ import { useState, type FormEvent } from "react";
 import { api } from "./api";
 import { useFetch } from "./components";
 
+const FAM_KEY = "ci_family";
+const savedFamily = () => { try { return localStorage.getItem(FAM_KEY) || "Partnerships"; } catch { return "Partnerships"; } };
+
+// The role you are assessed as: shared by Scorecard and Gate & gaps (remembered in this browser).
+export function useFamily(): [string, (k: string) => void] {
+  const [family, setFamilyState] = useState(savedFamily);
+  const setFamily = (k: string) => { setFamilyState(k); try { localStorage.setItem(FAM_KEY, k); } catch { /* storage unavailable */ } };
+  return [family, setFamily];
+}
+
 export type Fam = { key: string; label: string; custom: boolean; holders: number; postings: number; state: "ready" | "requested" | "provisional" };
 
 // Pick the role you want to be assessed against; name any other role to add it.

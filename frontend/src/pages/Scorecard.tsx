@@ -7,7 +7,7 @@ import type { PlayerCard } from "../api";
 import FocusPanel from "../FocusPanel";
 import RelocationPanel from "../RelocationPanel";
 import IndustryPanel from "../IndustryPanel";
-import { FamilyBar, ProvisionalView } from "../RoleFamilies";
+import { FamilyBar, ProvisionalView, useFamily } from "../RoleFamilies";
 
 type Reading = NonNullable<Scorecard["reading"]>;
 type Peer = Card["peers"][number];
@@ -50,12 +50,9 @@ function fmtVal(k: string, v: number | null | undefined) {
   return v.toFixed(2);
 }
 
-const FAM_KEY = "ci_family";
-const savedFamily = () => { try { return localStorage.getItem(FAM_KEY) || "Partnerships"; } catch { return "Partnerships"; } };
 
 export default function ScorecardPage() {
-  const [family, setFamilyState] = useState(savedFamily);
-  const setFamily = (k: string) => { setFamilyState(k); try { localStorage.setItem(FAM_KEY, k); } catch { /* storage unavailable */ } };
+  const [family, setFamily] = useFamily();
   const { data, error, loading } = useFetch<Scorecard>(`/api/scorecard?family=${encodeURIComponent(family)}`);
   const { data: rows } = useFetch<Row[]>("/api/postings");
   const [detail, setDetail] = useState<Detail | null>(null);

@@ -18,13 +18,13 @@ import Admin from "./pages/Admin";
 const NAV = [
   { to: "/", label: "Scorecard" },
   { to: "/matches", label: "Job matches" },
+  { to: "/dashboard", label: "Gate & gaps" },
   { to: "/roles", label: "Role review" },
   { to: "/postings", label: "Postings" },
   { to: "/market", label: "Market" },
   { to: "/ask", label: "Ask" },
   { to: "/agents", label: "Agents" },
   { to: "/profile", label: "Profile" },
-  { to: "/dashboard", label: "Gate & gaps" },
 ];
 
 export default function App() {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Gap, Row } from "../api";
+import { FamilyBar, useFamily } from "../RoleFamilies";
 import { Bar, ClsBadge, Empty, ErrorBox, MatchPill, PageHead, PostingDetail, useFetch } from "../components";
 
 type Dash = {
@@ -13,7 +14,8 @@ type Dash = {
 };
 
 export default function Dashboard() {
-  const { data, error, loading } = useFetch<Dash>("/api/dashboard");
+  const [family, setFamily] = useFamily();
+  const { data, error, loading } = useFetch<Dash>(`/api/dashboard?family=${encodeURIComponent(family)}`);
   const [open, setOpen] = useState<Row | null>(null);
   if (loading && !data) return <div className="muted">Loading…</div>;
   if (!data) return <ErrorBox msg={error} />;
@@ -21,7 +23,8 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHead title="Dashboard" sub="Where you stand against open postings that pass your gate." />
+      <PageHead title="Gate & gaps" sub={`Postings for ${family} roles: which pass your gate, why others do not, and your biggest gaps for this role.`} />
+      <FamilyBar value={family} onChange={setFamily} />
       {!data.profile_ready && (
         <div className="notice">
           Your profile has no evidence yet, so every requirement counts as missing. <Link to="/profile">Upload your CV</Link> to score properly.

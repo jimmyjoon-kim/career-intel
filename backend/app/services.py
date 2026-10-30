@@ -91,6 +91,19 @@ def evaluate(db: Session, user: User) -> dict:
     }
 
 
+def for_family(db: Session, ev: dict, family: str | None) -> dict:
+    """The same evaluation limited to one role family's postings: its screen results, adjacent postings and gaps."""
+    if not family:
+        return ev
+    from .v2.families import family as get_family, in_family
+
+    fam = get_family(db, family)
+    keep = lambda r: in_family(r["posting"], fam)  # noqa: E731
+    passing = [r for r in ev["passing"] if keep(r)]
+    return {**ev, "rows": [r for r in ev["rows"] if keep(r)], "passing": passing,
+            "adjacent": [r for r in ev["adjacent"] if keep(r)], "gap_summary": gap_summary(passing), "family": fam["key"]}
+
+
 def posting_dict(p: Posting) -> dict:
     return {
         "id": p.id, "company": p.company, "title": p.title, "level_band": p.level_band,
