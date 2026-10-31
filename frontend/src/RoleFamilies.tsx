@@ -12,7 +12,8 @@ export function useFamily(): [string, (k: string) => void] {
   return [family, setFamily];
 }
 
-export type Fam = { key: string; label: string; custom: boolean; holders: number; postings: number; state: "ready" | "requested" | "provisional" };
+export type Fam = { key: string; label: string; custom: boolean; holders: number; waiting: number; postings: number;
+  state: "ready" | "awaiting_approval" | "requested" | "provisional" };
 
 // Pick the role you want to be assessed against; name any other role to add it.
 export function FamilyBar({ value, onChange }: { value: string; onChange: (k: string) => void }) {
@@ -33,7 +34,7 @@ export function FamilyBar({ value, onChange }: { value: string; onChange: (k: st
           <button key={f.key} className={`chip-btn ${value === f.key ? "on" : ""}`} onClick={() => onChange(f.key)}
             style={value === f.key ? { borderColor: "var(--accent)", color: "var(--accent)" } : undefined}
             title={`${f.holders} role holders · ${f.postings} open postings`}>
-            {f.label} <span className="small muted">· {f.state === "ready" ? `${f.holders} peers` : f.state === "requested" ? "collecting peers" : "postings only"}</span>
+            {f.label} <span className="small muted">· {f.state === "ready" ? `${f.holders} peers` : f.state === "awaiting_approval" ? `${f.waiting} peers to approve` : f.state === "requested" ? "collecting peers" : "postings only"}</span>
           </button>
         ))}
         <form onSubmit={add} style={{ display: "flex", gap: 6 }}>
@@ -57,7 +58,16 @@ type Prov = {
 // Until a role has a group of holders: what its open postings require, your match, and your best postings.
 export function ProvisionalView({ fam, onRequest }: { fam: string; onRequest: () => void }) {
   const { data } = useFetch<Prov>(`/api/scorecard/provisional?family=${encodeURIComponent(fam)}`);
+  const { data: fl } = useFetch<{ families: Fam[] }>("/api/scorecard/families");
   const [sent, setSent] = useState(false);
+  const [approving, setApproving] = useState<string | null>(null);
+  const waiting = fl?.families.find((f) => f.key === fam)?.waiting ?? 0;
+  const approve = async () => {
+    setApproving("Approving…");
+    const r = await api<{ holders_added: number; holders_now: number }>("/api/scorecard/families/approve", { method: "POST", json: { family: fam } });
+    setApproving(`${r.holders_added} peers added (${r.holders_now} in total). Reloading the full scorecard…`);
+    setTimeout(() => window.location.reload(), 1200);
+  };
   if (!data) return <div className="muted">Loading…</div>;
   const request = async () => { await api("/api/scorecard/families", { method: "POST", json: { name: fam } }); setSent(true); onRequest(); };
   return (
@@ -70,7 +80,15 @@ export function ProvisionalView({ fam, onRequest }: { fam: string; onRequest: ()
             <span className="small">fit on the requirements of {data.postings} open postings</span>
           </div>
           <p className="small">{data.note ?? "No open postings match this role yet."}</p>
-          <p className="small muted">Peers collected so far: {data.holders}. The full scorecard (percentile among holders, factor comparison, focus plan) appears once enough holders are collected and you approve them on the Agents page.</p>
+          {waiting > 0 && (
+            <div className="prop" style={{ borderColor: "var(--accent)" }}>
+              <b>{waiting} peers collected and waiting for your approval.</b>
+              <div className="small" style={{ margin: "4px 0" }}>Screened on arrival: no names or profile links kept, only people with dated roles, no duplicates. Approving builds the full scorecard for this role.</div>
+              {approving ? <div className="small good">{approving}</div> : <button className="btn primary" onClick={approve}>Approve {waiting} peers and build the scorecard</button>}
+              <div className="small muted">Or review each batch on the Agents page.</div>
+            </div>
+          )}
+          <p className="small muted">Peers approved so far: {data.holders}. The full scorecard (percentile among holders, factor comparison, focus plan) appears once enough holders are collected and you approve them on the Agents page.</p>
           {data.request?.status === "pending" || sent ? (
             <div className="small good">
               Peer collection requested{data.request?.requested_at ? ` ${data.request.requested_at.slice(0, 10)}` : ""}

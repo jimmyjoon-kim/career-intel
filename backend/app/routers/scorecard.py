@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import User
-from ..security import current_user
+from ..security import admin_user, current_user
 from ..services import ensure_profile, evaluate
 from ..v2.gapplan import build_gap_plan
 from ..v2.model import public
@@ -116,6 +116,21 @@ def get_industry(family: str = "Partnerships", target: str | None = None, user: 
     from ..services import for_family
 
     return industry_view(db, prof, user_features(prof), for_family(db, evaluate(db, user), family), family, target)
+
+
+class ApproveIn(BaseModel):
+    family: str
+
+
+@router.post("/families/approve")
+def approve_family(body: ApproveIn, user: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """Approve all collected holders waiting for one role family; the scorecard for it is rebuilt."""
+    from ..agents.coordinator import enqueue
+    from ..v2 import families
+
+    out = families.approve_waiting(db, body.family)
+    enqueue(db, "rescore", trigger="event", user_id=user.id)
+    return out
 
 
 @router.get("/families")

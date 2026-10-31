@@ -69,15 +69,43 @@ def holders_full(db: Session, key: str) -> int:
 def status(db: Session) -> list[dict]:
     posts = list(db.scalars(select(Posting).where(Posting.status.in_(("open", "unverified")))))
     reqs = {r.family.lower(): r for r in db.scalars(select(PoolRequest))}
+    from ..models import Proposal
+
+    waiting: dict[str, int] = {}
+    for pr in db.scalars(select(Proposal).where(Proposal.kind == "holders", Proposal.status == "pending")):
+        k = (pr.payload or {}).get("cluster", "").lower()
+        waiting[k] = waiting.get(k, 0) + len((pr.payload or {}).get("rows", []))
     out = []
     for f in all_families(db):
         n = holders(db, f["key"])
         r = reqs.get(f["key"].lower())
-        out.append({"key": f["key"], "label": f["label"], "custom": f["custom"], "holders": n,
+        w = waiting.get(f["key"].lower(), 0)
+        state = ("ready" if n >= READY_AT else "awaiting_approval" if w else
+                 "requested" if r and r.status == "pending" else "provisional")
+        out.append({"key": f["key"], "label": f["label"], "custom": f["custom"], "holders": n, "waiting": w,
                     "postings": sum(1 for p in posts if in_family(p, f)),
-                    "state": "ready" if n >= READY_AT else ("requested" if r and r.status == "pending" else "provisional"),
+                    "state": state,
                     "requested_at": r.created_at if r else None})
     return out
+
+
+def approve_waiting(db: Session, key: str) -> dict:
+    """Approve every collected holder waiting for this family (each batch was screened on arrival: no personal fields,
+    no holder without dated roles, no duplicates)."""
+    from datetime import datetime as _dt
+
+    from ..agents import inbox
+    from ..models import Proposal
+
+    props = [p for p in db.scalars(select(Proposal).where(Proposal.kind == "holders", Proposal.status == "pending"))
+             if (p.payload or {}).get("cluster", "").lower() == key.lower()]
+    added = 0
+    for p in props:
+        inbox.apply(db, p)
+        p.status, p.decided_at = "approved", _dt.now(timezone.utc)
+        added += len((p.payload or {}).get("rows", []))
+    db.commit()
+    return {"family": key, "proposals": len(props), "holders_added": added, "holders_now": holders(db, key)}
 
 
 def request_pool(db: Session, key: str, user_id: int | None, pattern: str = "") -> PoolRequest:

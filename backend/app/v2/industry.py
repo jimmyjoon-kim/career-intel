@@ -89,8 +89,11 @@ def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[
     from ..models import CompanySector
 
     cache = {r.company: r.sector for r in db.scalars(select(CompanySector))}
-    todo = sorted({n.strip() for n in names if n and n.strip() and sector_of(n)[1] == "unclassified"
-                   and n.strip().lower() not in cache})[:60]
+    uniq: dict[str, str] = {}
+    for n in names:  # one entry per company, ignoring case
+        if n and n.strip() and sector_of(n)[1] == "unclassified" and n.strip().lower() not in cache:
+            uniq.setdefault(n.strip().lower(), n.strip())
+    todo = sorted(uniq.values())[:60]
     if todo:
         try:
             res = complete_json(
@@ -101,7 +104,7 @@ def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[
         except BudgetExceeded:
             res = {}
         for n, s in (res.get("sectors") or {}).items():
-            if n in todo and s in SECTORS:
+            if n in todo and s in SECTORS and n.lower() not in cache:
                 db.add(CompanySector(company=n.lower()[:200], sector=s, source="model"))
                 cache[n.lower()] = s
         db.commit()
