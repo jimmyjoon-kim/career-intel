@@ -82,11 +82,19 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
             row["source_type"] = h.get("source_type", "linkedin")
             rows.append(row)
         if rows:
-            db.add(Proposal(run_id=run_id, kind="holders", title=f"Add {len(rows)} role holders to {data.get('cluster', 'Partnerships')}",
+            prop = Proposal(run_id=run_id, kind="holders", title=f"Add {len(rows)} role holders to {data.get('cluster', 'Partnerships')}",
                             detail=f"Read {ym} from {data.get('source', 'monthly hire research')}. Derived values only; raw text discarded. "
-                                   f"{skipped} skipped (duplicate or incomplete). Approving changes everyone's percentiles.",
+                                   f"{skipped} skipped (duplicate or incomplete).",
                             payload={"cluster": data.get("cluster", "Partnerships"), "as_of": ym,
-                                     "source": data.get("source", "monthly hire research"), "rows": rows}))
+                                     "source": data.get("source", "monthly hire research"), "rows": rows})
+            db.add(prop)
+            db.flush()
+            if get_settings().auto_approve_holders:  # screened above: no personal fields, dated roles only, no duplicates
+                from datetime import datetime, timezone
+
+                apply(db, prop)
+                prop.status, prop.decided_at = "approved", datetime.now(timezone.utc)
+                prop.detail += " Added automatically after screening."
         result = {"file": path.name, "proposed": len(rows), "skipped": skipped}
     elif kind == "self_profile":
         result = _self_profile(db, data, path.name)

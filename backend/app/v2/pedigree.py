@@ -80,12 +80,21 @@ def employer_signal(roles: list[dict], exclude_company: str | None = None, now: 
     """Distinct Tier 1 / Tier 2 employers with a role of 12+ months ending in the last 20 years."""
     seen: dict[str, int] = {}
     names: dict[str, str] = {}
+    # A role reached through a merger or acquisition ("ironSource (merged with Unity)") is not a hiring decision.
+    merged_into = []
+    for r in roles:
+        m = re.search(r"\((?:merged with|acquired by|now part of)\s+([^)]+)\)", r["company"], re.I)
+        if m:
+            merged_into.append((m.group(1).strip().lower()[:6], r["end"]))
     for r in roles:
         if exclude_company and r["company"].strip().lower()[:6] == exclude_company.strip().lower()[:6]:
             continue
         if int(r.get("months") or 0) < 12 or re.search(r"\bintern", r.get("title", ""), re.I):
             continue
         if now and months_between(r["end"], now) > 240:
+            continue
+        if any(r["company"].strip().lower().startswith(tgt) and abs(months_between(end, r["start"])) <= 6
+               for tgt, end in merged_into):
             continue
         t = company_tier(r["company"])
         if t in (1, 2):

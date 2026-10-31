@@ -76,6 +76,16 @@ def status(db: Session) -> list[dict]:
         k = (pr.payload or {}).get("cluster", "").lower()
         waiting[k] = waiting.get(k, 0) + len((pr.payload or {}).get("rows", []))
     out = []
+    changed = False
+    for f in all_families(db):  # every role without a peer group is queued for collection automatically
+        if holders(db, f["key"]) < READY_AT and f["key"].lower() not in reqs and not waiting.get(f["key"].lower()):
+            r = PoolRequest(family=f["key"][:120], pattern="" if not f["custom"] else f["title"], user_id=None)
+            db.add(r)
+            reqs[f["key"].lower()] = r
+            changed = True
+    if changed:
+        db.commit()
+        write_requests_file(db)
     for f in all_families(db):
         n = holders(db, f["key"])
         r = reqs.get(f["key"].lower())

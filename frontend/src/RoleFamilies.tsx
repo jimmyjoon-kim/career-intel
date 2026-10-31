@@ -34,7 +34,7 @@ export function FamilyBar({ value, onChange }: { value: string; onChange: (k: st
           <button key={f.key} className={`chip-btn ${value === f.key ? "on" : ""}`} onClick={() => onChange(f.key)}
             style={value === f.key ? { borderColor: "var(--accent)", color: "var(--accent)" } : undefined}
             title={`${f.holders} role holders · ${f.postings} open postings`}>
-            {f.label} <span className="small muted">· {f.state === "ready" ? `${f.holders} peers` : f.state === "awaiting_approval" ? `${f.waiting} peers to approve` : f.state === "requested" ? "collecting peers" : "postings only"}</span>
+            {f.label} <span className="small muted">· {f.state === "ready" ? `${f.holders} peers` : f.state === "awaiting_approval" ? `${f.waiting} peers to approve` : f.state === "requested" ? "collecting peers automatically" : "postings only"}</span>
           </button>
         ))}
         <form onSubmit={add} style={{ display: "flex", gap: 6 }}>
@@ -69,7 +69,7 @@ export function ProvisionalView({ fam, onRequest }: { fam: string; onRequest: ()
     setTimeout(() => window.location.reload(), 1200);
   };
   if (!data) return <div className="muted">Loading…</div>;
-  const request = async () => { await api("/api/scorecard/families", { method: "POST", json: { name: fam } }); setSent(true); onRequest(); };
+  void onRequest; void sent; void setSent;
   return (
     <>
       <section className="sc-row2">
@@ -89,13 +89,11 @@ export function ProvisionalView({ fam, onRequest }: { fam: string; onRequest: ()
             </div>
           )}
           <p className="small muted">Peers approved so far: {data.holders}. The full scorecard (percentile among holders, factor comparison, focus plan) appears once enough holders are collected and you approve them on the Agents page.</p>
-          {data.request?.status === "pending" || sent ? (
-            <div className="small good">
-              Peer collection requested{data.request?.requested_at ? ` ${data.request.requested_at.slice(0, 10)}` : ""}
-              {data.request?.position ? ` · position ${data.request.position} of ${data.request.queue} in the queue` : ""}.
-              {" "}The research task on your Mac (daily, 08:40 KST) collects up to 2 roles per run; approve the result on the Agents page.
-            </div>
-          ) : <button className="btn" onClick={request}>Collect peers for this role</button>}
+          <div className="small good">
+            Collecting peers for this role automatically{data.request?.requested_at ? ` (queued ${data.request.requested_at.slice(0, 10)})` : ""}.
+            {" "}The research task on your Mac runs every hour at :40 KST and collects every queued role; peers are screened and added
+            on arrival, and the full scorecard replaces this view once 20 are in.
+          </div>
         </div>
         <div className="tile">
           <span className="tile-title">What these postings require · your match</span>

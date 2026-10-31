@@ -205,6 +205,10 @@ TAGPAT = {
     "func_partnerships": r"partner|alliance",
     "func_bd": r"business development|\bbd\b",
     "func_channel": r"\bchannel|reseller|partner sales|\bvar\b|distributor|\bgsi\b|system integrator",
+    "func_ad_sales": r"ad sales|advertising sales|media sales|sales\b[^.]{0,30}advertis|advertis[^.]{0,30}\bsales|agency (?:sales|partnerships|relationships)|"
+                     r"demand sales|supply sales|publisher sales|revenue (?:from )?advertis|\bupfront|\bquota\b",
+    "func_growth": r"\bgrowth (?:marketing|team|strategy|product|function|org)|user acquisition|\bua\b|performance marketing|retention|"
+                   r"lifecycle|activation|conversion rate|experimentation|a/b test|\bltv\b|\bcac\b|funnel",
     "domain_adtech": r"ad tech|adtech|\bads?\b|advertis|monetiz|monetis|programmatic|\bdsp\b|\bssp\b|mediation|"
                      r"taboola|openx|pubmatic|trade desk|moloco|liftoff|inmobi|stackadapt|liveramp|offerwall|retail media|\bctv\b|media buying",
     "domain_ai": r"\bai\b|\ba\.i\.\b|openai|anthropic|genai|gen ai|generative|\bllm|character\.ai|xai|copilot|gemini|bedrock|"

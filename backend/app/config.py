@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     budget_share: float = 0.5
     # Agent team
     inbox_dir: str = "/data/inbox"
+    auto_approve_holders: bool = True  # screened peer batches join their group on arrival
     agents_enabled: bool = True
     # Search vectors: "ollama" (local model on this Mac), "voyage" (hosted), or "auto" = voyage if a key is set, else hashing.
     embedding_provider: str = "auto"

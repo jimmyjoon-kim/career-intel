@@ -149,6 +149,28 @@ def _gower(a: dict, b: dict) -> float:
     return ds / n if n else 1.0
 
 
+# Function evidence that counts for each role family (tags stored for every holder). Growth's own signal is read only
+# for holders collected from Oct 31, 2026 on; it counts once 20 holders in the group have it.
+FAMILY_FN = {
+    "partnerships": ["func_partnerships", "func_bd", "func_channel"],
+    "bd / alliances": ["func_bd", "func_partnerships"],
+    "ad sales": ["func_sales_leadership", "func_ad_sales"],
+    "gm / regional lead": ["pnl_ownership", "team_mgmt", "team_large"],
+    "growth": ["func_growth"],
+}
+
+
+def family_view(f: dict, cluster: str, usable: list[str] | None = None) -> dict:
+    """Function evidence for this family; major-company hires with Tier 1 employers counted double."""
+    f = dict(f)
+    tags = f.get("tags") or {}
+    keys = usable if usable is not None else FAMILY_FN.get(cluster.split(" · ")[0].lower(), FAMILY_FN["partnerships"])
+    f["FN"] = (sum(float(tags.get(t, 0)) for t in keys) / len(keys)) if keys else None
+    if f.get("PD") is not None:
+        f["PD"] = float(f["PD"]) + float(f.get("PD_t1") or 0)
+    return f
+
+
 def size_scaled(f: dict) -> dict:
     """Level held is read one band lower when it was held at a Tier 3 (smaller or unlisted) employer and is VP or above:
     a C-level title at a startup is not the same scope as at a large company. Same rule for you and every holder."""
@@ -160,8 +182,12 @@ def size_scaled(f: dict) -> dict:
 
 def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = None, n_boot: int = 1000, seed: int = 7) -> dict:
     prev = scarcity(ref.rows)
-    rows = [size_scaled(with_uq(r, prev)) for r in ref.rows]
-    uf = size_scaled(with_uq(user_f, prev))
+    fam = ref.cluster.split(" · ")[0].lower()
+    wanted = FAMILY_FN.get(fam, FAMILY_FN["partnerships"])
+    # a function tag counts only once at least 20 holders were read with it (older reads lack newer tags)
+    usable = [t for t in wanted if sum(1 for r in ref.rows if t in (r.get("tags") or {})) >= 20]
+    rows = [size_scaled(family_view(with_uq(r, prev), ref.cluster, usable)) for r in ref.rows]
+    uf = size_scaled(family_view(with_uq(user_f, prev), ref.cluster, usable))
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
     ed_cov = sum(1 for r in rows if r.get("ED") is not None) / len(rows)

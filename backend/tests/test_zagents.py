@@ -162,6 +162,7 @@ def test_inbox_proposal_and_approval(client, tmp_path, monkeypatch):
     from app.models import Proposal, ReferenceProfile
 
     monkeypatch.setattr(get_settings(), "inbox_dir", str(tmp_path))
+    monkeypatch.setattr(get_settings(), "auto_approve_holders", False)  # manual review path
     (tmp_path / "bad.json").write_text(json.dumps({"kind": "holders", "holders": [{"name": "X", "company": "A", "title": "B", "experience_text": "y"}]}))
     good = {"kind": "holders", "cluster": "Partnerships", "as_of": "2026-11", "source": "test", "holders": [
         {"company": "NewCo", "title": "Director of Partnerships", "education_text": "BS Computer Science, Stanford, 2010",
