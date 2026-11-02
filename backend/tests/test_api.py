@@ -177,7 +177,7 @@ def test_benchmark_gap_plan_refresh_and_ask_fallback(client, monkeypatch):
     assert b["max"] >= b["p90"] >= b["median"] and isinstance(b["whatifs"], list)
     assert isinstance(s["gap_plan"], list) and all("action" in g for g in s["gap_plan"])
     unity = next(r for r in s["reading"]["roles"] if r["company"] == "Unity")
-    assert unity["level"] == 3  # a general manager reads as VP-equivalent
+    assert unity["level"] == 2  # a general manager reads as VP-equivalent, one band lower for a single-country title
     r = client.post("/api/profile/refresh", headers=h).json()
     assert r["ok"] and r["roles_read"] >= 3
     # Ask must not fail when the embedding service does

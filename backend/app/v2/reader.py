@@ -207,6 +207,13 @@ TAGPAT = {
     "func_channel": r"\bchannel|reseller|partner sales|\bvar\b|distributor|\bgsi\b|system integrator",
     "func_ad_sales": r"ad sales|advertising sales|media sales|sales\b[^.]{0,30}advertis|advertis[^.]{0,30}\bsales|agency (?:sales|partnerships|relationships)|"
                      r"demand sales|supply sales|publisher sales|revenue (?:from )?advertis|\bupfront|\bquota\b",
+    "func_enterprise_sales": r"account executive|enterprise sales|strategic accounts?|named accounts?|\bquota\b|\barr\b|"
+                             r"head of sales|vp(?:,)? sales|vice president(?:,)? sales|sales director|regional sales|field sales",
+    "func_brand_agency_sales": r"\bagency\b|agencies|brand (?:advertis|partnerships|sales|clients)|holding compan|upfronts?|"
+                               r"media buyers?|cpg|client partner",
+    "func_supply_side": r"supply|publisher|mediation|monetiz|monetis|offerwall|\bssp\b|inventory|yield",
+    "rev_scale": r"\$\s?\d+(?:\.\d+)?\s?(?:m|mm|b|bn|million|billion)\b|\b\d+(?:\.\d+)?\s?(?:million|billion)\b|"
+                 r"(?:seven|eight|nine)[- ]figure|quota attainment|\d{2,3}%\s+(?:of|to)\s+(?:quota|target|plan)",
     "func_growth": r"\bgrowth (?:marketing|team|strategy|product|function|org)|user acquisition|\bua\b|performance marketing|retention|"
                    r"lifecycle|activation|conversion rate|experimentation|a/b test|\bltv\b|\bcac\b|funnel",
     "domain_adtech": r"ad tech|adtech|\bads?\b|advertis|monetiz|monetis|programmatic|\bdsp\b|\bssp\b|mediation|"
@@ -232,7 +239,7 @@ CONSULTING = "skill_consulting_firm_background"
 
 FUNC_TAGS = ["func_partnerships", "func_bd", "func_channel"]
 DOMAIN_TAGS = ["domain_ai", "domain_adtech", "domain_mobile", "domain_saas"]
-SCARCE_TAGS = ["skill_hyperscaler", "skill_govtech", CONSULTING, "skill_0to1_build", "domain_mobile"]
+SCARCE_TAGS = ["skill_hyperscaler", "skill_govtech", CONSULTING, "skill_0to1_build"]  # mobile is not scarce for value
 # Role templates: the qualifications a title family carries by default. Applied to every person
 # (marked "implied by title"); users review and adjust their own roles.
 ROLE_TEMPLATES = [
@@ -333,12 +340,24 @@ def title_level(t: str) -> int | None:
     return None
 
 
+COUNTRY_SCOPE = re.compile(r"\b(korea|japan|china|taiwan|india|singapore|vietnam|thailand|indonesia|philippines|malaysia|"
+                           r"australia|germany|france|uk|united kingdom|spain|italy|brazil|mexico|canada|country)\b", re.I)
+INTERIM = re.compile(r"\b(interim|acting|fractional)\b", re.I)
+
+
 def role_level(r: dict) -> tuple[int | None, str | None]:
+    """Title band, raised to Head by stated leadership cues; one band lower for interim/acting/fractional titles and for
+    VP-and-above titles scoped to a single country (same rule for everyone)."""
     lv = title_level(r["title"])
     cue = LEVEL_CUES.search(" ".join(r["desc"]))
+    note = None
     if cue and (lv is None or lv < 2):
-        return 2, cue.group(0)
-    return lv, None
+        lv, note = 2, cue.group(0)
+    if lv is not None and INTERIM.search(r["title"]):
+        lv, note = max(0, lv - 1), "interim title read one band lower"
+    if lv is not None and lv >= 3 and COUNTRY_SCOPE.search(r["title"]) and not re.search(r"apac|asia|emea|global|region", r["title"], re.I):
+        lv, note = lv - 1, "single-country scope read one band lower"
+    return lv, note
 
 
 def _label(r: dict) -> str:

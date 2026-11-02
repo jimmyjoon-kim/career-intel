@@ -78,6 +78,11 @@ def load_reference(db: Session, cluster: str = DEFAULT_CLUSTER) -> Reference | N
     v2 = [r for r in rows if (r.features or {}).get("rv") == 2]
     if len(v2) >= 10:  # records read as of the hire date replace the older reads once there are enough
         rows = v2
+    from .reader import title_level
+
+    leaders = [r for r in rows if (title_level(r.title) or 1) >= 1]  # leader seats only (Director band and up)
+    if len(leaders) >= 10:
+        rows = leaders
     if not rows:
         return None
     return Reference(cluster, [{"company": r.company, "title": r.title, **r.features} for r in rows])

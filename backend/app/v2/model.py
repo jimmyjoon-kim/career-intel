@@ -30,8 +30,8 @@ FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "
 # Expert prior, set from published evidence (docs/model.md): type of experience (function, domain, same function at a
 # major company) and level lead; tenure counts up to a floor; US experience counts; school and degree matter little at
 # senior level (the school effect fades with experience). Blended with market weights as outcome data accrue.
-W_EXPERT = {"YOE": 10, "CT": 8, "LV": 15, "FN": 16, "DM": 8, "UQ": 5, "AC": 4, "ED": 3, "AI": 6, "TK": 3,
-            "PD": 8, "SCH": 2, "FLD": 2, "US": 10, "FT": 12}
+W_EXPERT = {"YOE": 10, "CT": 5, "LV": 15, "FN": 16, "DM": 9, "UQ": 3, "AC": 2, "ED": 3, "AI": 6, "TK": 3,
+            "PD": 5, "SCH": 2, "FLD": 2, "US": 12, "FT": 14}
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
@@ -161,35 +161,40 @@ def _gower(a: dict, b: dict) -> float:
 FAMILY_FN = {
     "partnerships": ["func_partnerships", "func_bd", "func_channel"],
     "bd / alliances": ["func_bd", "func_partnerships"],
-    "ad sales": ["func_sales_leadership", "func_ad_sales"],
+    "ad sales": ["func_ad_sales", "func_brand_agency_sales", "func_sales_leadership"],
     "gm / regional lead": ["pnl_ownership", "team_mgmt", "team_large"],
     "growth": ["func_growth"],
-    "enterprise / tech sales": ["func_sales_leadership", "func_channel"],
+    "enterprise / tech sales": ["func_enterprise_sales", "func_sales_leadership"],
 }
 
 
-def family_view(f: dict, cluster: str, usable: list[str] | None = None) -> dict:
+def family_view(f: dict, cluster: str, usable: list[str] | None = None, seen_tags: set | None = None) -> dict:
     """Function evidence for this family; major-company hires with Tier 1 employers counted double."""
     f = dict(f)
     tags = f.get("tags") or {}
     keys = usable if usable is not None else FAMILY_FN.get(cluster.split(" · ")[0].lower(), FAMILY_FN["partnerships"])
     f["FN"] = (sum(float(tags.get(t, 0)) for t in keys) / len(keys)) if keys else None
+    if f.get("CT_tier_only") is not None:  # employer tier only: the IPO/acquisition bonus is dropped (counted elsewhere)
+        f["CT"] = f["CT_tier_only"]
     if f.get("PD") is not None:
         f["PD"] = float(f["PD"]) + float(f.get("PD_t1") or 0)
     if f.get("geo_us_months") is not None:
         f["US"] = min(60.0, float(f["geo_us_months"]))
     if f.get("roles_anon") is not None:  # same function at a major company, from the anonymized role list
         fam = cluster.split(" · ")[0].lower()
-        fam_tags = set(FAMILY_FN.get(fam, FAMILY_FN["partnerships"]))
+        fam_tags = set(FAMILY_FN.get(fam, FAMILY_FN["partnerships"])) & set(seen_tags if seen_tags is not None else FAMILY_FN.get(fam, []))
         gm = fam == "gm / regional lead"  # general management: a VP/GM-band role, not a keyword
         best = 0
         for r in f["roles_anon"]:
             same = (r.get("lv") or 0) >= 3 if gm else bool(fam_tags & set(r.get("tags") or []))
             if r.get("months", 0) >= 12 and r.get("tier") in (1, 2) and same:
                 best = max(best, 2 if r["tier"] == 1 else 1)
-        f["FT"] = float(best)
+        f["FT"] = float(best) if (gm or fam_tags) else None
     return f
 
+
+GATE_FACTORS = ["US", "FT", "FN", "DM"]
+GATE_SHARE = 0.6
 
 # Effective level: the title band adjusted by the size of the employer where it was held, so titles compare across
 # company sizes (a Director at a 5,000+ company carries more scope than the same title at a 30-person startup, and a
@@ -206,6 +211,7 @@ SIZE_STEPS = {  # size band -> {title band: adjustment}
     "small": {1: -1, 2: -1, 3: -2, 4: -2, 5: -2},       # 50-499
     "tiny": {1: -1, 2: -1, 3: -2, 4: -3, 5: -3},        # under 50: C-level reads as Head / Sr Director
 }
+SIZE_MAX_BAND = {"tiny": 1, "small": 2}  # under 50 people: at most Director; 50-499: at most Head / Sr Director
 TIER_FALLBACK = {1: "large", 2: "large", 3: "small"}  # size not recorded (older reads): use employer tier
 
 
@@ -216,7 +222,7 @@ def effective_level(f: dict) -> dict:
     size = f.get("LV_size") if f.get("LV_size") in SIZE_STEPS else TIER_FALLBACK.get(f.get("tier"), "large")
     adj = SIZE_STEPS[size].get(int(f["LV"]), 0)
     f["LV_title"], f["LV_adj"], f["LV_size_used"] = f["LV"], adj, size
-    f["LV"] = max(0, min(5, f["LV"] + adj))
+    f["LV"] = max(0, min(SIZE_MAX_BAND.get(size, 5), f["LV"] + adj))
     return f
 
 
@@ -269,13 +275,15 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
 
     dom_w = {t: sum(1 for r in ref.rows if float((r.get("tags") or {}).get(t, 0)) > 0) / max(1, len(ref.rows))
              for t in DOMAIN_TAGS}
-    rows = [size_scaled(domain_fit(family_view(with_uq(r, prev), ref.cluster, usable), dom_w)) for r in ref.rows]
-    uf = size_scaled(domain_fit(family_view(with_uq(user_f, prev), ref.cluster, usable), dom_w))
+    seen = {t for r in ref.rows for ra in (r.get("roles_anon") or []) for t in (ra.get("tags") or [])}
+    rows = [size_scaled(domain_fit(family_view(with_uq(r, prev), ref.cluster, usable, seen), dom_w)) for r in ref.rows]
+    uf = size_scaled(domain_fit(family_view(with_uq(user_f, prev), ref.cluster, usable, seen), dom_w))
     rows, uf, caps = saturate(rows, uf, cap_q)
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
     ed_cov = sum(1 for r in rows if r.get("ED") is not None) / len(rows)
-    w = hybrid_weights(ref.n)
+    # market weights were measured on Partnerships hires only; other families use the research-based prior alone
+    w = hybrid_weights(ref.n if fam == "partnerships" else 0)
     if ed_cov < 0.5:  # education enters the score only when at least half the holders' education is known
         w["ED"] = 0.0
     pending = {}
@@ -289,7 +297,25 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     w = {k: 100 * v / tot for k, v in w.items()}  # weights of the factors that count sum to 100
     wv = np.array([w[k] for k in FACTORS])
     P_h, P_u = pct_matrix(M, M), pct_matrix(U[None, :], M)[0]
+    for j, k in enumerate(FACTORS):  # at or above the cap = the cap's percentile, not a tie-split above it
+        if k in caps:
+            P_h[:, j] = np.where(M[:, j] >= caps[k], np.minimum(P_h[:, j], cap_q or 100), P_h[:, j])
+            if not np.isnan(U[j]) and U[j] >= caps[k]:
+                P_u[j] = min(P_u[j], cap_q or 100)
     S_h, S_u = composite(P_h, wv), float(composite(P_u[None, :], wv)[0])
+    # Gates, like a screen: a factor that most holders show (60%+) and you do not show at all caps your score at the
+    # median holder's, instead of being averaged away by strengths elsewhere.
+    gates = []
+    for j, k in enumerate(FACTORS):
+        if k not in GATE_FACTORS or w.get(k, 0) <= 0 or np.isnan(U[j]):
+            continue
+        share = float(np.mean([1.0 if (not np.isnan(v) and v > 0) else 0.0 for v in M[:, j] if not np.isnan(v)])) \
+            if np.any(~np.isnan(M[:, j])) else 0.0
+        if share >= GATE_SHARE and U[j] <= 0:
+            gates.append({"factor": k, "label": FACTOR_LABELS[k], "holder_share": round(share, 2)})
+    S_u_ungated = S_u
+    if gates:
+        S_u = min(S_u, float(np.nanmedian(S_h)))
     pos = position(S_u, S_h)
     rng = np.random.default_rng(seed)
     boots = []
@@ -354,7 +380,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     return {
         "cluster": ref.cluster, "n_reference": ref.n,
         "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
-        "base_score": _r(S_u), "position": _r(pos),
+        "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "position": _r(pos),
         "position_ci95": [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))] if boots else [None, None],
         "holders": {"scores": sorted(_r(x) for x in sc),
                     "tier_share": {f"Tier {t}": round(sum(1 for r in rows if r.get("tier") == t) / len(rows), 2) for t in (1, 2, 3)},

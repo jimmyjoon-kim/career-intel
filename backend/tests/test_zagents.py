@@ -216,8 +216,8 @@ def test_ask_agent_tools_and_loop(client, monkeypatch):
         ctx = ask_agent.Ctx(db, u)
         sc = ask_agent.run_tool(ctx, "get_scorecard", {})
         assert sc["score"] is not None and len(sc["factors"]) >= 10 and sc["level_read_from"]["band"]
-        wi = ask_agent.run_tool(ctx, "what_if", {"changes": {"LV": 3}})
-        assert wi["changes"] == {"LV": 3.0} and wi["delta"] <= 0
+        wi = ask_agent.run_tool(ctx, "what_if", {"changes": {"LV": 0}})
+        assert wi["changes"] == {"LV": 0.0} and wi["delta"] <= 0
         assert "error" in ask_agent.run_tool(ctx, "what_if", {"changes": {"XX": 1}})
         ps = ask_agent.run_tool(ctx, "search_postings", {"limit": 3})
         assert ps["returned"] <= 3
@@ -229,7 +229,7 @@ def test_ask_agent_tools_and_loop(client, monkeypatch):
         score = sc["score"]
         block = lambda **k: NS(model_dump=lambda exclude_none=True: k, **k)  # noqa: E731
         script = [
-            [block(type="tool_use", id="t1", name="what_if", input={"changes": {"LV": 3}})],
+            [block(type="tool_use", id="t1", name="what_if", input={"changes": {"LV": 0}})],
             [block(type="text", text=f"- Score {score}; at VP it would be {wi['score']}.\n- 97 percent of roles fit.")],
             [block(type="text", text=f"- Score {score}; at VP it would be {wi['score']}.")],
         ]

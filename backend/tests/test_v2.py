@@ -144,7 +144,7 @@ def test_cv_format_heads_and_education():
     assert fmt == "cv" and [r["company"] for r in roles] == ["Wortal.AI", "ironSource"]
     assert roles[1]["title"] == "General Manager and Vice President, Korea"
     f = extract_features(roles, now=(2026, 10))
-    assert f["LV"] == 5 and f["recent_role"]["company"] == "Wortal.AI"
+    assert f["LV"] == 4 and f["recent_role"]["company"] == "Wortal.AI"  # interim C-level reads one band lower
     ed = parse_education(t, (2026, 10))
     assert ed["ED"] == 1 and [d["level"] for d in ed["degrees"]] == [2, 1] and ed["degrees"][0]["in_progress"]
 
@@ -174,7 +174,7 @@ def test_every_factor_has_a_gap_action_and_class():
 def test_effective_level_by_company_size():
     from app.v2.model import effective_level
 
-    assert effective_level({"LV": 5, "LV_size": "tiny"})["LV"] == 2      # C-level at <50 people ~ Head / Sr Director
+    assert effective_level({"LV": 5, "LV_size": "tiny"})["LV"] == 1      # C-level at <50 people: at most Director
     assert effective_level({"LV": 3, "LV_size": "small"})["LV"] == 1     # VP at 50-499 ~ Director
     assert effective_level({"LV": 1, "LV_size": "large"})["LV"] == 1     # large companies are the reference scale
     assert effective_level({"LV": 3, "tier": 1})["LV"] == 3              # size unknown: Tier 1 read as large
