@@ -18,7 +18,7 @@ import numpy as np
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
 # Bump on any change to factors, weights or rules; every stored score carries it.
-MODEL_VERSION = "v3.2"
+MODEL_VERSION = "v3.4"
 
 FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT"]
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
