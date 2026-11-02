@@ -381,7 +381,8 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "cluster": ref.cluster, "n_reference": ref.n,
         "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
         "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "position": _r(pos),
-        "position_ci95": [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))] if boots else [None, None],
+        "position_ci95": ([_r(min(np.percentile(boots, 2.5), pos)), _r(min(np.percentile(boots, 97.5), pos))] if gates else
+                          [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))]) if boots else [None, None],
         "holders": {"scores": sorted(_r(x) for x in sc),
                     "tier_share": {f"Tier {t}": round(sum(1 for r in rows if r.get("tier") == t) / len(rows), 2) for t in (1, 2, 3)},
                     "median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "p75": _r(np.percentile(sc, 75)),
