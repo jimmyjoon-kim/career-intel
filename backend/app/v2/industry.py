@@ -95,10 +95,10 @@ def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[
 
     rows = {r.company: r for r in db.scalars(select(CompanySector))}
     uniq: dict[str, str] = {}
-    for n in names:  # one entry per company, ignoring case
-        k = (n or "").strip().lower()
-        if k and (k not in rows or not rows[k].size):
-            uniq.setdefault(k, n.strip())
+    for n in names:  # one entry per company, ignoring case and notes in parentheses
+        for k in {(n or "").strip().lower(), base_name(n)}:
+            if k and (k not in rows or not rows[k].size):
+                uniq.setdefault(k, k)
     todo_all = sorted(uniq.values())[:120]
     for i in range(0, len(todo_all), 20):  # small batches: long lists made the model's JSON fail
         _classify_batch(db, rows, todo_all[i:i + 20], run_id)
@@ -140,9 +140,18 @@ def load_sizes(db) -> dict[str, str]:
     return {r.company: r.size for r in db.scalars(select(CompanySector)) if r.size}
 
 
+def base_name(name: str) -> str:
+    """'ironSource (merged with Unity)' -> 'ironsource'; 'Autodesk Korea (contract)' -> 'autodesk korea'."""
+    return re.sub(r"\s*\(.*?\)|,.*$", "", (name or "")).strip().lower()
+
+
 def company_size(name: str, sizes: dict | None) -> str:
-    """Headcount band from the stored classification; 'unknown' when not classified."""
-    return (sizes or {}).get((name or "").strip().lower(), "unknown") or "unknown"
+    """Headcount band from the stored classification (full name, then the name without notes); 'unknown' if neither."""
+    s = sizes or {}
+    for k in ((name or "").strip().lower(), base_name(name), base_name(name).split(" ")[0]):
+        if s.get(k) and s[k] != "unknown":
+            return s[k]
+    return "unknown"
 
 
 def _same(a: str, b: str) -> bool:

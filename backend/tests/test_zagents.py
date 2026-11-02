@@ -559,3 +559,12 @@ def test_review_fixes_destination_bad_files_and_self_import(tmp_path, monkeypatc
         out = inbox.run(db, None)
     assert all("rejected" in x for x in out["results"])
     assert not [f for f in tmp_path.glob("*.json") if not f.name.endswith("requests.json")]
+
+
+def test_company_size_lookup_ignores_notes():
+    from app.v2.industry import base_name, company_size
+
+    assert base_name("ironSource (merged with Unity)") == "ironsource"
+    assert company_size("ironSource (merged with Unity)", {"ironsource": "mid"}) == "mid"
+    assert company_size("Autodesk Korea (contract)", {"autodesk": "large"}) == "large"
+    assert company_size("Nobody Inc", {}) == "unknown"
