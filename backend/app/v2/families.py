@@ -19,15 +19,29 @@ from ..taxonomy import TAGS
 READY_AT = 20  # holders needed before a family gets a full scorecard
 TARGET = 30
 
+# Titles that are never the role itself (assistants, chiefs of staff), whatever words they contain.
+NOT_ROLE = r"executive business partner|business partner to|executive assistant|chief of staff|\bea to\b"
+AD_CONTEXT = (r"\bads?\b|ad sales|advertis|media sales|monetiz|retail media|programmatic|\bagency\b|publisher sales|"
+              r"brand partnerships|ad solutions|\bctv\b")
+SALES_TITLE = r"\bsales\b|account director|revenue|commercial|go-to-market|\bgtm\b"
 FAMILIES = [
-    {"key": "Partnerships", "label": "Partnerships", "clusters": ["Partnerships"], "title": r"partner|alliance"},
-    {"key": "Ad Sales", "label": "Ad sales / revenue", "clusters": ["Ad Sales", "Sales Leadership", "Rev Strategy"],
-     "title": r"\bsales\b|revenue|account director|monetiz|advertis"},
+    {"key": "Partnerships", "label": "Partnerships", "clusters": ["Partnerships"], "title": r"partner|alliance",
+     "exclude": NOT_ROLE},
+    # Ad sales needs advertising context: an ad title, or a sales/revenue title at an ad tech company.
+    {"key": "Ad Sales", "label": "Ad sales / revenue", "clusters": ["Ad Sales"], "title": AD_CONTEXT,
+     "sales_at_sector": "adtech", "exclude": NOT_ROLE,
+     "collect_hint": "advertising sales leaders: ad sales, media sales, monetization, retail media, agency or brand partnerships "
+                     "(not enterprise, cloud or semiconductor sales)"},
     {"key": "GM / Regional lead", "label": "GM / regional or country lead", "clusters": ["GM / Business Lead"],
-     "title": r"general manager|country manager|regional manager|managing director|\bgm\b|head of [^,]*(apac|emea|asia|region|korea|japan)"},
-    {"key": "BD / Alliances", "label": "Business development / alliances", "clusters": [],
+     "title": r"general manager|country manager|regional manager|managing director|\bgm\b|head of [^,]*(apac|emea|asia|region|korea|japan)",
+     "exclude": NOT_ROLE},
+    # Sales leadership outside advertising (semiconductors, cloud, enterprise AI): assessed as its own role.
+    {"key": "Enterprise / tech sales", "label": "Enterprise / tech sales", "clusters": ["Sales Leadership"],
+     "title": SALES_TITLE, "not_title": AD_CONTEXT, "not_sector": "adtech", "exclude": NOT_ROLE,
+     "collect_hint": "enterprise, cloud, semiconductor or AI-platform sales leaders (not advertising sales)"},
+    {"key": "BD / Alliances", "label": "Business development / alliances", "clusters": [], "exclude": NOT_ROLE,
      "title": r"business development|alliances?|\bbd\b|strategic partnerships"},
-    {"key": "Growth", "label": "Growth / strategy & operations", "clusters": ["Growth"],
+    {"key": "Growth", "label": "Growth / strategy & operations", "clusters": ["Growth"], "exclude": NOT_ROLE,
      "title": r"\bgrowth\b|strategy (?:&|and) operations|biz ?ops"},
 ]
 
@@ -53,7 +67,21 @@ def family(db: Session, key: str | None) -> dict:
 
 
 def in_family(p: Posting, fam: dict) -> bool:
-    return p.role_cluster in fam["clusters"] or bool(re.search(fam["title"], p.title or "", re.I))
+    title = p.title or ""
+    if fam.get("exclude") and re.search(fam["exclude"], title, re.I):
+        return False
+    sector = None
+    if fam.get("sales_at_sector") or fam.get("not_sector"):
+        from .industry import sector_of
+
+        sector = sector_of(p.company)[0]
+    if fam.get("not_title") and re.search(fam["not_title"], title, re.I):
+        return False
+    if fam.get("not_sector") and sector == fam["not_sector"]:
+        return False
+    if fam.get("sales_at_sector") and sector == fam["sales_at_sector"] and re.search(SALES_TITLE, title, re.I):
+        return True
+    return p.role_cluster in fam["clusters"] or bool(re.search(fam["title"], title, re.I))
 
 
 def holders(db: Session, key: str) -> int:
@@ -172,7 +200,7 @@ def write_requests_file(db: Session) -> None:
     for r in db.scalars(select(PoolRequest).where(PoolRequest.status == "pending")):
         f = family(db, r.family)
         pending.append({"family": r.family, "have": _have(db, r.family), "target": TARGET,
-                        "title_keywords": f["title"], "requested_at": r.created_at.isoformat() if r.created_at else ""})
+                        "title_keywords": f.get("collect_hint") or f["title"], "requested_at": r.created_at.isoformat() if r.created_at else ""})
     (d / "requests.json").write_text(json.dumps({"pending": pending}, indent=1))
 
 

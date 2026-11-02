@@ -164,6 +164,7 @@ FAMILY_FN = {
     "ad sales": ["func_sales_leadership", "func_ad_sales"],
     "gm / regional lead": ["pnl_ownership", "team_mgmt", "team_large"],
     "growth": ["func_growth"],
+    "enterprise / tech sales": ["func_sales_leadership", "func_channel"],
 }
 
 

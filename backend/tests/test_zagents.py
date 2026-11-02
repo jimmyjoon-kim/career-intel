@@ -508,3 +508,19 @@ def test_holder_read_as_of_hire_date():
     assert r["AI"] == 0.0                     # the OpenAI seat itself is not AI experience
     assert r["PD"] == 1 and r["PD_t1"] == 1   # Google counts; OpenAI (the destination) does not
     assert len(r["roles_anon"]) == 2 and "company" not in r["roles_anon"][0]
+
+
+def test_role_family_membership():
+    from types import SimpleNamespace as NS
+
+    from app.v2.families import FAMILIES, in_family
+
+    fam = {f["key"]: f for f in FAMILIES}
+    post = lambda co, title, cl="": NS(company=co, title=title, role_cluster=cl)  # noqa: E731
+    assert not in_family(post("NVIDIA", "Director, Switch Sales", "Sales Leadership"), fam["Ad Sales"])
+    assert in_family(post("NVIDIA", "Director, Switch Sales", "Sales Leadership"), fam["Enterprise / tech sales"])
+    assert in_family(post("Netflix", "Director, Ad Sales (UCAN)", "Ad Sales"), fam["Ad Sales"])
+    assert in_family(post("Liftoff", "Sales Director, Demand", "Sales Leadership"), fam["Ad Sales"])
+    assert not in_family(post("Liftoff", "Sales Director, Demand", "Sales Leadership"), fam["Enterprise / tech sales"])
+    assert not in_family(post("Roblox", "Executive Business Partner, Chief Business Officer", "Other"), fam["Partnerships"])
+    assert not in_family(post("Pinterest", "Chief of Staff to GM, Ads", "GM / Business Lead"), fam["GM / Regional lead"])
