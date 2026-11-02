@@ -8,8 +8,11 @@ def file_to_text(filename: str, data: bytes) -> str:
     if name.endswith(".pdf"):
         from pypdf import PdfReader
 
-        reader = PdfReader(io.BytesIO(data))
-        return "\n".join((p.extract_text() or "") for p in reader.pages).strip()
+        try:
+            reader = PdfReader(io.BytesIO(data))
+            return "\n".join((p.extract_text() or "") for p in reader.pages).strip()
+        except Exception:  # noqa: BLE001 — a damaged or encrypted PDF is a user error, not a server error
+            raise HTTPException(422, "This PDF could not be read. Try saving it again or upload a DOCX.")
     if name.endswith(".docx"):
         import docx
 

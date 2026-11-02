@@ -526,3 +526,36 @@ def test_role_family_membership():
     assert not in_family(post("Pinterest", "Director of Sales, Entertainment", "Sales Leadership"), fam["Enterprise / tech sales"])
     assert not in_family(post("Roblox", "Executive Business Partner, Chief Business Officer", "Other"), fam["Partnerships"])
     assert not in_family(post("Pinterest", "Chief of Staff to GM, Ads", "GM / Business Lead"), fam["GM / Regional lead"])
+
+
+def test_review_fixes_destination_bad_files_and_self_import(tmp_path, monkeypatch):
+    import json
+
+    from app.agents import inbox
+    from app.agents.inbox import derive
+    from app.config import get_settings
+    from app.db import SessionLocal
+
+    # "The Trade Desk" must not match "Together AI" by its first word; earlier roles stay in the record
+    h = {"company": "The Trade Desk", "title": "Director, BD",
+         "experience_text": "Experience\nDirector, BD\nThe Trade Desk · Full-time\nJan 2023 - Present · 3 yrs 11 mos\n\n"
+                            "Partner Lead\nTogether AI · Full-time\nJan 2019 - Dec 2022 · 4 yrs\n\nManager\nWeather Co · Full-time\nJan 2015 - Dec 2018 · 4 yrs"}
+    r = derive(h, (2026, 11))
+    assert r["hired"] == "2023-01" and 7.5 <= r["YOE"] <= 8.5
+    # boomerang: an earlier stint at the same employer stays in the record
+    b = {"company": "Google", "title": "Head of Partnerships",
+         "experience_text": "Experience\nHead of Partnerships\nGoogle · Full-time\nJan 2024 - Present · 2 yrs 11 mos\n\n"
+                            "Director\nMeta · Full-time\nJan 2019 - Dec 2023 · 5 yrs\n\nManager\nGoogle · Full-time\nJan 2014 - Dec 2018 · 5 yrs"}
+    rb = derive(b, (2026, 11))
+    assert rb["hired"] == "2024-01" and 9.5 <= rb["YOE"] <= 10.5
+    # seat not in the text: not read as of hire, skipped
+    assert derive({"company": "OpenAI", "title": "X", "experience_text": "Experience\nManager\nAcme · Full-time\nJan 2015 - Dec 2018 · 4 yrs"},
+                  (2026, 11)).get("seat_not_found")
+    # a broken file gets a rejected receipt and is deleted, not retried forever
+    monkeypatch.setattr(get_settings(), "inbox_dir", str(tmp_path))
+    (tmp_path / "hires_broken.json").write_text("{not json")
+    (tmp_path / "self_999_2026-11-02.json").write_text(json.dumps({"kind": "self_profile", "user_id": 999999, "experience_text": "Experience\nX"}))
+    with SessionLocal() as db:
+        out = inbox.run(db, None)
+    assert all("rejected" in x for x in out["results"])
+    assert not [f for f in tmp_path.glob("*.json") if not f.name.endswith("requests.json")]

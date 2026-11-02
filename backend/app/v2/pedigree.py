@@ -20,7 +20,7 @@ QS_TOP30 = [
     r"massachusetts institute of technology|\bmit\b", r"imperial college", r"stanford", r"university of oxford|\boxford\b",
     r"harvard", r"university of cambridge|\bcambridge university\b", r"california institute of technology|caltech",
     r"eth zurich|\beth\b", r"university college london|\bucl\b", r"national university of singapore|\bnus\b",
-    r"university of hong kong|\bhku\b", r"nanyang technological|\bntu\b", r"peking university", r"tsinghua",
+    r"university of hong kong|\bhku\b", r"nanyang technological", r"peking university", r"tsinghua",
     r"university of pennsylvania|\bupenn\b|wharton", r"cornell", r"\byale\b", r"chinese university of hong kong|\bcuhk\b",
     r"university of new south wales|\bunsw\b", r"johns hopkins", r"university of california,? berkeley|uc berkeley|\bberkeley\b",
     r"\bepfl\b|polytechnique f[ée]d[ée]rale de lausanne", r"university of melbourne", r"university of chicago|booth school",
@@ -73,7 +73,7 @@ def education_signals(degrees: list[dict]) -> dict:
     if not done:
         return {"SCH": None, "FLD": None, "SCH_basis": None}
     sch = max(done, key=lambda d: (school_tier(d["text"]), d["level"]))
-    return {"SCH": school_tier(sch["text"]), "FLD": max(field_score(d["text"]) for d in done), "SCH_basis": sch["text"][:120]}
+    return {"SCH": school_tier(sch["text"]), "FLD": field_score(sch["text"]), "SCH_basis": sch["text"][:120]}
 
 
 def employer_signal(roles: list[dict], exclude_company: str | None = None, now: tuple[int, int] | None = None) -> dict:

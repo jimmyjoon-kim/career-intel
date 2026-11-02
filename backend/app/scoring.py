@@ -235,7 +235,7 @@ FIT_PRIOR_W = 3.0
 def rank_key(result: dict) -> tuple:
     """Postings without hard gaps first, then by match; ties go to the posting with more tagged requirements,
     since a full match on two requirements says less than a full match on ten."""
-    return (result["has_zero_hard_gap"], -result["rank_score"], -len(result.get("tags") or []))
+    return (bool(result.get("not_read")), result["has_zero_hard_gap"], -result["rank_score"], -len(result.get("tags") or []))
 
 
 def gap_summary(results: list[dict], top_n: int = 10) -> list[dict]:

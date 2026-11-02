@@ -1,6 +1,6 @@
 """Hire research inbox. The monthly task on your Mac reads recent hires' profiles (read-only) and drops a JSON file
 here. This step derives factor values only, discards the raw text, and files a proposal for your approval.
-Nothing enters the reference pool until you approve it."""
+Screened batches join the pool automatically (AUTO_APPROVE_HOLDERS); each batch is logged as a proposal."""
 
 from __future__ import annotations
 
@@ -33,9 +33,22 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
     all_roles = parse_linkedin(h.get("experience_text", ""), now)
     # Read the record as it was when the person was hired: drop every role at the current employer and measure
     # recency from the hire date (otherwise the seat itself counts toward tenure, level, tier and AI work).
-    dest = (h.get("company") or "").lower().split(" (")[0].split()[0].strip("(),") if h.get("company") else ""
-    at_dest = [r for r in all_roles if dest and dest in r["company"].lower()]
-    hire = min((r["start"] for r in at_dest), default=now)
+    from ..v2.industry import _same
+
+    dest = str(h.get("company") or "").split(" (")[0]
+    at_dest = [r for r in all_roles if dest and _same(r["company"].split(" (")[0], dest)]
+    if at_dest:  # latest stint only: an earlier stint at the same employer (boomerang) stays in the record
+        latest = sorted(at_dest, key=lambda r: r["start"], reverse=True)
+        run, at_dest = [latest[0]], latest[1:]
+        for r in at_dest:  # consecutive roles in that stint (promotions) belong to the seat too
+            if months_between(r["end"], run[-1]["start"]) <= 3:
+                run.append(r)
+            else:
+                break
+        at_dest = run
+    hire = min((r["start"] for r in at_dest), default=None)
+    if hire is None:
+        return {"seat_not_found": True}  # the current employer is not in the text: not read as of hire
     roles = [r for r in all_roles if r not in at_dest and r["start"] < hire]
     for r in roles:
         if r["end"] > hire:
@@ -87,18 +100,21 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
         names = [r["company"] for h in holders for r in parse_linkedin(h.get("experience_text", ""), now)] + \
                 [h.get("company", "") for h in holders]
         cache = classify_companies(db, names, run_id)
-        have = {(r.company.lower(), r.title.lower()) for r in db.scalars(select(ReferenceProfile))}
-        have |= {(x.get("company", "").lower(), x.get("title", "").lower())  # also holders waiting for your approval
+        have = {(r.company.lower(), r.title.lower(), (r.features or {}).get("hired"), (r.features or {}).get("YOE"))
+                for r in db.scalars(select(ReferenceProfile))}
+        have |= {(x.get("company", "").lower(), x.get("title", "").lower(), x.get("hired"), x.get("YOE"))
                  for pr in db.scalars(select(Proposal).where(Proposal.kind == "holders", Proposal.status == "pending"))
                  for x in (pr.payload or {}).get("rows", [])}
         for h in holders:
             if not (h.get("experience_text") and h.get("company") and h.get("title")):
                 skipped += 1
                 continue
-            if (h["company"].lower(), h["title"].lower()) in have:
+            row = derive(h, now, cache)
+            key = (h["company"].lower(), h["title"].lower(), row.get("hired"), row.get("YOE"))
+            if row.get("seat_not_found") or key in have:  # same company, title, hire month and tenure = same person
                 skipped += 1
                 continue
-            row = derive(h, now, cache)
+            have.add(key)
             if not row.get("YOE"):  # no dated roles could be read (e.g. a short press bio): not usable as a peer
                 skipped += 1
                 continue
@@ -141,6 +157,8 @@ def _self_profile(db: Session, data: dict, name: str) -> dict:
     exp = (data.get("experience_text") or "").strip()
     if prof is None or not exp:
         return {"file": name, "rejected": "no matching profile or no experience text"}
+    if (prof.linkedin_import or {}).get("status") != "requested" or not prof.linkedin_url:
+        return {"file": name, "rejected": "this user has no pending profile-link request"}
     roles = parse_linkedin(exp)
     prof.linkedin_import = {"experience_text": exp[:60000], "education_text": (data.get("education_text") or "")[:5000],
                             "headline": (data.get("headline") or "")[:300], "roles": len(roles), "source": "link",
@@ -176,7 +194,13 @@ def run(db: Session, run_id: int | None) -> dict:
         return {"files": 0, "note": f"inbox folder {d} not found"}
     # Only research output; the request files the Mac task reads (requests.json, profile_requests.json) stay.
     files = [f for f in sorted(d.glob("*.json")) if not f.name.endswith("requests.json")]
-    results = [process_file(db, f, run_id) for f in files]
+    results = []
+    for f in files:
+        try:
+            results.append(process_file(db, f, run_id))
+        except Exception as err:  # noqa: BLE001 — a bad file must not block the inbox or stay on disk
+            db.rollback()
+            results.append(_finish(db, f, {"file": f.name, "rejected": f"could not be read: {type(err).__name__}"}))
     if results:
         from ..v2 import families
 
@@ -207,14 +231,6 @@ def apply(db: Session, prop: Proposal) -> str:
 
         req = db.scalar(select(PoolRequest).where(PoolRequest.family == p["cluster"]))
         if req and families.holders_full(db, p["cluster"]) >= families.TARGET:
-            req.status = "ready"
-        families.write_requests_file(db)
-        db.flush()
-        from ..models import PoolRequest
-        from ..v2 import families
-
-        req = db.scalar(select(PoolRequest).where(PoolRequest.family == p["cluster"]))
-        if req and families.holders(db, p["cluster"]) >= families.READY_AT:
             req.status = "ready"
         families.write_requests_file(db)
         return f'{len(p["rows"])} holders added to {p["cluster"]}'
