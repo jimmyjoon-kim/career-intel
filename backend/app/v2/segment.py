@@ -28,9 +28,17 @@ def posting_segment(title: str, description: str) -> dict:
     return out
 
 
-def sides_from_tags(tagsets: list[set]) -> dict:
-    demand = any({"func_demand_side", "func_brand_agency_sales"} & s for s in tagsets)
-    supply = any("func_supply_side" in s for s in tagsets)
+def runs_unified(company: str, lv: int | None, tags) -> bool:
+    """A general-management role (VP/GM band or P&L owner) at a researched unified ad platform (one that sells to
+    advertisers and buys from publishers, e.g. AppLovin, Unity, ironSource) covers both sides by design."""
+    from .industry import segment_of
+
+    return any(s["segment"] == "unified" for s in segment_of(company)) and ((lv or 0) >= 3 or "pnl_ownership" in set(tags or []))
+
+
+def sides_from_tags(tagsets: list[set], unified_gm: bool = False) -> dict:
+    demand = unified_gm or any({"func_demand_side", "func_brand_agency_sales"} & s for s in tagsets)
+    supply = unified_gm or any("func_supply_side" in s for s in tagsets)
     return {"demand": demand, "supply": supply, "SG": float(demand) + float(supply),
             "label": "unified (demand and supply)" if demand and supply else "demand side" if demand else
                      "supply side" if supply else "not shown"}

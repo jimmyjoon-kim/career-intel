@@ -199,7 +199,8 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None, seen_tag
         if f["roles_anon"] and all((r.get("tv") or 1) >= 2 for r in f["roles_anon"]):
             from .segment import sides_from_tags
 
-            f["SG"] = sides_from_tags(tags)["SG"]
+            ugm = any(r.get("ugm") for r in f["roles_anon"] if (r.get("y1") or 0) >= y1 - 10)
+            f["SG"] = sides_from_tags(tags, unified_gm=ugm)["SG"]
     return f
 
 
@@ -234,7 +235,22 @@ def effective_level(f: dict) -> dict:
     adj = SIZE_STEPS[size].get(int(f["LV"]), 0)
     f["LV_title"], f["LV_adj"], f["LV_size_used"] = f["LV"], adj, size
     f["LV"] = max(0, min(SIZE_MAX_BAND.get(size, 5), f["LV"] + adj))
+    # A short last stint at a very small company does not erase the level held just before it: take the highest
+    # size-adjusted level among roles of 12+ months that ended in the 3 years before the latest role ended.
+    ra = [r for r in (f.get("roles_anon") or []) if r.get("lv") is not None and r.get("y1") and r.get("size")]
+    if ra:
+        last = max(r["y1"] for r in ra)
+        best = max((_eff(r["lv"], r["size"], r.get("tier")) for r in ra
+                    if (r.get("months") or 0) >= 12 and r["y1"] >= last - 3), default=None)
+        if best is not None and best > f["LV"]:
+            f["LV_from_earlier"] = True
+            f["LV"] = best
     return f
+
+
+def _eff(lv: int, size: str, tier) -> int:
+    size = size if size in SIZE_STEPS else TIER_FALLBACK.get(tier, "large")
+    return max(0, min(SIZE_MAX_BAND.get(size, 5), int(lv) + SIZE_STEPS[size].get(int(lv), 0)))
 
 
 size_scaled = effective_level  # former name

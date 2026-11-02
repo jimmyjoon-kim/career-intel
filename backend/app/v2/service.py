@@ -138,17 +138,22 @@ def user_features(prof: Profile | None) -> dict | None:
     import re as _re
 
     from .reader import TAG_VERSION
-    from .segment import sides_from_tags
+    from .segment import runs_unified, sides_from_tags
 
     recent = [r for r in roles if r["end"][0] >= _now_ym()[0] - 10]
-    f["segment"] = sides_from_tags([{t for t, pat in TAGPAT.items()
-                                     if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I)}
-                                    for r in recent])
+    _rt = [{t for t, pat in TAGPAT.items() if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I)}
+           for r in recent]
+    f["segment"] = sides_from_tags(_rt, unified_gm=any(runs_unified(r["company"], role_level(r)[0], t)
+                                                        for r, t in zip(recent, _rt)))
     f["roles_anon"] = [{"y0": r["start"][0], "y1": r["end"][0], "tv": TAG_VERSION,
                         "months": int(r.get("months") or 0), "tier": company_tier(r["company"]), "lv": role_level(r)[0],
                         "tags": sorted(t for t, pat in TAGPAT.items()
                                        if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I))}
                        for r in roles]
+    from .segment import runs_unified
+
+    for ra, r in zip(f["roles_anon"], roles):
+        ra["ugm"] = runs_unified(r["company"], ra["lv"], ra["tags"])
     from .industry import user_path
 
     try:
@@ -169,6 +174,8 @@ def user_features(prof: Profile | None) -> dict | None:
         rr = f.get("recent_role") or {}
         f["LV_size"] = company_size(rr.get("company", ""), sizes)
         f["sizes_by_role"] = {r["company"]: company_size(r["company"], sizes) for r in roles}
+        for ra, r in zip(f["roles_anon"], roles):
+            ra["size"] = company_size(r["company"], sizes)
     except Exception:  # noqa: BLE001
         f["LV_size"] = "unknown"
     from .pedigree import education_signals, employer_signal
