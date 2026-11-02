@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import Proposal, ReferenceProfile
-from ..v2.reader import extract_features, parse_education, parse_linkedin
+from ..v2.reader import TAGPAT, extract_features, months_between, parse_education, parse_linkedin
 from ..v2.signals import combine
 
 FORBIDDEN = {"name", "full_name", "first_name", "last_name", "linkedin_url", "profile_url", "url", "photo", "image", "email"}
@@ -26,13 +26,35 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
     from ..v2.industry import path as industry_path
     from ..v2.pedigree import education_signals, employer_signal
 
-    roles = parse_linkedin(h.get("experience_text", ""), now)
+    from ..v2.industry import sector_of
+    from ..v2.geo import regions
+    from ..v2.reader import company_tier, role_level
+
+    all_roles = parse_linkedin(h.get("experience_text", ""), now)
+    # Read the record as it was when the person was hired: drop every role at the current employer and measure
+    # recency from the hire date (otherwise the seat itself counts toward tenure, level, tier and AI work).
+    dest = (h.get("company") or "").lower().split(" (")[0].split()[0].strip("(),") if h.get("company") else ""
+    at_dest = [r for r in all_roles if dest and dest in r["company"].lower()]
+    hire = min((r["start"] for r in at_dest), default=now)
+    roles = [r for r in all_roles if r not in at_dest and r["start"] < hire]
+    for r in roles:
+        if r["end"] > hire:
+            r["end"] = hire
+            r["months"] = max(1, months_between(r["start"], hire) + 1)
     g = user_geo(roles)
-    f = extract_features(roles, destination_company=h.get("company"), use_cv_lines=True, now=now)
-    ed = parse_education("Education: " + h.get("education_text", "").replace("\n", "; "), now) if h.get("education_text") else \
+    f = extract_features(roles, use_cv_lines=True, now=hire)
+    ed = parse_education("Education: " + h.get("education_text", "").replace("\n", "; "), hire) if h.get("education_text") else \
         {"ED": None, "technical": False, "degrees": []}
     ai_deg = 1.0 if any(AI_DEG.search(d["text"]) and not d["in_progress"] for d in ed["degrees"]) else 0.0
-    combine(f, tech_degree=bool(ed["technical"]), ai_degree=ai_deg, now=now)
+    combine(f, tech_degree=bool(ed["technical"]), ai_degree=ai_deg, now=hire)
+    # Anonymized role list (no company names, titles or text) so factors can be recomputed when the model changes.
+    roles_anon = []
+    for r in roles:
+        lv, _ = role_level(r)
+        roles_anon.append({"y0": r["start"][0], "y1": r["end"][0], "months": int(r.get("months") or 0),
+                           "tier": company_tier(r["company"]), "lv": lv, "sector": sector_of(r["company"], cache)[0],
+                           "regions": sorted(regions(r.get("location") or "")),
+                           "tags": sorted(t for t, pat in TAGPAT.items() if re.search(pat, " ".join([r["title"]] + r["desc"]), re.I))})
     row = {"company": h.get("company", "")[:200], "title": h.get("title", "")[:300],
            **{k: f.get(k) for k in ("YOE", "YOE_raw", "CT", "CT_tier_only", "tier", "LV", "LV_max", "FN", "DM", "AC", "AI", "TK")},
            "journey": bool(f.get("journey")), "ED": ed["ED"], "technical": bool(ed["technical"]),
@@ -40,10 +62,11 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
            # Geography of all roles read (months; recorded for a future peer comparison, not yet scored).
            "geo": {k: v for k, v in g["months"].items()}, "geo_us_months": g["us_role_months"],
            # Industry path: sectors of the roles before the current employer (who switched in, and from where).
-           "ind": industry_path(roles, h.get("company"), cache),
+           "ind": industry_path(all_roles, h.get("company"), cache),
            # Selection signals: major-company hires before this role, school tier and field of the best completed degree.
-           **{k: v for k, v in employer_signal(roles, h.get("company"), now).items() if k != "PD_basis"},
-           **{k: v for k, v in education_signals(ed["degrees"]).items() if k != "SCH_basis"}}
+           **{k: v for k, v in employer_signal(roles, None, hire).items() if k != "PD_basis"},
+           **{k: v for k, v in education_signals(ed["degrees"]).items() if k != "SCH_basis"},
+           "rv": 2, "hired": f"{hire[0]}-{hire[1]:02d}", "roles_anon": roles_anon}
     return row
 
 
@@ -173,7 +196,7 @@ def apply(db: Session, prop: Proposal) -> str:
                 feats["geo"], feats["geo_us_months"] = r["geo"], r.get("geo_us_months")
             if r.get("ind"):
                 feats["ind"] = r["ind"]
-            for k in ("PD", "PD_t1", "SCH", "FLD"):
+            for k in ("PD", "PD_t1", "SCH", "FLD", "rv", "hired", "roles_anon"):
                 if r.get(k) is not None:
                     feats[k] = r[k]
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,

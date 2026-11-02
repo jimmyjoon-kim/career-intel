@@ -20,18 +20,23 @@ from .reader import LEVEL_NAMES, SCARCE_TAGS
 # Bump on any change to factors, weights or rules; every stored score carries it.
 MODEL_VERSION = "v3.0"
 
-FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD"]
+FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT"]
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
-NEW_FACTORS = {"PD": 20, "SCH": 20, "FLD": 20}
+NEW_FACTORS = {"PD": 20, "SCH": 20, "FLD": 20, "US": 20, "FT": 20}
 FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "AI": "Current AI relevance", "TK": "Technical depth", "LV": "Level held",
                  "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)",
-                 "PD": "Hired into major companies", "SCH": "School tier", "FLD": "Degree field"}
-W_EXPERT = {"YOE": 15, "CT": 20, "LV": 20, "FN": 15, "DM": 10, "UQ": 10, "AC": 5, "ED": 5, "AI": 10, "TK": 5,
-            "PD": 15, "SCH": 5, "FLD": 3}
+                 "PD": "Hired into major companies", "SCH": "School tier", "FLD": "Degree field",
+                 "US": "US market experience", "FT": "Same function at a major company"}
+# Expert prior, set from published evidence (docs/model.md): type of experience (function, domain, same function at a
+# major company) and level lead; tenure counts up to a floor; US experience counts; school and degree matter little at
+# senior level (the school effect fades with experience). Blended with market weights as outcome data accrue.
+W_EXPERT = {"YOE": 10, "CT": 8, "LV": 15, "FN": 16, "DM": 8, "UQ": 5, "AC": 4, "ED": 3, "AI": 6, "TK": 3,
+            "PD": 8, "SCH": 2, "FLD": 2, "US": 10, "FT": 12}
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
-GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2, "AI": 1, "TK": 1, "PD": 4, "SCH": 2, "FLD": 1}
+GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2, "AI": 1, "TK": 1, "PD": 4, "SCH": 2, "FLD": 1,
+               "US": 60, "FT": 2}
 GAP_CLASS = {
     "YOE": ("structural", "Time at level; 12 months per year of gap."),
     "CT": ("structural", "Stepping stone: a role at a Tier 1/2 employer; counts once held 12+ months."),
@@ -46,9 +51,11 @@ GAP_CLASS = {
     "PD": ("structural", "A role of 12+ months at a Tier 1 or Tier 2 employer; each distinct employer counts once."),
     "SCH": ("structural", "School tier of a completed degree (QS top 30 / 31-100); a new degree counts from completion."),
     "FLD": ("structural", "Field of a completed degree."),
+    "US": ("structural", "Months in US-based roles (counted up to 60); accrues after a move to a US role."),
+    "FT": ("structural", "A role of 12+ months in this function at a Tier 1 (2 points) or Tier 2 (1 point) employer."),
 }
 TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24, "AI": 6, "TK": 6,
-                 "PD": 24, "SCH": None, "FLD": None}
+                 "PD": 24, "SCH": None, "FLD": None, "US": 12, "FT": 24}
 TAG_LABELS = {
     "func_partnerships": "Partnerships / alliances", "func_bd": "Business development", "func_channel": "Channel / reseller / GSI",
     "domain_adtech": "Ad tech", "domain_ai": "AI", "domain_saas": "SaaS / cloud", "domain_mobile": "Mobile / gaming",
@@ -168,6 +175,18 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None) -> dict:
     f["FN"] = (sum(float(tags.get(t, 0)) for t in keys) / len(keys)) if keys else None
     if f.get("PD") is not None:
         f["PD"] = float(f["PD"]) + float(f.get("PD_t1") or 0)
+    if f.get("geo_us_months") is not None:
+        f["US"] = min(60.0, float(f["geo_us_months"]))
+    if f.get("roles_anon") is not None:  # same function at a major company, from the anonymized role list
+        fam = cluster.split(" · ")[0].lower()
+        fam_tags = set(FAMILY_FN.get(fam, FAMILY_FN["partnerships"]))
+        gm = fam == "gm / regional lead"  # general management: a VP/GM-band role, not a keyword
+        best = 0
+        for r in f["roles_anon"]:
+            same = (r.get("lv") or 0) >= 3 if gm else bool(fam_tags & set(r.get("tags") or []))
+            if r.get("months", 0) >= 12 and r.get("tier") in (1, 2) and same:
+                best = max(best, 2 if r["tier"] == 1 else 1)
+        f["FT"] = float(best)
     return f
 
 

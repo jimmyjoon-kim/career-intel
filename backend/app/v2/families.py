@@ -63,7 +63,7 @@ def holders(db: Session, key: str) -> int:
 def holders_full(db: Session, key: str) -> int:
     """Holders read with the full field set (major-company hires, school tier, degree field, industry path)."""
     return sum(1 for r in db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == key))
-               if (r.features or {}).get("PD") is not None)
+               if (r.features or {}).get("rv") == 2)
 
 
 def status(db: Session) -> list[dict]:
@@ -151,14 +151,14 @@ def _have(db: Session, key: str) -> int:
     """Holders counted toward a request: for a family that already has a group, this month's full-field reads."""
     month = datetime.now(timezone.utc).strftime("%Y-%m")
     rows = list(db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == key)))
-    full = [r for r in rows if (r.features or {}).get("PD") is not None]
+    full = [r for r in rows if (r.features or {}).get("rv") == 2]
     # Holders already collected and waiting for your approval count too, so the Mac task does not collect them again.
     from ..models import Proposal
 
-    waiting = sum(len([x for x in (p.payload or {}).get("rows", []) if x.get("PD") is not None])
+    waiting = sum(len([x for x in (p.payload or {}).get("rows", []) if x.get("rv") == 2])
                   for p in db.scalars(select(Proposal).where(Proposal.kind == "holders", Proposal.status == "pending"))
                   if (p.payload or {}).get("cluster", "").lower() == key.lower())
-    if len(rows) >= READY_AT and len(full) >= READY_AT:
+    if len(full) >= TARGET:
         return sum(1 for r in full if r.as_of == month) + waiting
     return len(full) + waiting
 

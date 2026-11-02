@@ -75,6 +75,9 @@ def import_reference_seed(db: Session) -> dict[str, int]:
 
 def load_reference(db: Session, cluster: str = DEFAULT_CLUSTER) -> Reference | None:
     rows = list(db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == cluster)))
+    v2 = [r for r in rows if (r.features or {}).get("rv") == 2]
+    if len(v2) >= 20:  # records read as of the hire date replace the older reads once there are enough
+        rows = v2
     if not rows:
         return None
     return Reference(cluster, [{"company": r.company, "title": r.title, **r.features} for r in rows])
@@ -119,6 +122,14 @@ def user_features(prof: Profile | None) -> dict | None:
     from .geo import user_geo
 
     f["geo"] = user_geo(roles, edu["degrees"])
+    f["geo_us_months"] = f["geo"]["us_role_months"]
+    from .reader import TAGPAT, company_tier, role_level
+    import re as _re
+
+    f["roles_anon"] = [{"months": int(r.get("months") or 0), "tier": company_tier(r["company"]), "lv": role_level(r)[0],
+                        "tags": sorted(t for t, pat in TAGPAT.items()
+                                       if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I))}
+                       for r in roles]
     from .industry import user_path
 
     try:

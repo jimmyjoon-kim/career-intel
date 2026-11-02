@@ -166,7 +166,8 @@ def test_inbox_proposal_and_approval(client, tmp_path, monkeypatch):
     (tmp_path / "bad.json").write_text(json.dumps({"kind": "holders", "holders": [{"name": "X", "company": "A", "title": "B", "experience_text": "y"}]}))
     good = {"kind": "holders", "cluster": "Partnerships", "as_of": "2026-11", "source": "test", "holders": [
         {"company": "NewCo", "title": "Director of Partnerships", "education_text": "BS Computer Science, Stanford, 2010",
-         "experience_text": "Experience\nDirector of Partnerships\nNewCo · Full-time\nJan 2020 - Present · 6 yrs 11 mos\n- Led partnerships."}]}
+         "experience_text": "Experience\nDirector of Partnerships\nNewCo · Full-time\nJan 2020 - Present · 6 yrs 11 mos\n- Led partnerships.\n"
+                            "Partner Manager\nOldCo · Full-time\nJan 2014 - Dec 2019 · 6 yrs\n- Managed partnerships."}]}
     (tmp_path / "hires_2026-11-02.json").write_text(json.dumps(good))
     with SessionLocal() as db:
         out = inbox.run(db, None)
@@ -492,3 +493,18 @@ def test_industry_sectors_and_paths():
     assert p["before_months"] == {"adtech": 72, "consumer": 48} and p["home_before"] == "adtech"
     u = user_path(parse_linkedin(li, (2026, 10)))
     assert u["home"] == "adtech" and "ai" in u["sectors_12m"]
+
+
+def test_holder_read_as_of_hire_date():
+    from app.agents.inbox import derive
+
+    h = {"company": "OpenAI", "title": "Head of Partnerships", "education_text": "BA Economics, Yale University, 2008",
+         "experience_text": "Experience\nHead of Partnerships\nOpenAI · Full-time\nMar 2024 - Present · 2 yrs 9 mos\n- Led AI partnerships.\n\n"
+                            "Director, Partnerships\nGoogle · Full-time\nJan 2016 - Feb 2024 · 8 yrs 2 mos\n- Partnerships.\n\n"
+                            "Manager\nAcme · Full-time\nJan 2010 - Dec 2015 · 6 yrs"}
+    r = derive(h, (2026, 11))
+    assert r["hired"] == "2024-03" and r["rv"] == 2
+    assert 13.5 <= r["YOE"] <= 14.5          # tenure up to the hire date only
+    assert r["AI"] == 0.0                     # the OpenAI seat itself is not AI experience
+    assert r["PD"] == 1 and r["PD_t1"] == 1   # Google counts; OpenAI (the destination) does not
+    assert len(r["roles_anon"]) == 2 and "company" not in r["roles_anon"][0]
