@@ -29,7 +29,7 @@ FAMILIES = [
      "exclude": NOT_ROLE},
     # Ad sales needs advertising context: an ad title, or a sales/revenue title at an ad tech company.
     {"key": "Ad Sales", "label": "Ad sales / revenue", "clusters": ["Ad Sales"], "title": AD_CONTEXT,
-     "sales_at_sector": "adtech", "exclude": NOT_ROLE,
+     "sales_at_sector": ("adtech", "consumer", "media"), "exclude": NOT_ROLE,
      "collect_hint": "advertising sales leaders: ad sales, media sales, monetization, retail media, agency or brand partnerships "
                      "(not enterprise, cloud or semiconductor sales)"},
     {"key": "GM / Regional lead", "label": "GM / regional or country lead", "clusters": ["GM / Business Lead"],
@@ -37,7 +37,7 @@ FAMILIES = [
      "exclude": NOT_ROLE},
     # Sales leadership outside advertising (semiconductors, cloud, enterprise AI): assessed as its own role.
     {"key": "Enterprise / tech sales", "label": "Enterprise / tech sales", "clusters": ["Sales Leadership"],
-     "title": SALES_TITLE, "not_title": AD_CONTEXT, "not_sector": "adtech", "exclude": NOT_ROLE,
+     "title": SALES_TITLE, "not_title": AD_CONTEXT, "not_sector": ("adtech", "consumer", "media"), "exclude": NOT_ROLE,
      "collect_hint": "enterprise, cloud, semiconductor or AI-platform sales leaders (not advertising sales)"},
     {"key": "BD / Alliances", "label": "Business development / alliances", "clusters": [], "exclude": NOT_ROLE,
      "title": r"business development|alliances?|\bbd\b|strategic partnerships"},
@@ -77,9 +77,10 @@ def in_family(p: Posting, fam: dict) -> bool:
         sector = sector_of(p.company)[0]
     if fam.get("not_title") and re.search(fam["not_title"], title, re.I):
         return False
-    if fam.get("not_sector") and sector == fam["not_sector"]:
+    # consumer platforms and media earn from advertising: their sales roles are ad sales
+    if fam.get("not_sector") and sector in fam["not_sector"]:
         return False
-    if fam.get("sales_at_sector") and sector == fam["sales_at_sector"] and re.search(SALES_TITLE, title, re.I):
+    if fam.get("sales_at_sector") and sector in fam["sales_at_sector"] and re.search(SALES_TITLE, title, re.I):
         return True
     return p.role_cluster in fam["clusters"] or bool(re.search(fam["title"], title, re.I))
 

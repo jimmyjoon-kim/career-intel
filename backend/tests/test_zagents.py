@@ -522,5 +522,7 @@ def test_role_family_membership():
     assert in_family(post("Netflix", "Director, Ad Sales (UCAN)", "Ad Sales"), fam["Ad Sales"])
     assert in_family(post("Liftoff", "Sales Director, Demand", "Sales Leadership"), fam["Ad Sales"])
     assert not in_family(post("Liftoff", "Sales Director, Demand", "Sales Leadership"), fam["Enterprise / tech sales"])
+    assert in_family(post("Pinterest", "Director of Sales, Entertainment", "Sales Leadership"), fam["Ad Sales"])
+    assert not in_family(post("Pinterest", "Director of Sales, Entertainment", "Sales Leadership"), fam["Enterprise / tech sales"])
     assert not in_family(post("Roblox", "Executive Business Partner, Chief Business Officer", "Other"), fam["Partnerships"])
     assert not in_family(post("Pinterest", "Chief of Staff to GM, Ads", "GM / Business Lead"), fam["GM / Regional lead"])
