@@ -160,3 +160,12 @@ def test_review_survives_reader_fix():
     f = extract_features(roles, overrides={old_key: {"team_size": 35, "tags": {"team_large": 1.0, "team_mgmt": 1.0}, "confirmed": True}},
                          now=(2026, 10))
     assert f["tags"]["team_large"] == 1.0
+
+
+def test_every_factor_has_a_gap_action_and_class():
+    from app.v2.gapplan import FACTOR_ACTIONS
+    from app.v2.model import FACTOR_LABELS, FACTORS, GAP_CLASS, GOWER_RANGE, TIME_TO_CLOSE, W_EXPERT
+
+    for k in FACTORS:
+        assert k in FACTOR_ACTIONS and k in GAP_CLASS and k in FACTOR_LABELS and k in GOWER_RANGE
+        assert k in TIME_TO_CLOSE and k in W_EXPERT

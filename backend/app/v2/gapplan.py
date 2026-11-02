@@ -24,6 +24,15 @@ FACTOR_ACTIONS = {
     "ED": ("Complete a graduate degree (master's or MBA); it counts from its completion date. "
            "A degree in progress is listed on the Scorecard and counts automatically once its end date passes.", 24),
 }
+FACTOR_ACTIONS.update({
+    "US": ("US market experience accrues from a US-based role (counted up to 5 years). Before a move, state any US-facing "
+           "work you actually did (US-headquartered partners or clients, US launches) on Profile; it is read as evidence, "
+           "not as US-based months.", 12),
+    "FT": ("A role of 12+ months in this function at a Tier 1 or Tier 2 employer.", 24),
+    "PD": ("A role of 12+ months at a Tier 1 or Tier 2 employer; each distinct employer counts once.", 24),
+    "SCH": ("School tier is fixed for completed degrees; a new degree counts from its completion date.", None),
+    "FLD": ("Degree field is fixed for completed degrees.", None),
+})
 TAG_ACTIONS = {
     "func_channel": ("If channel, reseller or partner-sales work was part of a role since 2018, add it to that role or confirm it on Role review.", 1),
     "domain_saas": ("If you sold or partnered on a SaaS or cloud product, state it in that role; otherwise 6–12 months of such work.", 9),
@@ -43,6 +52,15 @@ def _closable(months: int | None, left: int | None) -> bool | None:
     return months <= left
 
 
+def _action(actions: dict, k: str) -> tuple[str, int | None]:
+    """A factor without a written action falls back to its definition rather than failing the page."""
+    if k in actions:
+        return actions[k]
+    from .model import GAP_CLASS, TIME_TO_CLOSE
+
+    return GAP_CLASS.get(k, ("", "No action written for this factor yet."))[1], TIME_TO_CLOSE.get(k)
+
+
 def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None, ed_months: int | None = None) -> list[dict]:
     """ed_months: months until your next graduate degree in progress completes (None if none)."""
     items: list[dict] = []
@@ -52,7 +70,7 @@ def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None
     whatif = {w["factor"]: w for w in card.get("benchmark", {}).get("whatifs", [])}
     # 1. Against the median holder
     for g in card["gaps"]:
-        action, months = actions[g["factor"]]
+        action, months = _action(actions, g["factor"])
         wf = whatif.get(g["label"])
         items.append({"against": "Median role holder", "gap": g["label"], "kind": g["class"],
                       "you": g["you_value"], "them": g["holder_median_value"],
@@ -64,7 +82,7 @@ def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None
     for d in card.get("benchmark", {}).get("drivers", []):
         if (d["avg_points"] or 0) > 0.5 and d["label"] not in seen:
             k = next(f["factor"] for f in card["factors"] if f["label"] == d["label"])
-            action, months = actions[k]
+            action, months = _action(actions, k)
             wf = whatif.get(d["label"])
             items.append({"against": f'{card["benchmark"]["n_above"]} holders who score above you', "gap": d["label"],
                           "kind": "structural" if k in ("CT", "LV", "YOE") else "capability",

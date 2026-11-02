@@ -30,7 +30,7 @@ const MATRIX_TAGS: [string, string][] = [
   ["domain_mobile", "Mobile"], ["domain_ai", "AI"], ["domain_saas", "SaaS"],
 ];
 const RADAR_ORDER = ["LV", "FN", "DM", "AI", "TK", "YOE", "UQ", "AC", "ED", "CT"];
-const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", AI: "AI (current)", TK: "Technical", CT: "Tier & journey", PD: "Major-co hires", SCH: "School tier", FLD: "Degree field" };
+const SHORT: Record<string, string> = { LV: "Level", FN: "Function", DM: "Domain", YOE: "Years", UQ: "Scarce exp.", AC: "Outcomes", ED: "Education", AI: "AI (current)", TK: "Technical", CT: "Tier & journey", PD: "Major-co hires", SCH: "School tier", FLD: "Degree field", US: "US experience", FT: "Function at major co" };
 const FACTOR_TAGS: Record<string, string[]> = {
   FN: ["func_partnerships", "func_bd", "func_channel"],
   DM: ["domain_ai", "domain_adtech", "domain_mobile", "domain_saas"],
