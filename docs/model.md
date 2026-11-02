@@ -1,4 +1,4 @@
-# Career Intel scoring model (v3.2, 2026-11-02)
+# Career Intel scoring model (v3.3, 2026-11-02)
 
 What the score is: where your record sits among people who currently hold a role family (Partnerships, Ad Sales,
 GM / Regional lead, BD / Alliances, Growth, or any role you add), on factors that can be read from a CV or a LinkedIn
@@ -17,10 +17,10 @@ profile. It is not a hiring probability and it does not measure interviews, refe
 | Factor | Value | Cap |
 |---|---|---|
 | YOE years of experience | months in counted roles / 12 | holders' 75th percentile |
-| LV level held | band of most recent 12+ month role (0 IC … 5 C-level); one band lower if VP+ at a Tier 3 employer | 75th pct |
+| LV effective level | band of most recent 12+ month role (0 IC … 5 C-level), adjusted by the employer's headcount (section 2a) | 75th pct |
 | FN function evidence | share of the family's function signals shown (Partnerships: partnerships, BD, channel; BD: BD, partnerships; Ad Sales: sales leadership, ad sales; GM: P&L, team leadership, large team; Growth: growth) | 75th pct |
 | FT same function at a major company | 2 = Tier 1 employer, 1 = Tier 2, role of 12+ months in this function (GM: VP/GM band) | none |
-| DM domain breadth | share of ad tech, AI, mobile, SaaS domains evidenced | 75th pct |
+| DM domain fit | domains evidenced, weighted by how many holders of this role show each domain (fit, not breadth) | 75th pct |
 | CT employer tier & journey | best role in 10 years: Tier 1 = 3, Tier 2 = 2, Tier 3 = 1; +1 IPO/acquisition held through | none |
 | PD hired into major companies | distinct Tier 1/2 employers (12+ months, 20 years), Tier 1 counted double; merger moves excluded | none |
 | US US market experience | months in US-located roles, up to 60 | 60 |
@@ -32,10 +32,24 @@ profile. It is not a hiring probability and it does not measure interviews, refe
 | SCH school tier | QS top 30 = 2, 31–100 = 1, else 0 (QS 2027 via secondary source) | none |
 | FLD degree field | engineering/CS/science = 1, economics/business = 0.5, other = 0 | none |
 
+### 2a. Effective level (titles compared by scope)
+Large employers (5,000+ employees, or Tier 1/2 when headcount is unknown) are the reference scale. Smaller employers'
+titles are read down: 500–4,999 employees: VP and above −1; 50–499: Director/Head −1, VP and above −2; under 50:
+Director/Head −1, VP −2, SVP and C-level −3 (a C-level title at a 5-person startup reads as Head / Senior Director).
+Headcount bands are classified once per company by a model and stored ('unknown' if it does not know the company;
+then Tier 3 is read as 50–499). Same rule for you and every holder.
+Basis: Pave — about half of Directors at companies under ~500–1,000 employees do not manage managers; executive orgs
+at companies under 100 people span ~15–50 people vs ~36 total reports for a Director at 3,000+ (https://pave.com/blog-posts/what-the-heck-is-head-of,
+https://www.pave.com/blog-posts/average-team-size-benchmarks-for-managers-executives); Mercer IPE scales job size by
+organization size (https://www.mercer.com/en-us/solutions/talent-and-rewards/job-architecture/job-evaluation-ipe);
+startup-to-big-tech moves are typically 1–2 levels down (anecdotal, unverified). No validated cross-size mapping for
+commercial roles was found; the step sizes are a judgment.
+
 Caps: credit stops at what the strongest quarter of holders show. Without them a long, broad career outranks every
 holder by being "more" on each factor, while real holders are strong on a few.
 
-A factor read only from newer peer files (PD, SCH, FLD, US, FT) counts once 20 holders in the group have it.
+A factor read only from newer peer files (PD, SCH, FLD, US, FT) counts once 20 holders in the group have it (in a
+group of 10–19 holders: once 80% have it). Groups of 10–19 holders get a scorecard with a plain note on the count.
 
 ## 3. Formula
 For each factor k: your percentile p_k among the holders (ties count half), after caps.
