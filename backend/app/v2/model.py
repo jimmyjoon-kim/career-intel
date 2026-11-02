@@ -180,7 +180,32 @@ def size_scaled(f: dict) -> dict:
     return f
 
 
-def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = None, n_boot: int = 1000, seed: int = 7) -> dict:
+# Factors where more stops helping: credit is capped at what the strongest quarter of holders have (75th percentile).
+# Without the cap, a long, broad career outscores every holder by being "more" on each factor, while real holders are
+# strong on a few things; the score would reward breadth and tenure rather than fit.
+SATURATE = ["YOE", "LV", "DM", "AC", "UQ", "FN", "TK", "AI"]
+CAP_Q = 75
+
+
+def saturate(rows: list[dict], uf: dict, q: float | None = CAP_Q) -> tuple[list[dict], dict, dict]:
+    if not q:
+        return rows, uf, {}
+    caps = {}
+    for k in SATURATE:
+        vals = [float(r[k]) for r in rows if r.get(k) is not None]
+        if len(vals) >= 10:
+            caps[k] = float(np.percentile(vals, q))
+    def cap(f):
+        f = dict(f)
+        for k, c in caps.items():
+            if f.get(k) is not None and float(f[k]) > c:
+                f[k + "_uncapped"], f[k] = f[k], c
+        return f
+    return [cap(r) for r in rows], cap(uf), caps
+
+
+def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = None, n_boot: int = 1000, seed: int = 7,
+                   cap_q: float | None = CAP_Q) -> dict:
     prev = scarcity(ref.rows)
     fam = ref.cluster.split(" · ")[0].lower()
     wanted = FAMILY_FN.get(fam, FAMILY_FN["partnerships"])
@@ -188,6 +213,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     usable = [t for t in wanted if sum(1 for r in ref.rows if t in (r.get("tags") or {})) >= 20]
     rows = [size_scaled(family_view(with_uq(r, prev), ref.cluster, usable)) for r in ref.rows]
     uf = size_scaled(family_view(with_uq(user_f, prev), ref.cluster, usable))
+    rows, uf, caps = saturate(rows, uf, cap_q)
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
     ed_cov = sum(1 for r in rows if r.get("ED") is not None) / len(rows)
@@ -274,12 +300,12 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                     "tier_share": {f"Tier {t}": round(sum(1 for r in rows if r.get("tier") == t) / len(rows), 2) for t in (1, 2, 3)},
                     "median": _r(np.median(sc)), "p25": _r(np.percentile(sc, 25)), "p75": _r(np.percentile(sc, 75)),
                     "hist": {"edges": [int(e) for e in edges], "counts": [int(c) for c in hist]}},
-        "factors": factors, "pending_factors": pending, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare,
+        "factors": factors, "pending_factors": pending, "caps": {k: _r(v, 2) for k, v in caps.items()}, "gaps": gaps, "differentiators": leads, "focus_areas": focus, "rare_strengths": rare,
         "prevalence": {t: round(p, 2) for t, p in prevalence.items()}, "tag_labels": TAG_LABELS, "peers": peers,
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
-        "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev),
+        "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev, caps),
         "cards": _cards(S_u, S_h, P_h, P_u, rows, uf, order),
-        "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf, "prev": prev},
+        "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf, "prev": prev, "caps": caps},
     }
 
 
@@ -379,14 +405,17 @@ def _cards(S_u, S_h, P_h, P_u, rows, uf, order) -> dict:
             "note": "Overall = base score. Each attribute = your percentile among role holders (1–99), so 50 is the median holder."}
 
 
-def _score_with(uf: dict, M: np.ndarray, wv: np.ndarray, prev: dict) -> tuple[float, float]:
+def _score_with(uf: dict, M: np.ndarray, wv: np.ndarray, prev: dict, caps: dict | None = None) -> tuple[float, float]:
     f = with_uq(uf, prev)
+    for k, c in (caps or {}).items():  # the same cap as the holders' values
+        if f.get(k) is not None and float(f[k]) > c:
+            f[k] = c
     P = pct_matrix(_vec(f)[None, :], M)
     s = float(composite(P, wv)[0])
     return s, position(s, composite(pct_matrix(M, M), wv))
 
 
-def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev) -> dict:
+def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev, caps=None) -> dict:
     """What a score means, who scores above you and why, and what would move your score."""
     sc = S_h[~np.isnan(S_h)]
     above = [i for i in range(len(rows)) if not np.isnan(S_h[i]) and S_h[i] > S_u]
@@ -415,7 +444,7 @@ def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev) -> dict:
         alt = {**uf, **change}
         if alt == uf or (k == "FN" and (uf.get("FN") or 0) >= 1) or (k == "CT" and (uf.get("CT") or 0) >= change.get("CT", 0)):
             continue
-        s, p = _score_with(alt, M, wv, prev)
+        s, p = _score_with(alt, M, wv, prev, caps)
         whatifs.append({"change": label, "factor": FACTOR_LABELS[k], "score": _r(s), "delta": _r(s - S_u), "position": _r(p),
                         "closable": GAP_CLASS[k][0] == "capability", "scheduled": k == "ED"})
     whatifs.sort(key=lambda x: -(x["delta"] or 0))
@@ -449,6 +478,6 @@ def what_if(card: dict, changes: dict) -> dict:
             applied[k] = max(lo, min(hi, float(v)))
     if not applied:
         return {"error": f"no valid changes; factors and ranges: {WHATIF_RANGES}"}
-    s, p = _score_with({**uf, **applied}, it["M"], it["wv"], it["prev"])
+    s, p = _score_with({**uf, **applied}, it["M"], it["wv"], it["prev"], it.get("caps"))
     return {"changes": applied, "before": {k: uf.get(k) for k in applied}, "score": _r(s), "position": _r(p),
             "delta": _r(s - card["base_score"]), "base_score": card["base_score"]}
