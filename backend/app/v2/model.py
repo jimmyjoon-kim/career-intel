@@ -195,17 +195,27 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None) -> dict:
 # company sizes (a Director at a 5,000+ company carries more scope than the same title at a 30-person startup, and a
 # C-level title at a 5-person startup is not a public-company C-level). Same rule for you and every holder.
 # Sources and limits: docs/model.md. Holders read before company sizes were recorded fall back to employer tier.
-SIZE_ADJ = {"large": 1, "mid": 0, "small": -1, "tiny": -2}
-TIER_FALLBACK = {1: "large", 2: "large"}  # Tier 3 with unknown size: -1 (between small and tiny)
+# Large companies (5,000+ employees, Tier 1/2) are the reference scale (no adjustment). Smaller employers: the title is
+# read down by band, more for senior titles (bands: 0 Manager/IC, 1 Director, 2 Head/Sr Director, 3 VP/GM, 4 SVP/MD,
+# 5 C-level). Basis (docs/model.md): about half of Directors at companies under ~500-1,000 people do not manage managers;
+# executive orgs at companies under 100 people span ~15-50 people, close to a large-company Director's ~36 (Pave);
+# startup-to-big-tech moves are typically 1-2 levels down (anecdotal). The exact steps are a judgment, capped at -3.
+SIZE_STEPS = {  # size band -> {title band: adjustment}
+    "large": {},
+    "mid": {3: -1, 4: -1, 5: -1},                       # 500-4,999
+    "small": {1: -1, 2: -1, 3: -2, 4: -2, 5: -2},       # 50-499
+    "tiny": {1: -1, 2: -1, 3: -2, 4: -3, 5: -3},        # under 50: C-level reads as Head / Sr Director
+}
+TIER_FALLBACK = {1: "large", 2: "large", 3: "small"}  # size not recorded (older reads): use employer tier
 
 
 def effective_level(f: dict) -> dict:
     f = dict(f)
     if f.get("LV") is None:
         return f
-    size = f.get("LV_size") if f.get("LV_size") in SIZE_ADJ else TIER_FALLBACK.get(f.get("tier"))
-    adj = SIZE_ADJ[size] if size else (-1 if f.get("tier") == 3 else 0)
-    f["LV_title"], f["LV_adj"] = f["LV"], adj
+    size = f.get("LV_size") if f.get("LV_size") in SIZE_STEPS else TIER_FALLBACK.get(f.get("tier"), "large")
+    adj = SIZE_STEPS[size].get(int(f["LV"]), 0)
+    f["LV_title"], f["LV_adj"], f["LV_size_used"] = f["LV"], adj, size
     f["LV"] = max(0, min(5, f["LV"] + adj))
     return f
 
@@ -252,7 +262,8 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     fam = ref.cluster.split(" · ")[0].lower()
     wanted = FAMILY_FN.get(fam, FAMILY_FN["partnerships"])
     # a function tag counts only once at least 20 holders were read with it (older reads lack newer tags)
-    usable = [t for t in wanted if sum(1 for r in ref.rows if t in (r.get("tags") or {})) >= 20]
+    need = min(20, max(10, int(0.8 * len(ref.rows))))  # in a group of 10-19, at least 80% of holders must have it
+    usable = [t for t in wanted if sum(1 for r in ref.rows if t in (r.get("tags") or {})) >= need]
     # Domain fit: domains weighted by how many holders of this role show them (a role's domains, not breadth).
     from .reader import DOMAIN_TAGS
 
@@ -268,11 +279,12 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     if ed_cov < 0.5:  # education enters the score only when at least half the holders' education is known
         w["ED"] = 0.0
     pending = {}
-    for k, need in NEW_FACTORS.items():
+    for k, need_k in NEW_FACTORS.items():
         have = sum(1 for r in rows if r.get(k) is not None)
-        if have < need:
+        need_k = min(need_k, max(10, int(0.8 * len(rows))))
+        if have < need_k:
             w[k] = 0.0
-            pending[k] = {"label": FACTOR_LABELS[k], "holders_with_data": have, "needed": need, "you": uf.get(k)}
+            pending[k] = {"label": FACTOR_LABELS[k], "holders_with_data": have, "needed": need_k, "you": uf.get(k)}
     tot = sum(w.values()) or 1
     w = {k: 100 * v / tot for k, v in w.items()}  # weights of the factors that count sum to 100
     wv = np.array([w[k] for k in FACTORS])

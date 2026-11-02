@@ -169,3 +169,13 @@ def test_every_factor_has_a_gap_action_and_class():
     for k in FACTORS:
         assert k in FACTOR_ACTIONS and k in GAP_CLASS and k in FACTOR_LABELS and k in GOWER_RANGE
         assert k in TIME_TO_CLOSE and k in W_EXPERT
+
+
+def test_effective_level_by_company_size():
+    from app.v2.model import effective_level
+
+    assert effective_level({"LV": 5, "LV_size": "tiny"})["LV"] == 2      # C-level at <50 people ~ Head / Sr Director
+    assert effective_level({"LV": 3, "LV_size": "small"})["LV"] == 1     # VP at 50-499 ~ Director
+    assert effective_level({"LV": 1, "LV_size": "large"})["LV"] == 1     # large companies are the reference scale
+    assert effective_level({"LV": 3, "tier": 1})["LV"] == 3              # size unknown: Tier 1 read as large
+    assert effective_level({"LV": 3, "tier": 3})["LV"] == 1              # size unknown: Tier 3 read as small

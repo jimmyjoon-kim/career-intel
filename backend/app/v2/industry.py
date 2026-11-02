@@ -99,7 +99,16 @@ def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[
         k = (n or "").strip().lower()
         if k and (k not in rows or not rows[k].size):
             uniq.setdefault(k, n.strip())
-    todo = sorted(uniq.values())[:60]
+    todo_all = sorted(uniq.values())[:120]
+    for i in range(0, len(todo_all), 20):  # small batches: long lists made the model's JSON fail
+        _classify_batch(db, rows, todo_all[i:i + 20], run_id)
+    return {k: r.sector for k, r in rows.items()}
+
+
+def _classify_batch(db, rows: dict, todo: list[str], run_id) -> None:
+    from ..llm import BudgetExceeded, complete_json
+    from ..models import CompanySector
+
     if todo:
         try:
             res = complete_json(
@@ -107,7 +116,7 @@ def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[
                 + "; use what the company is primarily known for, \"other\" if unknown; and (2) its headcount band: "
                 + ", ".join(f"{k} ({v})" for k, v in SIZES.items()) + ", or \"unknown\" if you do not know the company. "
                   'Return {"sectors": {"<company>": "<key>"}, "sizes": {"<company>": "<band>"}}.',
-                "\n".join(todo), max_tokens=3000, role="bulk", agent="industry", run_id=run_id) or {}
+                "\n".join(todo), max_tokens=2500, role="bulk", agent="industry", run_id=run_id) or {}
         except BudgetExceeded:
             res = {}
         sec, siz = res.get("sectors") or {}, res.get("sizes") or {}
@@ -121,7 +130,6 @@ def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[
                 rows[k] = CompanySector(company=k, sector=s_ or "other", source="model", size=z)
                 db.add(rows[k])
         db.commit()
-    return {k: r.sector for k, r in rows.items()}
 
 
 def load_sizes(db) -> dict[str, str]:
