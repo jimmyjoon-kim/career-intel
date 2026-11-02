@@ -65,13 +65,13 @@ def test_score_weights_and_hard_gap_ranking():
     r = score(postings[0], strong, stats)
     # func_partnerships + exec_presence are common minimum; si_gsi is a discriminator scored 0.
     assert r["hard_gaps"] == []
-    assert r["weighted_score"] == 0.0
+    assert r["weighted_score"] == 0.25  # one discriminator missed, pulled toward 50% by the prior
     assert r["gaps"][0]["tag"] == "skill_si_gsi"
 
     partial = ProfileView(matches={"func_partnerships": 0.5, "skill_exec_presence": 1})
     rp = score(postings[1], partial, stats)
-    assert rp["weighted_score"] == 1.0  # no weighted tags
-    assert rp["rank_score"] == 0.9
+    assert rp["weighted_score"] == 0.6  # only minimums read: 1.5 of 2 met, pulled toward 50%
+    assert rp["rank_score"] == 0.5
     absent = ProfileView(matches={"skill_exec_presence": 1})
     ra = score(postings[1], absent, stats)
     assert ra["has_zero_hard_gap"]
@@ -83,7 +83,7 @@ def test_years_required_is_a_partial_hard_gap():
     stats = market_stats([p] * 1)
     r = score(p, ProfileView(years_experience=10, matches={"func_partnerships": 1}), stats)
     assert any(g["tag"] == "years_required" for g in r["hard_gaps"])
-    assert r["rank_score"] == 0.9
+    assert r["rank_score"] == 0.525
 
 
 def test_gap_summary_orders_by_impact():

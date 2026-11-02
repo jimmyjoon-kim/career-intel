@@ -68,7 +68,7 @@ export default function Dashboard() {
                       <div className="muted small">{r.posting.title}</div>
                     </td>
                     <td className="nowrap">
-                      <span className="num">{Math.round(r.rank_score * 100)}%</span> <Bar value={r.rank_score} tone={r.has_zero_hard_gap ? "warn" : "accent"} />
+                      <span className="num">{r.not_read ? "not read" : `${Math.round(r.rank_score * 100)}%`}</span> <Bar value={r.rank_score} tone={r.has_zero_hard_gap ? "warn" : "accent"} />
                     </td>
                     <td>
                       {r.hard_gaps.length === 0 ? <span className="muted small">None</span> :

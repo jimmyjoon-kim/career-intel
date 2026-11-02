@@ -13,7 +13,7 @@ type RoleType = {
 };
 type Position = {
   id: number; company: string; title: string; url: string; location: string; level_band: string; vertical: string;
-  cluster: string; pay_range: string; requirement_match: number; rank_score: number; hard_gaps: string[]; gaps: string[];
+  cluster: string; pay_range: string; requirement_match: number | null; requirements_read: number; rank_score: number; hard_gaps: string[]; gaps: string[];
   opportunity: number | null; level_relation: string;
 };
 type Worth = {
@@ -139,7 +139,7 @@ export default function MatchesPage() {
             <button key={p.id} className="hit rank-row" onClick={() => setDetail({ kind: "pos", p })}>
               <span><b>{p.company}</b><br /><span className="small muted">{p.title}</span></span>
               <span className="track"><span className="fill" style={{ width: `${p.requirement_match}%`, background: p.hard_gaps.length ? "var(--bad)" : undefined }} /></span>
-              <b>{Math.round(p.requirement_match)}%</b>
+              <b>{p.requirement_match == null ? <span className="small muted">not read</span> : `${Math.round(p.requirement_match)}%`}</b>
             </button>
           ))}
         </div>
@@ -230,7 +230,7 @@ function TypeDetail({ t, positions, onSearch }: { t: RoleType; positions: Positi
     ))}
     <div className="small muted">Bar = share of postings asking for it; colour = your evidence (blue has, dim partial, red missing).</div>
     {mine.length > 0 && (<><h3>Postings in this group that pass your gate</h3>
-      <ul className="ev">{mine.map((p) => <li key={p.id}><a href={p.url} target="_blank" rel="noreferrer"><b>{p.company}</b> · {p.title}</a><div className="small muted">{Math.round(p.requirement_match)}% requirement match · {p.location}</div></li>)}</ul></>)}
+      <ul className="ev">{mine.map((p) => <li key={p.id}><a href={p.url} target="_blank" rel="noreferrer"><b>{p.company}</b> · {p.title}</a><div className="small muted">{p.requirement_match == null ? "requirements not read" : `${Math.round(p.requirement_match)}% requirement match`} · {p.location}</div></li>)}</ul></>)}
     <button className="btn primary" onClick={() => onSearch(`Director+ ${t.cluster} roles in ${t.vertical}, US or Bay Area`)}>Search the web for more like this</button>
   </>);
 }
@@ -239,7 +239,7 @@ function PosDetail({ p }: { p: Position }) {
   return (<>
     <span className="kick acc">{p.company} · {p.vertical}</span><h2>{p.title}</h2>
     <dl className="kv">
-      <dt>Requirement match</dt><dd>{p.requirement_match}%</dd>
+      <dt>Requirement match</dt><dd>{p.requirement_match == null ? "Requirements not read yet" : `${p.requirement_match}% on ${p.requirements_read} requirements read`}</dd>
       <dt>Opportunity score</dt><dd>{p.opportunity ?? "—"}</dd>
       <dt>Level</dt><dd>{p.level_band} · {p.level_relation}</dd>
       <dt>Cluster</dt><dd>{p.cluster}</dd><dt>Location</dt><dd>{p.location}</dd><dt>Pay</dt><dd>{p.pay_range || "Not stated"}</dd>

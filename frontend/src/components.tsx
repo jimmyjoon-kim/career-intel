@@ -85,7 +85,7 @@ export function PostingDetail({ row, onClose }: { row: Row; onClose: () => void 
         </div>
 
         <dl className="facts">
-          <dt>Overall match</dt><dd>{Math.round(row.rank_score * 100)}% <Bar value={row.rank_score} /> <span className="muted small">requirement match, less 10 points per partly met minimum</span></dd>
+          <dt>Overall match</dt><dd>{row.not_read ? "Requirements not read yet" : <>{Math.round(row.rank_score * 100)}% <Bar value={row.rank_score} /> <span className="muted small">on {row.requirements_read} requirements read; few requirements pull the fit toward 50%; less 10 points per partly met minimum; a requirement shown only by a keyword counts half</span></>}</dd>
           <dt>Requirement match</dt><dd>{Math.round(row.weighted_score * 100)}%</dd>
           <dt>Cluster</dt><dd>{row.cluster}</dd>
           <dt>Level</dt><dd>{p.level_band}</dd>

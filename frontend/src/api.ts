@@ -19,7 +19,7 @@ export type Opportunity = {
 
 export type Row = {
   posting: Posting; gate_pass: boolean; gate_reasons: string[]; cluster: string;
-  weighted_score: number; rank_score: number; has_zero_hard_gap: boolean; hard_gaps: Gap[]; gaps: Gap[];
+  weighted_score: number; rank_score: number; has_zero_hard_gap: boolean; not_read?: boolean; requirements_read?: number; hard_gaps: Gap[]; gaps: Gap[];
   opportunity: Opportunity | null;
 };
 

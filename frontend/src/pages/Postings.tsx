@@ -43,7 +43,7 @@ export default function Postings() {
                   <td className="small">{r.posting.pay_range || "—"}</td>
                   <td>{r.gate_pass ? <span className="badge ok">Pass</span> : <span className="badge no" title={r.gate_reasons.join("; ")}>Fail</span>}</td>
                   <td className="nowrap small">{r.opportunity ? <><span className="num">{r.opportunity.score.toFixed(1)}</span> <span className="muted">· {Math.round(r.opportunity.position)}th</span>{r.opportunity.thresholds.length > 0 && <> <span className="badge hard" title={r.opportunity.thresholds.join("; ")}>Threshold</span></>}</> : <span className="muted">—</span>}</td>
-                  <td className="nowrap"><span className="num">{Math.round(r.rank_score * 100)}%</span> <Bar value={r.rank_score} tone={r.gate_pass ? (r.has_zero_hard_gap ? "warn" : "accent") : "muted"} /></td>
+                  <td className="nowrap"><span className="num">{r.not_read ? "not read" : `${Math.round(r.rank_score * 100)}%`}</span> <Bar value={r.rank_score} tone={r.gate_pass ? (r.has_zero_hard_gap ? "warn" : "accent") : "muted"} /></td>
                 </tr>
               ))}
             </tbody>

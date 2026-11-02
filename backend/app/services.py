@@ -25,7 +25,10 @@ def posting_view(p: Posting) -> PostingView:
 def profile_view(prof: Profile | None, feats: dict | None = None) -> ProfileView:
     if prof is None:
         return ProfileView()
-    matches = {k: float(v.get("match", 0)) for k, v in (prof.tag_matches or {}).items()}
+    # A requirement shown only by a keyword somewhere in the CV counts as partial; full credit needs a role description
+    # (reader evidence), Role review, or your own confirmation.
+    matches = {k: (min(0.5, float(v.get("match", 0))) if v.get("source") == "keyword" else float(v.get("match", 0)))
+               for k, v in (prof.tag_matches or {}).items()}
     user_set = {k for k, v in (prof.tag_matches or {}).items() if v.get("source") == "user"}
     if feats:  # evidence read from full experience text raises (never lowers) CV keyword matches
         for t in SHARED_TAGS:
@@ -140,4 +143,5 @@ def row_dict(r: dict) -> dict:
         "cluster": r["cluster"], "weighted_score": r["weighted_score"], "rank_score": r["rank_score"],
         "has_zero_hard_gap": r["has_zero_hard_gap"], "hard_gaps": r["hard_gaps"], "gaps": r["gaps"],
         "opportunity": r.get("opportunity"),
+        "not_read": r.get("not_read", False), "requirements_read": r.get("requirements_read", 0),
     }

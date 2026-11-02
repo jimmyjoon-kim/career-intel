@@ -136,7 +136,8 @@ def build(ev: dict, feats: dict | None, matches: dict[str, float]) -> dict:
         positions.append({
             "id": p.id, "company": p.company, "title": p.title, "url": p.url, "location": p.location,
             "level_band": p.level_band, "vertical": vertical_of(p), "cluster": p.role_cluster,
-            "pay_range": p.pay_range, "requirement_match": round(100 * r["weighted_score"], 1),
+            "pay_range": p.pay_range, "requirement_match": None if r.get("not_read") else round(100 * r["weighted_score"], 1),
+            "requirements_read": r.get("requirements_read", 0),
             "rank_score": r["rank_score"], "hard_gaps": [g["label"] for g in r["hard_gaps"]],
             "gaps": [g["label"] for g in r["gaps"][:4]],
             "opportunity": r["opportunity"]["score"] if r.get("opportunity") else None,
@@ -154,7 +155,8 @@ def build(ev: dict, feats: dict | None, matches: dict[str, float]) -> dict:
         lv = (p.read_check or {}).get("level") or {}
         worth.append({
             "id": p.id, "company": p.company, "title": p.title, "url": p.url, "location": p.location,
-            "level_band": p.level_band, "status": p.status, "requirement_match": round(100 * r["weighted_score"], 1),
+            "level_band": p.level_band, "status": p.status, "requirement_match": None if r.get("not_read") else round(100 * r["weighted_score"], 1),
+            "requirements_read": r.get("requirements_read", 0),
             "rank_score": r["rank_score"], "outside": r["soft_reasons"], "hard_gaps": [g["label"] for g in r["hard_gaps"]],
             "gaps": [g["label"] for g in r["gaps"][:3]],
             "level_note": (f'Title reads {lv.get("title_band")}; the description reads {lv.get("band")} ({lv.get("confidence")} confidence): '

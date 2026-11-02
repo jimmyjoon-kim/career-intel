@@ -203,7 +203,15 @@ def score(p: PostingView, prof: ProfileView, stats: dict) -> dict:
             "pct": 100, "match": 0.5, "closable": False, "close_hint": "",
         })
 
-    weighted = round(num / den, 3) if den else 1.0
+    # Few requirements read say little: the fit is pulled toward 50% by a prior worth one discriminator requirement.
+    # A posting with nothing read gets no fit at all (shown as "requirements not read"), never 100%.
+    if den:
+        weighted = round((num + FIT_PRIOR_W * 0.5) / (den + FIT_PRIOR_W), 3)
+    elif p.tags:  # only common minimums read: fit = minimums met, pulled toward 50% the same way
+        cm = [float(prof.matches.get(t, 0.0)) for t in p.tags]
+        weighted = round((sum(cm) + FIT_PRIOR_W * 0.5) / (len(cm) + FIT_PRIOR_W), 3)
+    else:
+        weighted = 0.0
     zero_hard = any(g["match"] == 0 for g in hard_gaps)
     partial_hard = sum(1 for g in hard_gaps if g["match"] == 0.5)
     rank_score = round(max(0.0, weighted - HARD_GAP_PARTIAL_PENALTY * partial_hard), 3)
@@ -212,11 +220,16 @@ def score(p: PostingView, prof: ProfileView, stats: dict) -> dict:
         "cluster": cluster,
         "weighted_score": weighted,
         "rank_score": rank_score,
+        "requirements_read": len(p.tags),
+        "not_read": not p.tags,
         "has_zero_hard_gap": zero_hard,
         "hard_gaps": hard_gaps,
         "gaps": gaps,
         "tags": list(p.tags),
     }
+
+
+FIT_PRIOR_W = 3.0
 
 
 def rank_key(result: dict) -> tuple:
