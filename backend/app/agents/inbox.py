@@ -61,12 +61,14 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None, sizes: dict
     ai_deg = 1.0 if any(AI_DEG.search(d["text"]) and not d["in_progress"] for d in ed["degrees"]) else 0.0
     combine(f, tech_degree=bool(ed["technical"]), ai_degree=ai_deg, now=hire)
     # Anonymized role list (no company names, titles or text) so factors can be recomputed when the model changes.
+    from ..v2.reader import TAG_VERSION
+
     roles_anon = []
     for r in roles:
         lv, _ = role_level(r)
         from ..v2.industry import company_size
 
-        roles_anon.append({"y0": r["start"][0], "y1": r["end"][0], "months": int(r.get("months") or 0),
+        roles_anon.append({"y0": r["start"][0], "y1": r["end"][0], "months": int(r.get("months") or 0), "tv": TAG_VERSION,
                            "size": company_size(r["company"], sizes),
                            "tier": company_tier(r["company"]), "lv": lv, "sector": sector_of(r["company"], cache)[0],
                            "regions": sorted(regions(r.get("location") or "")),

@@ -201,6 +201,7 @@ LEVEL_CUES = re.compile(r"\bp&l\b|\bpnl\b|p&l responsib|managed p&l|owned (?:ful
 STAFF_PHRASES = re.compile(r"office of the (?:ceo|coo|cro|chairman)|chief of staff|business lead to the \w+|aide to|"
                            r"to the (?:ceo|coo|cro|svp|vp)\b", re.I)
 
+TAG_VERSION = 2  # 2: func_demand_side added (holders read earlier have no SG)
 TAGPAT = {
     "func_partnerships": r"partner|alliance",
     "func_bd": r"business development|\bbd\b",
@@ -212,6 +213,8 @@ TAGPAT = {
     "func_brand_agency_sales": r"\bagency\b|agencies|brand (?:advertis|partnerships|sales|clients)|holding compan|upfronts?|"
                                r"media buyers?|cpg|client partner",
     "func_supply_side": r"supply|publisher|mediation|monetiz|monetis|offerwall|\bssp\b|inventory|yield",
+    "func_demand_side": r"\bdemand\b|advertisers?\b|user acquisition|\bua\b|\bdsp\b|performance (?:advertis|marketing)|"
+                        r"media buy|agenc(?:y|ies)|brand (?:advertis|clients|partners)|app marketers?",
     "rev_scale": r"\$\s?\d+(?:\.\d+)?\s?(?:m|mm|b|bn|million|billion)\b|\b\d+(?:\.\d+)?\s?(?:million|billion)\b|"
                  r"(?:seven|eight|nine)[- ]figure|quota attainment|\d{2,3}%\s+(?:of|to)\s+(?:quota|target|plan)",
     "func_growth": r"\bgrowth (?:marketing|team|strategy|product|function|org)|user acquisition|\bua\b|performance marketing|retention|"

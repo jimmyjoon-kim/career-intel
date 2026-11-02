@@ -47,6 +47,12 @@ def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
         for t, snip in keyword_tags(text.replace(CV_PREFIX, "")).items():
             if t not in current:
                 current[t] = {"match": 1.0, "source": "experience", "evidence": f'keyword in experience text: "{snip}"'[:500]}
+    if feats and feats.get("segment"):
+        for side, t in (("demand", "seg_demand_side"), ("supply", "seg_supply_side")):
+            prev = current.get(t)
+            if feats["segment"][side] and not (prev and prev.get("source") == "user"):
+                current[t] = {"match": 1.0, "source": "experience", "evidence": f"your roles show the {side} side "
+                              f"({feats['segment']['label']})"}
     if feats and feats.get("geo"):
         for t, (m, ev) in feats["geo"]["matches"].items():
             prev = current.get(t)
@@ -131,7 +137,15 @@ def user_features(prof: Profile | None) -> dict | None:
     from .reader import TAGPAT, company_tier, role_level
     import re as _re
 
-    f["roles_anon"] = [{"months": int(r.get("months") or 0), "tier": company_tier(r["company"]), "lv": role_level(r)[0],
+    from .reader import TAG_VERSION
+    from .segment import sides_from_tags
+
+    recent = [r for r in roles if r["end"][0] >= _now_ym()[0] - 10]
+    f["segment"] = sides_from_tags([{t for t, pat in TAGPAT.items()
+                                     if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I)}
+                                    for r in recent])
+    f["roles_anon"] = [{"y0": r["start"][0], "y1": r["end"][0], "tv": TAG_VERSION,
+                        "months": int(r.get("months") or 0), "tier": company_tier(r["company"]), "lv": role_level(r)[0],
                         "tags": sorted(t for t, pat in TAGPAT.items()
                                        if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I))}
                        for r in roles]

@@ -30,8 +30,9 @@ FAMILIES = [
     # Ad sales needs advertising context: an ad title, or a sales/revenue title at an ad tech company.
     {"key": "Ad Sales", "label": "Ad sales / revenue", "clusters": ["Ad Sales"], "title": AD_CONTEXT,
      "sales_at_sector": ("adtech", "consumer", "media"), "exclude": NOT_ROLE,
-     "collect_hint": "advertising sales leaders: ad sales, media sales, monetization, retail media, agency or brand partnerships "
-                     "(not enterprise, cloud or semiconductor sales)"},
+     "collect_hint": "advertising sales leaders across all three sides, about a third each: demand side (advertiser, agency, "
+                     "brand, UA / DSP sales), supply side (publisher, app monetization, SSP / mediation partnerships) and "
+                     "unified (both); include retail media and CTV (not enterprise, cloud or semiconductor sales)"},
     {"key": "GM / Regional lead", "label": "GM / regional or country lead", "clusters": ["GM / Business Lead"],
      "title": r"general manager|country manager|regional manager|managing director|\bgm\b|head of [^,]*(apac|emea|asia|region|korea|japan)",
      "exclude": NOT_ROLE},

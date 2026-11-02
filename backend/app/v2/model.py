@@ -18,25 +18,26 @@ import numpy as np
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
 # Bump on any change to factors, weights or rules; every stored score carries it.
-MODEL_VERSION = "v3.4"
+MODEL_VERSION = "v3.5"
 
-FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT"]
+FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT", "SG"]
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
-NEW_FACTORS = {"PD": 20, "SCH": 20, "FLD": 20, "US": 20, "FT": 20}
+NEW_FACTORS = {"PD": 20, "SCH": 20, "FLD": 20, "US": 20, "FT": 20, "SG": 20}
 FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "AI": "Current AI relevance", "TK": "Technical depth", "LV": "Level held",
                  "FN": "Function evidence", "DM": "Domain fit to the role", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)",
                  "PD": "Hired into major companies", "SCH": "School tier", "FLD": "Degree field",
-                 "US": "US market experience", "FT": "Same function at a major company"}
+                 "US": "US market experience", "FT": "Same function at a major company",
+                 "SG": "Ad tech sides covered (demand, supply, unified)"}
 # Expert prior, set from published evidence (docs/model.md): type of experience (function, domain, same function at a
 # major company) and level lead; tenure counts up to a floor; US experience counts; school and degree matter little at
 # senior level (the school effect fades with experience). Blended with market weights as outcome data accrue.
 W_EXPERT = {"YOE": 10, "CT": 5, "LV": 15, "FN": 16, "DM": 9, "UQ": 3, "AC": 2, "ED": 3, "AI": 6, "TK": 3,
-            "PD": 5, "SCH": 2, "FLD": 2, "US": 12, "FT": 14}
+            "PD": 5, "SCH": 2, "FLD": 2, "US": 12, "FT": 14, "SG": 0}  # SG weighted for ad families only (below)
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
 GOWER_RANGE = {"YOE": 30, "CT": 2, "LV": 5, "FN": 1, "DM": 1, "UQ": 2.5, "AC": 20, "ED": 2, "AI": 1, "TK": 1, "PD": 4, "SCH": 2, "FLD": 1,
-               "US": 60, "FT": 2}
+               "US": 60, "FT": 2, "SG": 2}
 GAP_CLASS = {
     "YOE": ("structural", "Time at level; 12 months per year of gap."),
     "CT": ("structural", "Stepping stone: a role at a Tier 1/2 employer; counts once held 12+ months."),
@@ -53,9 +54,10 @@ GAP_CLASS = {
     "FLD": ("structural", "Field of a completed degree."),
     "US": ("structural", "Months in US-based roles (counted up to 60); accrues after a move to a US role."),
     "FT": ("structural", "A role of 12+ months in this function at a Tier 1 (2 points) or Tier 2 (1 point) employer."),
+    "SG": ("capability", "Demand-side (advertisers, agencies) and supply-side (publishers, monetization) work in the last 10 years; both = unified."),
 }
 TIME_TO_CLOSE = {"YOE": None, "CT": 24, "LV": 18, "FN": 3, "DM": 9, "UQ": 9, "AC": 2, "ED": 24, "AI": 6, "TK": 6,
-                 "PD": 24, "SCH": None, "FLD": None, "US": 12, "FT": 24}
+                 "PD": 24, "SCH": None, "FLD": None, "US": 12, "FT": 24, "SG": 12}
 TAG_LABELS = {
     "func_partnerships": "Partnerships / alliances", "func_bd": "Business development", "func_channel": "Channel / reseller / GSI",
     "domain_adtech": "Ad tech", "domain_ai": "AI", "domain_saas": "SaaS / cloud", "domain_mobile": "Mobile / gaming",
@@ -190,10 +192,19 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None, seen_tag
             if r.get("months", 0) >= 12 and r.get("tier") in (1, 2) and same:
                 best = max(best, 2 if r["tier"] == 1 else 1)
         f["FT"] = float(best) if (gm or fam_tags) else None
+        # ad tech sides covered in the last 10 years of roles (before hire for holders)
+        y1 = max((r.get("y1") or 0 for r in f["roles_anon"]), default=0)
+        tags = [set(r.get("tags") or []) for r in f["roles_anon"] if (r.get("y1") or 0) >= y1 - 10]
+        # only roles read with the demand-side tag (tag version 2); older reads stay unmeasured, same for everyone
+        if f["roles_anon"] and all((r.get("tv") or 1) >= 2 for r in f["roles_anon"]):
+            from .segment import sides_from_tags
+
+            f["SG"] = sides_from_tags(tags)["SG"]
     return f
 
 
 GATE_FACTORS = ["US", "FT", "FN", "DM"]
+AD_FAMILIES = {"ad sales", "partnerships", "bd / alliances", "gm / regional lead"}
 GATE_SHARE = 0.6
 
 # Effective level: the title band adjusted by the size of the employer where it was held, so titles compare across
@@ -284,6 +295,8 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     ed_cov = sum(1 for r in rows if r.get("ED") is not None) / len(rows)
     # market weights were measured on Partnerships hires only; other families use the research-based prior alone
     w = hybrid_weights(ref.n if fam == "partnerships" else 0)
+    if fam in AD_FAMILIES:  # sides covered matter where the role sells or partners in advertising
+        w["SG"] = 8.0
     if ed_cov < 0.5:  # education enters the score only when at least half the holders' education is known
         w["ED"] = 0.0
     pending = {}

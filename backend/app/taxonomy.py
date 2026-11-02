@@ -122,6 +122,9 @@ TAGS: dict[str, Tag] = {
            "Show US-facing work you have done (US-headquartered partners or clients you managed, US launches, work with US "
            "teams) on Profile → Evidence; a US-based role adds it after the move."),
         _t("geo_multi_region", "International / multi-region scope", "geography"),
+        # Ad tech segment: set from posting text and your roles by app/v2/segment.py (no keyword patterns).
+        _t("seg_demand_side", "Ad tech demand side (advertisers, agencies, UA / DSP)", "segment"),
+        _t("seg_supply_side", "Ad tech supply side (publishers, app monetization, SSP / mediation)", "segment"),
     ]
 }
 
@@ -194,4 +197,4 @@ def keyword_tags(text: str) -> dict[str, str]:
 
 
 def taxonomy_for_prompt() -> str:
-    return "\n".join(f"- {t.key}: {t.label}" for t in TAGS.values() if t.group != "geography")
+    return "\n".join(f"- {t.key}: {t.label}" for t in TAGS.values() if t.group not in ("geography", "segment"))

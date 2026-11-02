@@ -10,8 +10,11 @@ from .scoring import gate_split, PostingView, ProfileView, gap_summary, gate, ma
 def _tags_with_geo(p: Posting) -> list[str]:
     from .v2.geo import posting_geo_cached
 
-    tags = [t for t in (p.tags or []) if not t.startswith("geo_")]
-    return tags + [t for t in posting_geo_cached(p)["tags"] if t not in tags]
+    from .v2.segment import posting_segment
+
+    tags = [t for t in (p.tags or []) if not t.startswith(("geo_", "seg_"))]
+    extra = list(posting_geo_cached(p)["tags"]) + list(posting_segment(p.title, p.description or ""))
+    return tags + [t for t in extra if t not in tags]
 
 
 def posting_view(p: Posting) -> PostingView:

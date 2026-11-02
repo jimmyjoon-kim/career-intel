@@ -1,4 +1,4 @@
-# Career Intel scoring model (v3.3, 2026-11-02)
+# Career Intel scoring model (v3.5, 2026-11-02)
 
 What the score is: where your record sits among people who currently hold a role family (Partnerships, Ad Sales,
 GM / Regional lead, BD / Alliances, Growth, or any role you add), on factors that can be read from a CV or a LinkedIn
@@ -31,6 +31,7 @@ profile. It is not a hiring probability and it does not measure interviews, refe
 | ED degree level | highest completed degree | none |
 | SCH school tier | QS top 30 = 2, 31–100 = 1, else 0 (QS 2027 via secondary source) | none |
 | FLD degree field | engineering/CS/science = 1, economics/business = 0.5, other = 0 | none |
+| SG ad tech sides (ad families only) | sides shown in the last 10 years: demand (advertisers, agencies, brands, UA / DSP) and supply (publishers, app monetization, SSP / mediation); both = 2 (unified) | none |
 
 ### 2a. Effective level (titles compared by scope)
 Large employers (5,000+ employees, or Tier 1/2 when headcount is unknown) are the reference scale. Smaller employers'
@@ -45,21 +46,34 @@ organization size (https://www.mercer.com/en-us/solutions/talent-and-rewards/job
 startup-to-big-tech moves are typically 1–2 levels down (anecdotal, unverified). No validated cross-size mapping for
 commercial roles was found; the step sizes are a judgment.
 
+Titles also read one band lower when interim, acting or fractional, and when a VP+ title has single-country scope.
+Employers under 50 people cap effective level at band 1 above IC-lead (Head / Senior Director); 50–499 at band 2.
+
 Caps: credit stops at what the strongest quarter of holders show. Without them a long, broad career outranks every
 holder by being "more" on each factor, while real holders are strong on a few.
 
-A factor read only from newer peer files (PD, SCH, FLD, US, FT) counts once 20 holders in the group have it (in a
+Capped values get exactly the cap percentile (no extra credit above the strongest quarter).
+
+A factor read only from newer peer files (PD, SCH, FLD, US, FT, SG) counts once 20 holders in the group have it (in a
 group of 10–19 holders: once 80% have it). Groups of 10–19 holders get a scorecard with a plain note on the count.
 
 ## 3. Formula
 For each factor k: your percentile p_k among the holders (ties count half), after caps.
 Score = Σ w_k · p_k / Σ w_k over the factors that count. 50 = the median holder on every factor.
 
+Gates (US, FT, FN, DM): when 60%+ of holders show a factor you lack, the score and position range are capped at the
+median holder's. The score before gates and the gates applied are shown. Only leader seats (Director/Head and above)
+are compared once 10+ remain.
+
+SG (ad tech sides) is weighted 8 for Ad Sales, Partnerships, BD / Alliances and GM; 0 elsewhere. It counts only for
+holders read with the demand-side signal (tag version 2, from 2026-11-02). Postings get seg_demand_side /
+seg_supply_side tags (both = a unified role), so job fit shows which side a role sells.
+
 Weights w_k = blend of an expert prior and measured market discrimination:
 w_k = (50 · prior_k + n · market_k) / (50 + n), n = holders in the group.
 
-Prior (sums to 112, normalized): FN 16, LV 15, FT 12, YOE 10, US 10, CT 8, DM 8, PD 8, AI 6, UQ 5, AC 4, ED 3, TK 3,
-SCH 2, FLD 2. Basis:
+Prior (normalized): FN 16, LV 15, FT 14, US 12, YOE 10, DM 9, AI 6, CT 5, PD 5, UQ 3, ED 3, TK 3, AC 2, SCH 2,
+FLD 2 (+ SG 8 in ad families). Measured market weights are used for Partnerships only (other groups too small). Basis:
 - Recruiters rate years (84%) and type of experience (83%) above education level (35%) at screening
   (SHRM, 2022, n = 1,030+). https://www.shrm.org/topics-tools/news/talent-acquisition/recruiters-say-experience-top-factor-applicant-evaluation
 - Google Director commercial postings set 15 years as a floor (three postings read 2026-11-02); no source shows

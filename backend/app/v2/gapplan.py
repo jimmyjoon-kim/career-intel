@@ -29,6 +29,7 @@ FACTOR_ACTIONS.update({
            "work you actually did (US-headquartered partners or clients, US launches) on Profile; it is read as evidence, "
            "not as US-based months.", 12),
     "FT": ("A role of 12+ months in this function at a Tier 1 or Tier 2 employer.", 24),
+    "SG": ("If you have worked both demand side (advertisers, agencies) and supply side (publishers, monetization), state both in role descriptions; otherwise a role covering the missing side.", 1),
     "PD": ("A role of 12+ months at a Tier 1 or Tier 2 employer; each distinct employer counts once.", 24),
     "SCH": ("School tier is fixed for completed degrees; a new degree counts from its completion date.", None),
     "FLD": ("Degree field is fixed for completed degrees.", None),
