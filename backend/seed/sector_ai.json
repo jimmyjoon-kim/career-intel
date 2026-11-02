@@ -1,0 +1,891 @@
+{
+  "as_of": "2026-11-02",
+  "provenance_note": "source is the URL backing the entry: news URLs were fetched and checked on 2026-11-02; official-homepage sources are identity links only. hq and public for homepage-sourced entries are not verified against a filing. public refers to the entity or its parent (e.g., AWS -> Amazon, DeepMind -> Alphabet). Cursor and SpaceXAI are SpaceX subsidiaries; SpaceX listing status is unverified. Cerebras IPO status unverified.",
+  "segments": {
+    "compute": "Semiconductors, accelerators, memory, and foundry supplying AI training and inference hardware; revenue from chip and system sales.",
+    "cloud": "Hyperscalers, neoclouds, and regional clouds renting AI compute and hosting third-party models via managed platforms and marketplaces.",
+    "frontier_lab": "Organizations training general-purpose frontier or near-frontier foundation models; revenue from API usage, subscriptions, enterprise contracts, and in some cases ads.",
+    "model_platform": "Inference providers, model hubs, and routers serving open or third-party models; mainly usage-based pricing.",
+    "data_tooling": "Training-data services, data platforms, vector stores, agent frameworks, and MLOps/observability used to build AI systems.",
+    "agentic_platform": "Products whose core offering is AI agents executing multi-step work (coding, customer service, enterprise workflows); priced per seat, usage credits, per conversation, or per outcome.",
+    "ai_application": "Vertical or consumer AI applications (media generation, voice, healthcare, companions) built on models; mostly subscription or usage pricing.",
+    "ai_search_assistant": "Consumer AI assistants and AI search/answer engines and their ad businesses; subscriptions, credits, and advertising."
+  },
+  "companies": [
+    {
+      "name": "NVIDIA",
+      "aliases": [
+        "Nvidia",
+        "NVDA"
+      ],
+      "segment": "compute",
+      "sub": "gpu_systems",
+      "hq": "Santa Clara, CA, US",
+      "public": true,
+      "source": "https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Announces-Financial-Results-for-Second-Quarter-Fiscal-2027/"
+    },
+    {
+      "name": "AMD",
+      "aliases": [
+        "Advanced Micro Devices"
+      ],
+      "segment": "compute",
+      "sub": "gpu_cpu",
+      "hq": "Santa Clara, CA, US",
+      "public": true,
+      "source": "https://www.amd.com"
+    },
+    {
+      "name": "Broadcom",
+      "aliases": [
+        "AVGO"
+      ],
+      "segment": "compute",
+      "sub": "custom_asic_networking",
+      "hq": "Palo Alto, CA, US",
+      "public": true,
+      "source": "https://www.broadcom.com"
+    },
+    {
+      "name": "Intel",
+      "aliases": [
+        "INTC"
+      ],
+      "segment": "compute",
+      "sub": "cpu_accelerators_foundry",
+      "hq": "Santa Clara, CA, US",
+      "public": true,
+      "source": "https://www.intel.com"
+    },
+    {
+      "name": "TSMC",
+      "aliases": [
+        "Taiwan Semiconductor Manufacturing"
+      ],
+      "segment": "compute",
+      "sub": "foundry",
+      "hq": "Hsinchu, Taiwan",
+      "public": true,
+      "source": "https://www.tsmc.com"
+    },
+    {
+      "name": "SK hynix",
+      "aliases": [
+        "SK Hynix"
+      ],
+      "segment": "compute",
+      "sub": "hbm_memory",
+      "hq": "Icheon, South Korea",
+      "public": true,
+      "source": "https://www.skhynix.com"
+    },
+    {
+      "name": "Samsung Electronics",
+      "aliases": [
+        "Samsung"
+      ],
+      "segment": "compute",
+      "sub": "memory_foundry",
+      "hq": "Suwon, South Korea",
+      "public": true,
+      "source": "https://www.samsung.com"
+    },
+    {
+      "name": "Arm Holdings",
+      "aliases": [
+        "Arm"
+      ],
+      "segment": "compute",
+      "sub": "chip_ip",
+      "hq": "Cambridge, UK",
+      "public": true,
+      "source": "https://www.arm.com"
+    },
+    {
+      "name": "Cerebras Systems",
+      "aliases": [
+        "Cerebras"
+      ],
+      "segment": "compute",
+      "sub": "wafer_scale_inference",
+      "hq": "Sunnyvale, CA, US",
+      "public": false,
+      "source": "https://www.cerebras.ai"
+    },
+    {
+      "name": "Amazon Web Services",
+      "aliases": [
+        "AWS",
+        "Amazon Bedrock"
+      ],
+      "segment": "cloud",
+      "sub": "hyperscaler",
+      "hq": "Seattle, WA, US",
+      "public": true,
+      "source": "https://siliconangle.com/2025/10/23/anthropic-strikes-multibillion-dollar-deal-google-access-million-tpus/"
+    },
+    {
+      "name": "Microsoft Azure",
+      "aliases": [
+        "Azure",
+        "Microsoft Foundry",
+        "Azure AI Foundry"
+      ],
+      "segment": "cloud",
+      "sub": "hyperscaler",
+      "hq": "Redmond, WA, US",
+      "public": true,
+      "source": "https://www.anthropic.com/news/microsoft-nvidia-anthropic-announce-strategic-partnerships"
+    },
+    {
+      "name": "Google Cloud",
+      "aliases": [
+        "GCP",
+        "Vertex AI"
+      ],
+      "segment": "cloud",
+      "sub": "hyperscaler",
+      "hq": "Sunnyvale, CA, US",
+      "public": true,
+      "source": "https://siliconangle.com/2025/10/23/anthropic-strikes-multibillion-dollar-deal-google-access-million-tpus/"
+    },
+    {
+      "name": "Oracle Cloud Infrastructure",
+      "aliases": [
+        "OCI",
+        "Oracle"
+      ],
+      "segment": "cloud",
+      "sub": "hyperscaler",
+      "hq": "Austin, TX, US",
+      "public": true,
+      "source": "https://www.oracle.com/cloud/"
+    },
+    {
+      "name": "CoreWeave",
+      "aliases": [
+        "CRWV"
+      ],
+      "segment": "cloud",
+      "sub": "neocloud",
+      "hq": "Livingston, NJ, US",
+      "public": true,
+      "source": "https://www.coreweave.com"
+    },
+    {
+      "name": "Nebius",
+      "aliases": [
+        "Nebius Group",
+        "NBIS"
+      ],
+      "segment": "cloud",
+      "sub": "neocloud",
+      "hq": "Amsterdam, Netherlands",
+      "public": true,
+      "source": "https://nebius.com"
+    },
+    {
+      "name": "Lambda",
+      "aliases": [
+        "Lambda Labs"
+      ],
+      "segment": "cloud",
+      "sub": "neocloud",
+      "hq": "San Jose, CA, US",
+      "public": false,
+      "source": "https://lambda.ai"
+    },
+    {
+      "name": "Crusoe",
+      "aliases": [
+        "Crusoe Energy"
+      ],
+      "segment": "cloud",
+      "sub": "neocloud",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.crusoe.ai"
+    },
+    {
+      "name": "NAVER Cloud",
+      "aliases": [
+        "Naver Cloud",
+        "HyperCLOVA X"
+      ],
+      "segment": "cloud",
+      "sub": "regional_cloud_and_models",
+      "hq": "Seongnam, South Korea",
+      "public": true,
+      "source": "https://www.anthropic.com/news/seoul-office-partnerships-korean-ai-ecosystem"
+    },
+    {
+      "name": "OpenAI",
+      "aliases": [
+        "ChatGPT",
+        "OpenAI Frontier"
+      ],
+      "segment": "frontier_lab",
+      "sub": "closed_frontier",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.hl.co.uk/shares/stock-market-news/company--news/openai-clinches-$122bn-funding-round,-pushing-valuation-to-$852bn"
+    },
+    {
+      "name": "Anthropic",
+      "aliases": [
+        "Claude",
+        "Claude Code"
+      ],
+      "segment": "frontier_lab",
+      "sub": "closed_frontier",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://news.bgov.com/legal-ops-and-tech/anthropic-revenue-run-rate-surpasses-65-billion-ahead-of-ipo"
+    },
+    {
+      "name": "Google DeepMind",
+      "aliases": [
+        "DeepMind",
+        "Gemini"
+      ],
+      "segment": "frontier_lab",
+      "sub": "big_tech_lab",
+      "hq": "London, UK",
+      "public": true,
+      "source": "https://deepmind.google"
+    },
+    {
+      "name": "Meta Superintelligence Labs",
+      "aliases": [
+        "Meta AI",
+        "MSL",
+        "Llama"
+      ],
+      "segment": "frontier_lab",
+      "sub": "big_tech_lab",
+      "hq": "Menlo Park, CA, US",
+      "public": true,
+      "source": "https://www.maginative.com/meta-bets-14-3-billion-on-scale-ai-and-its-ceo-to-lead-new-superintelligence-lab/"
+    },
+    {
+      "name": "SpaceXAI",
+      "aliases": [
+        "xAI",
+        "Grok",
+        "X.AI"
+      ],
+      "segment": "frontier_lab",
+      "sub": "closed_frontier",
+      "hq": "Palo Alto, CA, US",
+      "public": false,
+      "source": "https://en.wikipedia.org/wiki/SpaceXAI"
+    },
+    {
+      "name": "Mistral AI",
+      "aliases": [
+        "Mistral",
+        "Le Chat"
+      ],
+      "segment": "frontier_lab",
+      "sub": "open_weight_frontier",
+      "hq": "Paris, France",
+      "public": false,
+      "source": "https://tech.eu/2025/09/09/mistral-bags-1-7bn-funding-round-as-asml-takes-significant-stake/"
+    },
+    {
+      "name": "Microsoft AI",
+      "aliases": [
+        "Microsoft Copilot",
+        "MAI"
+      ],
+      "segment": "frontier_lab",
+      "sub": "big_tech_lab",
+      "hq": "Redmond, WA, US",
+      "public": true,
+      "source": "https://microsoft.ai"
+    },
+    {
+      "name": "Amazon AGI",
+      "aliases": [
+        "Amazon Nova"
+      ],
+      "segment": "frontier_lab",
+      "sub": "big_tech_lab",
+      "hq": "Seattle, WA, US",
+      "public": true,
+      "source": "https://www.amazon.science"
+    },
+    {
+      "name": "Cohere",
+      "aliases": [
+        "Command",
+        "North"
+      ],
+      "segment": "frontier_lab",
+      "sub": "enterprise_models",
+      "hq": "Toronto, Canada",
+      "public": false,
+      "source": "https://cohere.com"
+    },
+    {
+      "name": "DeepSeek",
+      "aliases": [],
+      "segment": "frontier_lab",
+      "sub": "open_weight_frontier",
+      "hq": "Hangzhou, China",
+      "public": false,
+      "source": "https://www.deepseek.com"
+    },
+    {
+      "name": "Alibaba Qwen",
+      "aliases": [
+        "Qwen",
+        "Tongyi"
+      ],
+      "segment": "frontier_lab",
+      "sub": "open_weight_frontier",
+      "hq": "Hangzhou, China",
+      "public": true,
+      "source": "https://qwen.ai"
+    },
+    {
+      "name": "Moonshot AI",
+      "aliases": [
+        "Kimi"
+      ],
+      "segment": "frontier_lab",
+      "sub": "open_weight_frontier",
+      "hq": "Beijing, China",
+      "public": false,
+      "source": "https://www.moonshot.ai"
+    },
+    {
+      "name": "Safe Superintelligence",
+      "aliases": [
+        "SSI"
+      ],
+      "segment": "frontier_lab",
+      "sub": "research_lab",
+      "hq": "Palo Alto, CA, US",
+      "public": false,
+      "source": "https://ssi.inc"
+    },
+    {
+      "name": "Thinking Machines Lab",
+      "aliases": [
+        "Thinking Machines"
+      ],
+      "segment": "frontier_lab",
+      "sub": "research_lab",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://thinkingmachines.ai"
+    },
+    {
+      "name": "LG AI Research",
+      "aliases": [
+        "EXAONE"
+      ],
+      "segment": "frontier_lab",
+      "sub": "regional_models",
+      "hq": "Seoul, South Korea",
+      "public": true,
+      "source": "https://www.lgresearch.ai"
+    },
+    {
+      "name": "Upstage",
+      "aliases": [
+        "Solar"
+      ],
+      "segment": "frontier_lab",
+      "sub": "regional_models",
+      "hq": "Yongin, South Korea",
+      "public": false,
+      "source": "https://www.upstage.ai"
+    },
+    {
+      "name": "Sakana AI",
+      "aliases": [],
+      "segment": "frontier_lab",
+      "sub": "regional_models",
+      "hq": "Tokyo, Japan",
+      "public": false,
+      "source": "https://sakana.ai"
+    },
+    {
+      "name": "Hugging Face",
+      "aliases": [
+        "HF"
+      ],
+      "segment": "model_platform",
+      "sub": "model_hub",
+      "hq": "New York, NY, US",
+      "public": false,
+      "source": "https://huggingface.co"
+    },
+    {
+      "name": "Together AI",
+      "aliases": [
+        "Together"
+      ],
+      "segment": "model_platform",
+      "sub": "inference_cloud",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.together.ai"
+    },
+    {
+      "name": "Fireworks AI",
+      "aliases": [
+        "Fireworks"
+      ],
+      "segment": "model_platform",
+      "sub": "inference_cloud",
+      "hq": "Redwood City, CA, US",
+      "public": false,
+      "source": "https://fireworks.ai"
+    },
+    {
+      "name": "Baseten",
+      "aliases": [],
+      "segment": "model_platform",
+      "sub": "inference_cloud",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.baseten.co"
+    },
+    {
+      "name": "OpenRouter",
+      "aliases": [],
+      "segment": "model_platform",
+      "sub": "model_router",
+      "hq": "New York, NY, US",
+      "public": false,
+      "source": "https://openrouter.ai"
+    },
+    {
+      "name": "Replicate",
+      "aliases": [],
+      "segment": "model_platform",
+      "sub": "inference_cloud",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://replicate.com"
+    },
+    {
+      "name": "Scale AI",
+      "aliases": [
+        "Scale"
+      ],
+      "segment": "data_tooling",
+      "sub": "data_labeling",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.maginative.com/meta-bets-14-3-billion-on-scale-ai-and-its-ceo-to-lead-new-superintelligence-lab/"
+    },
+    {
+      "name": "Databricks",
+      "aliases": [
+        "Mosaic AI",
+        "Lakebase"
+      ],
+      "segment": "data_tooling",
+      "sub": "data_platform",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.thestar.com.my/tech/tech-news/2026/08/13/databricks-valued-at-190-billion-in-latest-funding-round"
+    },
+    {
+      "name": "Snowflake",
+      "aliases": [
+        "SNOW",
+        "Cortex"
+      ],
+      "segment": "data_tooling",
+      "sub": "data_platform",
+      "hq": "Bozeman, MT, US",
+      "public": true,
+      "source": "https://www.snowflake.com"
+    },
+    {
+      "name": "Surge AI",
+      "aliases": [
+        "Surge"
+      ],
+      "segment": "data_tooling",
+      "sub": "data_labeling",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.surgehq.ai"
+    },
+    {
+      "name": "Mercor",
+      "aliases": [],
+      "segment": "data_tooling",
+      "sub": "expert_data_marketplace",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.mercor.com"
+    },
+    {
+      "name": "LangChain",
+      "aliases": [
+        "LangGraph",
+        "LangSmith"
+      ],
+      "segment": "data_tooling",
+      "sub": "agent_framework",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.langchain.com"
+    },
+    {
+      "name": "Pinecone",
+      "aliases": [],
+      "segment": "data_tooling",
+      "sub": "vector_database",
+      "hq": "New York, NY, US",
+      "public": false,
+      "source": "https://www.pinecone.io"
+    },
+    {
+      "name": "Weights & Biases",
+      "aliases": [
+        "W&B",
+        "wandb"
+      ],
+      "segment": "data_tooling",
+      "sub": "mlops",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://wandb.ai"
+    },
+    {
+      "name": "Datadog",
+      "aliases": [
+        "DDOG",
+        "LLM Observability"
+      ],
+      "segment": "data_tooling",
+      "sub": "observability",
+      "hq": "New York, NY, US",
+      "public": true,
+      "source": "https://www.datadoghq.com"
+    },
+    {
+      "name": "Sierra",
+      "aliases": [
+        "Sierra AI"
+      ],
+      "segment": "agentic_platform",
+      "sub": "customer_service_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://fourweekmba.com/ai-sierra-hits-400m-arr-after-adding-150m-in-one-quarter/"
+    },
+    {
+      "name": "Decagon",
+      "aliases": [],
+      "segment": "agentic_platform",
+      "sub": "customer_service_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://agentmarketcap.ai/blog/2026/04/17/decagon-250m-series-d-4-5b-valuation-support-agent-vertical"
+    },
+    {
+      "name": "Intercom",
+      "aliases": [
+        "Fin"
+      ],
+      "segment": "agentic_platform",
+      "sub": "customer_service_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.intercom.com"
+    },
+    {
+      "name": "Salesforce",
+      "aliases": [
+        "Agentforce",
+        "CRM"
+      ],
+      "segment": "agentic_platform",
+      "sub": "saas_incumbent_agents",
+      "hq": "San Francisco, CA, US",
+      "public": true,
+      "source": "https://letsdatascience.com/news/salesforce-expands-consumption-pricing-for-agentforce-5cc905f5"
+    },
+    {
+      "name": "ServiceNow",
+      "aliases": [
+        "NOW",
+        "AI Agents"
+      ],
+      "segment": "agentic_platform",
+      "sub": "saas_incumbent_agents",
+      "hq": "Santa Clara, CA, US",
+      "public": true,
+      "source": "https://www.servicenow.com"
+    },
+    {
+      "name": "Workday",
+      "aliases": [
+        "WDAY"
+      ],
+      "segment": "agentic_platform",
+      "sub": "saas_incumbent_agents",
+      "hq": "Pleasanton, CA, US",
+      "public": true,
+      "source": "https://www.workday.com"
+    },
+    {
+      "name": "UiPath",
+      "aliases": [
+        "PATH"
+      ],
+      "segment": "agentic_platform",
+      "sub": "automation_agents",
+      "hq": "New York, NY, US",
+      "public": true,
+      "source": "https://www.uipath.com"
+    },
+    {
+      "name": "Glean",
+      "aliases": [],
+      "segment": "agentic_platform",
+      "sub": "enterprise_search_agents",
+      "hq": "Palo Alto, CA, US",
+      "public": false,
+      "source": "https://www.glean.com"
+    },
+    {
+      "name": "Writer",
+      "aliases": [
+        "WRITER"
+      ],
+      "segment": "agentic_platform",
+      "sub": "enterprise_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://writer.com"
+    },
+    {
+      "name": "Cursor",
+      "aliases": [
+        "Anysphere"
+      ],
+      "segment": "agentic_platform",
+      "sub": "coding_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://en.wikipedia.org/wiki/Cursor_(company)"
+    },
+    {
+      "name": "Cognition",
+      "aliases": [
+        "Devin",
+        "Windsurf"
+      ],
+      "segment": "agentic_platform",
+      "sub": "coding_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://cognition.ai"
+    },
+    {
+      "name": "GitHub Copilot",
+      "aliases": [
+        "GitHub"
+      ],
+      "segment": "agentic_platform",
+      "sub": "coding_agents",
+      "hq": "San Francisco, CA, US",
+      "public": true,
+      "source": "https://github.com/features/copilot"
+    },
+    {
+      "name": "Replit",
+      "aliases": [],
+      "segment": "agentic_platform",
+      "sub": "coding_agents",
+      "hq": "Foster City, CA, US",
+      "public": false,
+      "source": "https://replit.com"
+    },
+    {
+      "name": "Lovable",
+      "aliases": [],
+      "segment": "agentic_platform",
+      "sub": "app_builder_agents",
+      "hq": "Stockholm, Sweden",
+      "public": false,
+      "source": "https://lovable.dev"
+    },
+    {
+      "name": "Harvey",
+      "aliases": [],
+      "segment": "agentic_platform",
+      "sub": "vertical_legal_agents",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.harvey.ai"
+    },
+    {
+      "name": "Channel Corp",
+      "aliases": [
+        "Channel Talk"
+      ],
+      "segment": "agentic_platform",
+      "sub": "customer_service_agents",
+      "hq": "Seoul, South Korea",
+      "public": false,
+      "source": "https://www.anthropic.com/news/seoul-office-partnerships-korean-ai-ecosystem"
+    },
+    {
+      "name": "ElevenLabs",
+      "aliases": [],
+      "segment": "ai_application",
+      "sub": "voice_audio",
+      "hq": "London, UK",
+      "public": false,
+      "source": "https://elevenlabs.io"
+    },
+    {
+      "name": "Runway",
+      "aliases": [
+        "RunwayML"
+      ],
+      "segment": "ai_application",
+      "sub": "video_generation",
+      "hq": "New York, NY, US",
+      "public": false,
+      "source": "https://runwayml.com"
+    },
+    {
+      "name": "Midjourney",
+      "aliases": [],
+      "segment": "ai_application",
+      "sub": "image_generation",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.midjourney.com"
+    },
+    {
+      "name": "Synthesia",
+      "aliases": [],
+      "segment": "ai_application",
+      "sub": "video_avatars",
+      "hq": "London, UK",
+      "public": false,
+      "source": "https://www.synthesia.io"
+    },
+    {
+      "name": "Higgsfield AI",
+      "aliases": [
+        "Higgsfield"
+      ],
+      "segment": "ai_application",
+      "sub": "video_generation",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://higgsfield.ai"
+    },
+    {
+      "name": "Abridge",
+      "aliases": [],
+      "segment": "ai_application",
+      "sub": "healthcare_documentation",
+      "hq": "Pittsburgh, PA, US",
+      "public": false,
+      "source": "https://www.abridge.com"
+    },
+    {
+      "name": "Character.AI",
+      "aliases": [
+        "Character Technologies"
+      ],
+      "segment": "ai_application",
+      "sub": "consumer_companion",
+      "hq": "Menlo Park, CA, US",
+      "public": false,
+      "source": "https://character.ai"
+    },
+    {
+      "name": "Suno",
+      "aliases": [],
+      "segment": "ai_application",
+      "sub": "music_generation",
+      "hq": "Cambridge, MA, US",
+      "public": false,
+      "source": "https://suno.com"
+    },
+    {
+      "name": "Wrtn Technologies",
+      "aliases": [
+        "Wrtn",
+        "뤼튼"
+      ],
+      "segment": "ai_application",
+      "sub": "consumer_assistant_korea",
+      "hq": "Seoul, South Korea",
+      "public": false,
+      "source": "https://www.anthropic.com/news/seoul-office-partnerships-korean-ai-ecosystem"
+    },
+    {
+      "name": "Perplexity",
+      "aliases": [
+        "Perplexity AI",
+        "Comet"
+      ],
+      "segment": "ai_search_assistant",
+      "sub": "answer_engine",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://letsdatascience.com/news/perplexity-shifts-to-ai-agents-boosts-revenue-a76bce31"
+    },
+    {
+      "name": "ChatGPT Ads",
+      "aliases": [
+        "OpenAI Ads",
+        "ChatGPT advertising"
+      ],
+      "segment": "ai_search_assistant",
+      "sub": "assistant_ads",
+      "hq": "San Francisco, CA, US",
+      "public": false,
+      "source": "https://www.emarketer.com/content/openai-1-billion-ad-run-rate-puts-its-2026-target-within-closer-reach"
+    },
+    {
+      "name": "Google Gemini app",
+      "aliases": [
+        "Gemini",
+        "AI Mode"
+      ],
+      "segment": "ai_search_assistant",
+      "sub": "assistant_and_ai_search",
+      "hq": "Mountain View, CA, US",
+      "public": true,
+      "source": "https://www.adweek.com/media/google-gemini-ads-2026/"
+    },
+    {
+      "name": "You.com",
+      "aliases": [],
+      "segment": "ai_search_assistant",
+      "sub": "answer_engine",
+      "hq": "Palo Alto, CA, US",
+      "public": false,
+      "source": "https://you.com"
+    },
+    {
+      "name": "Kakao",
+      "aliases": [
+        "Kanana"
+      ],
+      "segment": "ai_search_assistant",
+      "sub": "regional_assistant",
+      "hq": "Jeju, South Korea",
+      "public": true,
+      "source": "https://www.kakaocorp.com"
+    }
+  ]
+}

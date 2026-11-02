@@ -331,6 +331,8 @@ def industry_view(db, prof, feats: dict | None, ev: dict, family: str = "Partner
                                   "months": {SECTORS.get(k, k): v for k, v in sorted(you.get("months", {}).items(), key=lambda x: -x[1])}},
         "sectors": table, "target": target, "target_label": SECTORS.get(target, target), "target_summary": tsum,
         "peer": peer, "switchers": switchers, "evidence_now": evidence_now, "gaps": gaps[:8],
+        "segments": segment_view(tb["holders"], [r["posting"] for r in tb["postings"]],
+                                 [r["company"] for r in ((feats or {}).get("roles") or [])]),
         "method": [
             "Industry = the sector of the employer. Listed companies are fixed; others are classified once by a model and stored.",
             f"Peer score: the same scoring model, with the comparison group limited to {family} holders now in that industry (shown from {MIN_PEERS} holders).",
@@ -343,3 +345,54 @@ def industry_view(db, prof, feats: dict | None, ev: dict, family: str = "Partner
             "No probabilities or hire likelihoods.",
         ],
     }
+
+
+# --- Sector sub-segments (seed/sector_adtech.json, seed/sector_ai.json; researched 2026-11-02) -------------------------
+_SEG: list[tuple[re.Pattern, str, str, str]] | None = None
+SEG_SECTOR = {"compute": "cloud", "cloud": "cloud"}  # AI seed segments that belong to the cloud & semis sector
+
+
+def _segments() -> list[tuple[re.Pattern, str, str, str]]:
+    global _SEG
+    if _SEG is None:
+        import json
+        from pathlib import Path
+
+        _SEG = []
+        for name, default in (("sector_adtech.json", "adtech"), ("sector_ai.json", "ai")):
+            f = Path(__file__).resolve().parents[2] / "seed" / name
+            if not f.exists():
+                f = Path("/app/seed") / name
+            if not f.exists():
+                continue
+            d = json.loads(f.read_text())
+            for c in d.get("companies", []):
+                names = [c["name"]] + list(c.get("aliases") or [])
+                rx = re.compile(r"\b(?:" + "|".join(re.escape(n) for n in names if len(n) >= 3) + r")\b", re.I)
+                _SEG.append((rx, SEG_SECTOR.get(c["segment"], default), c["segment"], d["segments"].get(c["segment"], "")[:160]))
+    return _SEG
+
+
+def segment_of(company: str) -> list[dict]:
+    """Researched segments a company belongs to (a company can be in both lists, e.g. Google: walled garden and cloud)."""
+    base = base_name(company or "")
+    out, seen = [], set()
+    for rx, sector, seg, desc in _segments():
+        if rx.search(base) and seg not in seen:
+            seen.add(seg)
+            out.append({"sector": sector, "segment": seg, "about": desc})
+    return out
+
+
+def segment_view(holders: list, postings: list, your_companies: list[str]) -> dict:
+    """Where the role holders and postings sit inside the sector, and where your employers sat (researched list only)."""
+    def count(names):
+        c = Counter(s["segment"] for n in names for s in segment_of(n))
+        return c.most_common(8)
+    yours = []
+    for n in dict.fromkeys(your_companies):
+        for s in segment_of(n):
+            yours.append({"company": n, "segment": s["segment"]})
+    return {"holders": count([h.company for h in holders]), "postings": count([p.company for p in postings]),
+            "listed_holders": sum(1 for h in holders if segment_of(h.company)), "of_holders": len(holders),
+            "yours": yours, "source": "researched company list, 2026-11-02 (docs/sectors/adtech.md, docs/sectors/ai.md)"}

@@ -13,6 +13,8 @@ type Ind = {
   evidence_now: { n: number; of: number; tag: string } | null;
   gaps: { tag: string; label: string; share_target: number; share_home: number; specific: boolean; match: number; closable: boolean; how: string }[];
   method: string[];
+  segments?: { holders: [string, number][]; postings: [string, number][]; listed_holders: number; of_holders: number;
+    yours: { company: string; segment: string }[]; source: string };
   overlap: number | null;
   bridge: { same_function: number; same_avg: number | null; other: number; other_avg: number | null; best: { company: string; title: string; match: number; url: string }[] };
   cases: { from: string; to: string; date: string; function: string; source: string; from_sector: string }[];
@@ -78,6 +80,13 @@ export default function IndustryPanel({ family }: { family: string }) {
           {t && <p className="small" style={{ marginBottom: 0 }}>Postings here: {t.postings} · your average match {t.your_avg_match ?? "—"}% · strong matches {t.strong_matches}</p>}
         </div>
       </div>
+      {d.segments && (d.segments.holders.length > 0 || d.segments.postings.length > 0 || d.segments.yours.length > 0) && <div className="prop">
+        <b>Where in the industry</b>
+        <p className="small" style={{ margin: "4px 0" }}>Holders by segment ({d.segments.listed_holders} of {d.segments.of_holders} at researched companies): {d.segments.holders.map(([k, n]) => `${k.replace(/_/g, " ")} ${n}`).join(", ") || "—"}</p>
+        <p className="small" style={{ margin: "4px 0" }}>Postings by segment: {d.segments.postings.map(([k, n]) => `${k.replace(/_/g, " ")} ${n}`).join(", ") || "—"}</p>
+        <p className="small" style={{ margin: "4px 0" }}>Your employers: {d.segments.yours.map(y => `${y.company} (${y.segment.replace(/_/g, " ")})`).join(", ") || "none on the researched list"}</p>
+        <p className="small muted" style={{ marginBottom: 0 }}>Source: {d.segments.source}</p>
+      </div>}
       <div className="grid2">
         <div className="prop">
           <b>Your function as the bridge</b>
