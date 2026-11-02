@@ -24,7 +24,7 @@ FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "S
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
 NEW_FACTORS = {"PD": 20, "SCH": 20, "FLD": 20, "US": 20, "FT": 20}
 FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "AI": "Current AI relevance", "TK": "Technical depth", "LV": "Level held",
-                 "FN": "Function evidence", "DM": "Domain evidence", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)",
+                 "FN": "Function evidence", "DM": "Domain fit to the role", "UQ": "Scarce experience", "AC": "Quantified outcomes", "ED": "Education (degree level)",
                  "PD": "Hired into major companies", "SCH": "School tier", "FLD": "Degree field",
                  "US": "US market experience", "FT": "Same function at a major company"}
 # Expert prior, set from published evidence (docs/model.md): type of experience (function, domain, same function at a
@@ -191,12 +191,34 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None) -> dict:
     return f
 
 
-def size_scaled(f: dict) -> dict:
-    """Level held is read one band lower when it was held at a Tier 3 (smaller or unlisted) employer and is VP or above:
-    a C-level title at a startup is not the same scope as at a large company. Same rule for you and every holder."""
+# Effective level: the title band adjusted by the size of the employer where it was held, so titles compare across
+# company sizes (a Director at a 5,000+ company carries more scope than the same title at a 30-person startup, and a
+# C-level title at a 5-person startup is not a public-company C-level). Same rule for you and every holder.
+# Sources and limits: docs/model.md. Holders read before company sizes were recorded fall back to employer tier.
+SIZE_ADJ = {"large": 1, "mid": 0, "small": -1, "tiny": -2}
+TIER_FALLBACK = {1: "large", 2: "large"}  # Tier 3 with unknown size: -1 (between small and tiny)
+
+
+def effective_level(f: dict) -> dict:
     f = dict(f)
-    if f.get("tier") == 3 and (f.get("LV") or 0) >= 3:
-        f["LV_title"], f["LV"] = f["LV"], f["LV"] - 1
+    if f.get("LV") is None:
+        return f
+    size = f.get("LV_size") if f.get("LV_size") in SIZE_ADJ else TIER_FALLBACK.get(f.get("tier"))
+    adj = SIZE_ADJ[size] if size else (-1 if f.get("tier") == 3 else 0)
+    f["LV_title"], f["LV_adj"] = f["LV"], adj
+    f["LV"] = max(0, min(5, f["LV"] + adj))
+    return f
+
+
+size_scaled = effective_level  # former name
+
+
+def domain_fit(f: dict, dom_w: dict[str, float]) -> dict:
+    f = dict(f)
+    tot = sum(dom_w.values())
+    if tot > 0 and f.get("tags") is not None:
+        f["DM_breadth"] = f.get("DM")
+        f["DM"] = sum(w * float(f["tags"].get(t, 0)) for t, w in dom_w.items()) / tot
     return f
 
 
@@ -231,8 +253,13 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     wanted = FAMILY_FN.get(fam, FAMILY_FN["partnerships"])
     # a function tag counts only once at least 20 holders were read with it (older reads lack newer tags)
     usable = [t for t in wanted if sum(1 for r in ref.rows if t in (r.get("tags") or {})) >= 20]
-    rows = [size_scaled(family_view(with_uq(r, prev), ref.cluster, usable)) for r in ref.rows]
-    uf = size_scaled(family_view(with_uq(user_f, prev), ref.cluster, usable))
+    # Domain fit: domains weighted by how many holders of this role show them (a role's domains, not breadth).
+    from .reader import DOMAIN_TAGS
+
+    dom_w = {t: sum(1 for r in ref.rows if float((r.get("tags") or {}).get(t, 0)) > 0) / max(1, len(ref.rows))
+             for t in DOMAIN_TAGS}
+    rows = [size_scaled(domain_fit(family_view(with_uq(r, prev), ref.cluster, usable), dom_w)) for r in ref.rows]
+    uf = size_scaled(domain_fit(family_view(with_uq(user_f, prev), ref.cluster, usable), dom_w))
     rows, uf, caps = saturate(rows, uf, cap_q)
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
@@ -313,7 +340,8 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                       "values": {k: _r(rows[i].get(k), 2) for k in FACTORS}})
 
     return {
-        "cluster": ref.cluster, "n_reference": ref.n, "weights": {k: _r(v) for k, v in w.items()},
+        "cluster": ref.cluster, "n_reference": ref.n,
+        "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
         "base_score": _r(S_u), "position": _r(pos),
         "position_ci95": [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))] if boots else [None, None],
         "holders": {"scores": sorted(_r(x) for x in sc),

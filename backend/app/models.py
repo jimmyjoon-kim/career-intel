@@ -291,3 +291,5 @@ class CompanySector(Base):
     company: Mapped[str] = mapped_column(String(200), unique=True)
     sector: Mapped[str] = mapped_column(String(20))
     source: Mapped[str] = mapped_column(String(20), default="model")
+    # Headcount band: tiny (<50), small (50-499), mid (500-4,999), large (5,000+), unknown. Classified once, reused.
+    size: Mapped[str] = mapped_column(String(10), default="")

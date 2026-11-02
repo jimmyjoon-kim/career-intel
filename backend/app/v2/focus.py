@@ -29,6 +29,13 @@ def standing(card: dict) -> dict:
         f"hold {card['cluster']} roles on {len(card['factors'])} factors; 50 means the median holder on every factor.",
         f"You rank {_ord(rank)} of {n} (you plus {len(sc)} holders). The median holder scores {med}; the highest holder scores {max(sc)}.",
     ]
+    if len(sc) < 20:
+        lines.append(f"This group has {len(sc)} holders so far (fewer than 20), so the comparison is less certain. "
+                     "A small group can mean few people hold this kind of role, or that collection is still running.")
+    nh = card.get("n_read_at_hire")
+    if nh is not None and nh < len(sc):
+        lines.append(f"{nh} of {len(sc)} holders are read as of their hire date; the rest are earlier reads that "
+                     "include their current role. They are replaced as corrected reads arrive.")
     lo, hi = card["position_ci95"]
     if lo is not None:
         lines.append(f"Because the holder group is small, your position could reasonably sit anywhere between the "

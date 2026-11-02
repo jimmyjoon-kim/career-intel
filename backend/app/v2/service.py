@@ -76,7 +76,7 @@ def import_reference_seed(db: Session) -> dict[str, int]:
 def load_reference(db: Session, cluster: str = DEFAULT_CLUSTER) -> Reference | None:
     rows = list(db.scalars(select(ReferenceProfile).where(ReferenceProfile.cluster == cluster)))
     v2 = [r for r in rows if (r.features or {}).get("rv") == 2]
-    if len(v2) >= 20:  # records read as of the hire date replace the older reads once there are enough
+    if len(v2) >= 10:  # records read as of the hire date replace the older reads once there are enough
         rows = v2
     if not rows:
         return None
@@ -141,6 +141,17 @@ def user_features(prof: Profile | None) -> dict | None:
     except Exception:  # noqa: BLE001  (no database: listed companies only)
         cache = {}
     f["industry"] = user_path(roles, cache)
+    try:
+        from ..db import SessionLocal
+        from .industry import company_size, load_sizes
+
+        with SessionLocal() as s:
+            sizes = load_sizes(s)
+        rr = f.get("recent_role") or {}
+        f["LV_size"] = company_size(rr.get("company", ""), sizes)
+        f["sizes_by_role"] = {r["company"]: company_size(r["company"], sizes) for r in roles}
+    except Exception:  # noqa: BLE001
+        f["LV_size"] = "unknown"
     from .pedigree import education_signals, employer_signal
 
     f.update(employer_signal(roles, now=_now_ym()))
@@ -180,7 +191,7 @@ def scorecard(db: Session, prof: Profile | None, *, n_boot: int = 1000,
               cluster: str = DEFAULT_CLUSTER) -> tuple[dict | None, dict | None, str]:
     """(card, features, reason). card is None when there is no reference set or no readable experience."""
     ref = load_reference(db, cluster)
-    if ref is None or len(ref.rows) < 20:
+    if ref is None or len(ref.rows) < 10:
         return None, None, (f"No group of {cluster} role holders yet." if cluster != DEFAULT_CLUSTER
                             else "No reference holders loaded. Run the seed step.")
     feats = user_features(prof)

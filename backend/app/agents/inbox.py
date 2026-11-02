@@ -21,7 +21,7 @@ FORBIDDEN = {"name", "full_name", "first_name", "last_name", "linkedin_url", "pr
 AI_DEG = re.compile(r"artificial intelligence|machine learning|\bAI\b", re.I)
 
 
-def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
+def derive(h: dict, now: tuple[int, int], cache: dict | None = None, sizes: dict | None = None) -> dict:
     from ..v2.geo import user_geo
     from ..v2.industry import path as industry_path
     from ..v2.pedigree import education_signals, employer_signal
@@ -64,7 +64,10 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
     roles_anon = []
     for r in roles:
         lv, _ = role_level(r)
+        from ..v2.industry import company_size
+
         roles_anon.append({"y0": r["start"][0], "y1": r["end"][0], "months": int(r.get("months") or 0),
+                           "size": company_size(r["company"], sizes),
                            "tier": company_tier(r["company"]), "lv": lv, "sector": sector_of(r["company"], cache)[0],
                            "regions": sorted(regions(r.get("location") or "")),
                            "tags": sorted(t for t, pat in TAGPAT.items() if re.search(pat, " ".join([r["title"]] + r["desc"]), re.I))})
@@ -79,7 +82,8 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None) -> dict:
            # Selection signals: major-company hires before this role, school tier and field of the best completed degree.
            **{k: v for k, v in employer_signal(roles, None, hire).items() if k != "PD_basis"},
            **{k: v for k, v in education_signals(ed["degrees"]).items() if k != "SCH_basis"},
-           "rv": 2, "hired": f"{hire[0]}-{hire[1]:02d}", "roles_anon": roles_anon}
+           "rv": 2, "hired": f"{hire[0]}-{hire[1]:02d}", "roles_anon": roles_anon,
+           "LV_size": company_size((f.get("recent_role") or {}).get("company", ""), sizes)}
     return row
 
 
@@ -100,6 +104,9 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
         names = [r["company"] for h in holders for r in parse_linkedin(h.get("experience_text", ""), now)] + \
                 [h.get("company", "") for h in holders]
         cache = classify_companies(db, names, run_id)
+        from ..v2.industry import load_sizes
+
+        sizes = load_sizes(db)
         have = {(r.company.lower(), r.title.lower(), (r.features or {}).get("hired"), (r.features or {}).get("YOE"))
                 for r in db.scalars(select(ReferenceProfile))}
         have |= {(x.get("company", "").lower(), x.get("title", "").lower(), x.get("hired"), x.get("YOE"))
@@ -109,7 +116,7 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
             if not (h.get("experience_text") and h.get("company") and h.get("title")):
                 skipped += 1
                 continue
-            row = derive(h, now, cache)
+            row = derive(h, now, cache, sizes)
             key = (h["company"].lower(), h["title"].lower(), row.get("hired"), row.get("YOE"))
             if row.get("seat_not_found") or key in have:  # same company, title, hire month and tenure = same person
                 skipped += 1
@@ -220,7 +227,7 @@ def apply(db: Session, prop: Proposal) -> str:
                 feats["geo"], feats["geo_us_months"] = r["geo"], r.get("geo_us_months")
             if r.get("ind"):
                 feats["ind"] = r["ind"]
-            for k in ("PD", "PD_t1", "SCH", "FLD", "rv", "hired", "roles_anon"):
+            for k in ("PD", "PD_t1", "SCH", "FLD", "rv", "hired", "roles_anon", "LV_size"):
                 if r.get(k) is not None:
                     feats[k] = r[k]
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,

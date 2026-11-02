@@ -16,7 +16,7 @@ from ..config import get_settings
 from ..models import PoolRequest, Posting, ReferenceProfile
 from ..taxonomy import TAGS
 
-READY_AT = 20  # holders needed before a family gets a full scorecard
+READY_AT = 10  # holders needed before a family gets a full scorecard (under 20 the page says so)
 TARGET = 30
 
 # Titles that are never the role itself (assistants, chiefs of staff), whatever words they contain.

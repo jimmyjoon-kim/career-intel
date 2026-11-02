@@ -81,42 +81,60 @@ def sector_of(company: str, cache: dict[str, str] | None = None) -> tuple[str, s
     return "other", "unclassified"
 
 
+SIZES = {"tiny": "fewer than 50 employees", "small": "50-499", "mid": "500-4,999", "large": "5,000 or more"}
+
+
 def classify_companies(db, names: list[str], run_id: int | None = None) -> dict[str, str]:
-    """One model call for companies not listed or cached; results are stored with source 'model'."""
+    """One model call per batch for companies whose sector (if not listed) or headcount band is not cached yet.
+    Stored with source 'model'; the headcount band is the company's size today (the model's knowledge), 'unknown'
+    when the model does not know the company."""
     from sqlalchemy import select
 
     from ..llm import BudgetExceeded, complete_json
     from ..models import CompanySector
 
-    cache = {r.company: r.sector for r in db.scalars(select(CompanySector))}
+    rows = {r.company: r for r in db.scalars(select(CompanySector))}
     uniq: dict[str, str] = {}
     for n in names:  # one entry per company, ignoring case
-        if n and n.strip() and sector_of(n)[1] == "unclassified" and n.strip().lower() not in cache:
-            uniq.setdefault(n.strip().lower(), n.strip())
+        k = (n or "").strip().lower()
+        if k and (k not in rows or not rows[k].size):
+            uniq.setdefault(k, n.strip())
     todo = sorted(uniq.values())[:60]
     if todo:
         try:
             res = complete_json(
-                "Classify each company into exactly one sector key: " + ", ".join(f"{k} ({v})" for k, v in SECTORS.items())
-                + ". Use what the company is primarily known for. If you do not know the company, use \"other\". "
-                  'Return {"sectors": {"<company>": "<key>"}}.',
-                "\n".join(todo), max_tokens=1500, role="bulk", agent="industry", run_id=run_id) or {}
+                "For each company give (1) one sector key: " + ", ".join(f"{k} ({v})" for k, v in SECTORS.items())
+                + "; use what the company is primarily known for, \"other\" if unknown; and (2) its headcount band: "
+                + ", ".join(f"{k} ({v})" for k, v in SIZES.items()) + ", or \"unknown\" if you do not know the company. "
+                  'Return {"sectors": {"<company>": "<key>"}, "sizes": {"<company>": "<band>"}}.',
+                "\n".join(todo), max_tokens=3000, role="bulk", agent="industry", run_id=run_id) or {}
         except BudgetExceeded:
             res = {}
-        for n, s in (res.get("sectors") or {}).items():
-            if n in todo and s in SECTORS and n.lower() not in cache:
-                db.add(CompanySector(company=n.lower()[:200], sector=s, source="model"))
-                cache[n.lower()] = s
+        sec, siz = res.get("sectors") or {}, res.get("sizes") or {}
+        for n in todo:
+            k = n.lower()[:200]
+            s_ = sec.get(n) if sec.get(n) in SECTORS else None
+            z = siz.get(n) if siz.get(n) in (*SIZES, "unknown") else "unknown"
+            if k in rows:
+                rows[k].size = z
+            else:
+                rows[k] = CompanySector(company=k, sector=s_ or "other", source="model", size=z)
+                db.add(rows[k])
         db.commit()
-    return cache
+    return {k: r.sector for k, r in rows.items()}
 
 
-def load_cache(db) -> dict[str, str]:
+def load_sizes(db) -> dict[str, str]:
     from sqlalchemy import select
 
     from ..models import CompanySector
 
-    return {r.company: r.sector for r in db.scalars(select(CompanySector))}
+    return {r.company: r.size for r in db.scalars(select(CompanySector)) if r.size}
+
+
+def company_size(name: str, sizes: dict | None) -> str:
+    """Headcount band from the stored classification; 'unknown' when not classified."""
+    return (sizes or {}).get((name or "").strip().lower(), "unknown") or "unknown"
 
 
 def _same(a: str, b: str) -> bool:
