@@ -143,7 +143,7 @@ def user_features(prof: Profile | None) -> dict | None:
     recent = [r for r in roles if r["end"][0] >= _now_ym()[0] - 10]
     _rt = [{t for t, pat in TAGPAT.items() if _re.search(pat, " ".join([r["title"]] + list(r.get("desc") or [])), _re.I)}
            for r in recent]
-    f["segment"] = sides_from_tags(_rt, unified_gm=any(runs_unified(r["company"], role_level(r)[0], t)
+    f["segment"] = sides_from_tags(_rt, unified_gm=any(runs_unified(r["company"], role_level(r)[0], t, r["title"])
                                                         for r, t in zip(recent, _rt)))
     f["roles_anon"] = [{"y0": r["start"][0], "y1": r["end"][0], "tv": TAG_VERSION,
                         "months": int(r.get("months") or 0), "tier": company_tier(r["company"]), "lv": role_level(r)[0],
@@ -153,7 +153,7 @@ def user_features(prof: Profile | None) -> dict | None:
     from .segment import runs_unified
 
     for ra, r in zip(f["roles_anon"], roles):
-        ra["ugm"] = runs_unified(r["company"], ra["lv"], ra["tags"])
+        ra["ugm"] = runs_unified(r["company"], ra["lv"], ra["tags"], r["title"])
     from .industry import user_path
 
     try:

@@ -75,7 +75,7 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None, sizes: dict
                            "tags": sorted(t for t, pat in TAGPAT.items() if re.search(pat, " ".join([r["title"]] + r["desc"]), re.I))})
         from ..v2.segment import runs_unified
 
-        roles_anon[-1]["ugm"] = runs_unified(r["company"], lv, roles_anon[-1]["tags"])
+        roles_anon[-1]["ugm"] = runs_unified(r["company"], lv, roles_anon[-1]["tags"], r["title"])
     row = {"company": h.get("company", "")[:200], "title": h.get("title", "")[:300],
            **{k: f.get(k) for k in ("YOE", "YOE_raw", "CT", "CT_tier_only", "tier", "LV", "LV_max", "FN", "DM", "AC", "AI", "TK")},
            "journey": bool(f.get("journey")), "ED": ed["ED"], "technical": bool(ed["technical"]),

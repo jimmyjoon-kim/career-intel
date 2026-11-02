@@ -28,12 +28,15 @@ def posting_segment(title: str, description: str) -> dict:
     return out
 
 
-def runs_unified(company: str, lv: int | None, tags) -> bool:
+GM_TITLE = re.compile(r"general manager|\bgm\b|managing director|country (?:manager|head|lead)|\bhead of\b|founder", re.I)
+
+
+def runs_unified(company: str, lv: int | None, tags, title: str = "") -> bool:
     """A general-management role (VP/GM band or P&L owner) at a researched unified ad platform (one that sells to
     advertisers and buys from publishers, e.g. AppLovin, Unity, ironSource) covers both sides by design."""
     from .industry import segment_of
 
-    return any(s["segment"] == "unified" for s in segment_of(company)) and ((lv or 0) >= 3 or "pnl_ownership" in set(tags or []))
+    return any(s["segment"] == "unified" for s in segment_of(company)) and ((lv or 0) >= 3 or "pnl_ownership" in set(tags or []) or bool(GM_TITLE.search(title or "")))
 
 
 def sides_from_tags(tagsets: list[set], unified_gm: bool = False) -> dict:

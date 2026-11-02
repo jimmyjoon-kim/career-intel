@@ -33,5 +33,6 @@ def test_short_tiny_stint_keeps_earlier_level():
 def test_gm_at_unified_platform_covers_both_sides():
     from app.v2.segment import runs_unified
     assert runs_unified("Unity Technologies", 4, [])
-    assert not runs_unified("Unity Technologies", 2, ["func_supply_side"])
+    assert not runs_unified("Unity Technologies", 2, ["func_supply_side"], "Partner Manager")
+    assert runs_unified("Unity Technologies", 2, [], "GM, Grow Korea")
     assert not runs_unified("Snowflake", 4, ["pnl_ownership"])
