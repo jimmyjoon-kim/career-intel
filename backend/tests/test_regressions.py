@@ -39,3 +39,20 @@ def test_unified_gm_reads_both_sides_and_growth():
     m = _view(keyword_first=False)
     for t in ("seg_demand_side", "seg_supply_side", "func_growth", "skill_performance_marketing", "pnl_ownership"):
         assert m.get(t) == 1.0, t
+
+
+def test_market_fit_bounded_and_multi_bonus():
+    from app.v2.market import adjust, effective_months, posting_market
+    roles = [{"title": "General Manager, Grow Korea", "company": "Unity Technologies", "location": "Seoul, South Korea",
+              "months": 30, "desc": ["Ran the business across Korea and Japan."]}]
+    pm = posting_market("Director, Partnerships", "San Francisco, CA", False)
+    assert pm["market"] == "US"
+    eff = effective_months(roles, "US")
+    assert eff["hq"] == 30 and eff["E"] == 7.5  # Unity is headquartered in San Francisco: a quarter of the months
+    s, d = adjust(0.8, pm, eff, False, 0)
+    assert 0.8 * 0.85 <= s < 0.8 and d["reduction_pct"] <= 15
+    g = posting_market("Head of Global Partnerships", "San Francisco, CA", True)
+    s2, d2 = adjust(0.8, g, effective_months(roles, g["market"]), False, 36)
+    assert g["market"] == "global" and round(s2, 4) == 0.85
+    apac = posting_market("Head of APAC Partnerships", "Singapore", False)
+    assert apac["market"] == "APAC" and effective_months(roles, "APAC")["E"] == 30

@@ -87,6 +87,13 @@ export function PostingDetail({ row, onClose }: { row: Row; onClose: () => void 
         <dl className="facts">
           <dt>Overall match</dt><dd>{row.not_read ? "Requirements not read yet" : <>{Math.round(row.rank_score * 100)}% <Bar value={row.rank_score} /> <span className="muted small">on {row.requirements_read} requirements read; few requirements pull the fit toward 50%; less 10 points per partly met minimum; a requirement shown only by a keyword counts half</span></>}</dd>
           <dt>Requirement match</dt><dd>{Math.round(row.weighted_score * 100)}%</dd>
+          {row.market_fit && <><dt>Market fit</dt><dd>
+            {row.market_fit.market ? `${row.market_fit.market} job (${row.market_fit.basis})` : `Market not read (${row.market_fit.basis})`}
+            {row.market_fit.effective_months != null && <> · your effective {row.market_fit.market} months {row.market_fit.effective_months} (in {row.market_fit.parts.in}, covering it from elsewhere {row.market_fit.parts.scope}, at an employer headquartered there {row.market_fit.parts.hq})</>}
+            {row.market_fit.reduction_pct ? <> · fit reduced {row.market_fit.reduction_pct}% (at most 15%; 7.5% for multi-region roles; gone at 36 effective months)</> : null}
+            {row.market_fit.multi_bonus ? <> · +{row.market_fit.multi_bonus} points for multi-region scope</> : null}
+            {row.market_fit.evidence.length > 0 && <ul className="small">{row.market_fit.evidence.slice(0, 3).map((e) => <li key={e}>{e}</li>)}</ul>}
+          </dd></>}
           <dt>Cluster</dt><dd>{row.cluster}</dd>
           <dt>Level</dt><dd>{p.level_band}</dd>
           <dt>Pay</dt><dd>{p.pay_range || "Not stated"}</dd>

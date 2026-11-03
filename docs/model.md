@@ -1,4 +1,4 @@
-# Career Intel scoring model (v3.6, 2026-11-03)
+# Career Intel scoring model (v3.7, 2026-11-03)
 
 What the score is: where your record sits among people who currently hold a role family (Partnerships, Ad Sales,
 GM / Regional lead, BD / Alliances, Growth, or any role you add), on factors that can be read from a CV or a LinkedIn
@@ -96,6 +96,26 @@ FLD 2 (+ SG 8 in ad families). Measured market weights are used for Partnerships
   go-to-market from Salesforce, Google, AWS, Databricks (secondary reports, no shares).
   https://dealroom.co/news/163471-openais-ad-run-rate-hits-1b-as-it-poaches-meta-talent-chases-2-4b-target/
   https://www.salesforceben.com/why-anthropic-is-raiding-salesforce-for-sales-talent/
+
+## 3a. Market fit (v3.7): experience in the job's market, multi-region scope
+Applies only to the market a job is based in (US jobs: US experience; APAC jobs: APAC experience; EMEA likewise).
+- Job market: region in the title ("Head of APAC"), else the location's region; "global" titles carry no market.
+- Effective months E = months located there + 0.5 x months covering it from elsewhere (or global scope) + 0.25 x months
+  at an employer headquartered there; a different country in the same region counts half (APAC / EMEA); cap 60.
+- Job fit for a job in that market: fit x (1 - 0.15 x (1 - min(E, 36) / 36)): at most 15% off with no experience
+  there, gone at 36 effective months; 7.5% for multi-region roles. Where the posting states a US-market requirement,
+  that requirement is scored from E (full at 24 months) instead, so it is not counted twice.
+- Multi-region roles (global title or a stated multi-region scope): + up to 5 points for months in multi-region roles
+  (full at 36).
+- Peer score: the market factor measures months in roles located in your target market (first target location), for
+  you and every holder; without a target market it is not scored. Holders' seat location is recorded from 2026-11-03 so
+  the factor can later compare with holders based in that market.
+- Work authorization stays a separate pass/fail screen; it never enters these numbers.
+- Basis: local experience raises callbacks (Oreopoulos field experiment, https://nber.org/digest/sep09/w15036.html),
+  the gap is smaller at large employers and shrinks over time; returns to foreign experience are higher from
+  high-income countries (https://www.nber.org/system/files/working_papers/w21914/w21914.pdf); international stints
+  carry a CEO pay premium (ESCP, 275 CEOs). No source sizes the effect for Director/VP commercial hires: 15%, 36, 24 and
+  5 are judgments, to be re-estimated from recorded outcomes (Bayesian while few; logistic at 100+ outcomes).
 
 ## 4. What it does not know
 US network, size and scope of each business run, how competitive each hire was, reputation, interview performance,

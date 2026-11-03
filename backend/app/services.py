@@ -81,12 +81,28 @@ def evaluate(db: Session, user: User) -> dict:
         if c:
             cards[k] = c
     prof = profile_view(user.profile, feats)
+    from dataclasses import replace as _replace
+
+    from .v2.market import adjust as market_adjust, effective_months, posting_market
+
+    mroles, R, eff_cache = (feats or {}).get("_market_roles") or [], int((feats or {}).get("multi_months") or 0), {}
     rows = []
     for p in postings:
         pv = posting_view(p)
         hard, soft = gate_split(pv, prof)
         ok, reasons = not (hard or soft), hard + soft
-        result = score(pv, prof, stats)
+        pm = posting_market(p.title, p.location or "", "geo_multi_region" in pv.tags)
+        key = (pm["market"], pm["country"])
+        if key not in eff_cache:
+            eff_cache[key] = effective_months(mroles, pm["market"], pm["country"])
+        eff = eff_cache[key]
+        has_us_req = "geo_us_market" in pv.tags
+        view = prof
+        if has_us_req and pm["market"] == "US" and eff.get("E") is not None:
+            # a stated US-market requirement is scored from your effective US months, not a keyword
+            view = _replace(prof, matches={**prof.matches, "geo_us_market": round(min(eff["E"] / 24, 1.0), 2)})
+        result = score(pv, view, stats)
+        result["rank_score"], result["market_fit"] = market_adjust(result["rank_score"], pm, eff, has_us_req, R)
         opp = None
         own = [f["key"] for f in fams if families.in_family(p, f)]
         fam = next((k for k in own if k in cards), None)
@@ -145,6 +161,6 @@ def row_dict(r: dict) -> dict:
         "gate_pass": r["gate_pass"], "gate_reasons": r["gate_reasons"],
         "cluster": r["cluster"], "weighted_score": r["weighted_score"], "rank_score": r["rank_score"],
         "has_zero_hard_gap": r["has_zero_hard_gap"], "hard_gaps": r["hard_gaps"], "gaps": r["gaps"],
-        "opportunity": r.get("opportunity"),
+        "opportunity": r.get("opportunity"), "market_fit": r.get("market_fit"),
         "not_read": r.get("not_read", False), "requirements_read": r.get("requirements_read", 0),
     }

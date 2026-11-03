@@ -21,6 +21,8 @@ export type Row = {
   posting: Posting; gate_pass: boolean; gate_reasons: string[]; cluster: string;
   weighted_score: number; rank_score: number; has_zero_hard_gap: boolean; not_read?: boolean; requirements_read?: number; hard_gaps: Gap[]; gaps: Gap[];
   opportunity: Opportunity | null;
+  market_fit?: { market: string | null; basis: string; effective_months: number | null; parts: { in: number; scope: number; hq: number };
+    evidence: string[]; multi_region: boolean; multi_months: number; change: number; reduction_pct?: number; multi_bonus?: number } | null;
 };
 
 export type Factor = {

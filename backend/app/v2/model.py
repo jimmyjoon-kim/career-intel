@@ -18,7 +18,7 @@ import numpy as np
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
 # Bump on any change to factors, weights or rules; every stored score carries it.
-MODEL_VERSION = "v3.6"
+MODEL_VERSION = "v3.7"
 
 FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT", "SG"]
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
@@ -303,8 +303,20 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     dom_w = {t: sum(1 for r in ref.rows if float((r.get("tags") or {}).get(t, 0)) > 0) / max(1, len(ref.rows))
              for t in DOMAIN_TAGS}
     seen = {t for r in ref.rows for ra in (r.get("roles_anon") or []) for t in (ra.get("tags") or [])}
-    rows = [size_scaled(domain_fit(family_view(with_uq(r, prev), ref.cluster, usable, seen), dom_w)) for r in ref.rows]
-    uf = size_scaled(domain_fit(family_view(with_uq(user_f, prev), ref.cluster, usable, seen), dom_w))
+    # Market factor (v3.7): months in roles located in YOUR target market (first target location), for you and every
+    # holder; without a target market the factor is not scored. Same rule for both sides.
+    tm = user_f.get("target_market")
+
+    def _market(r: dict, user: bool) -> dict:
+        r = dict(r)
+        g = r.get("geo") or {}
+        months = g.get("months") if isinstance(g.get("months"), dict) else g
+        r["geo_us_months"] = (float(months.get(tm, 0)) if months else None) if tm else None
+        if not tm:
+            r["US"] = None
+        return r
+    rows = [size_scaled(domain_fit(family_view(with_uq(_market(r, False), prev), ref.cluster, usable, seen), dom_w)) for r in ref.rows]
+    uf = size_scaled(domain_fit(family_view(with_uq(_market(user_f, True), prev), ref.cluster, usable, seen), dom_w))
     rows, uf, caps = saturate(rows, uf, cap_q)
     M = np.array([_vec(r) for r in rows])
     U = _vec(uf)
@@ -381,6 +393,10 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                         "top_share_at_or_above_you": _r(np.mean([v >= (uf.get(k) or 0) for v in tv]), 2) if tv and uf.get(k) is not None else None,
                         "top_delta": _r(w[k] / 100 * (float(np.median(tp)) - up)) if (up is not None and len(tp)) else None})
 
+    if tm and tm != "US":
+        for f in factors:
+            if f["factor"] == "US":
+                f["label"] = f"{tm} market experience"
     gaps, leads = [], []
     for f in sorted(factors, key=lambda f: -(f["top_delta"] or 0)):  # measured against the top tier, not the median
         if f["top_delta"] is None:
@@ -452,7 +468,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     return {
         "cluster": ref.cluster, "n_reference": ref.n,
         "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
-        "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "flags": flags, "position": _r(pos),
+        "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "flags": flags, "target_market": tm, "position": _r(pos),
         "top_tier": top_tier,
         "position_ci95": ([_r(min(np.percentile(boots, 2.5), pos)), _r(min(np.percentile(boots, 97.5), pos))] if gates else
                           [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))]) if boots else [None, None],

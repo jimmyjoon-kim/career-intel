@@ -156,6 +156,12 @@ def user_features(prof: Profile | None) -> dict | None:
     from .geo import user_geo
 
     f["geo"] = user_geo(roles, edu["degrees"])
+    from .market import multi_months, target_market
+
+    f["_market_roles"] = [{"title": r["title"], "company": r["company"], "location": r.get("location") or "",
+                           "months": int(r.get("months") or 0), "desc": list(r.get("desc") or [])} for r in roles]
+    f["multi_months"] = multi_months(f["_market_roles"])
+    f["target_market"] = target_market(list(prof.locations or [])) if prof else None
     f["geo_us_months"] = f["geo"]["us_role_months"]
     from .reader import TAGPAT, company_tier, role_level
     import re as _re

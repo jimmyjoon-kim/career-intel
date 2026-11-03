@@ -88,6 +88,8 @@ def derive(h: dict, now: tuple[int, int], cache: dict | None = None, sizes: dict
            **{k: v for k, v in employer_signal(roles, None, hire).items() if k != "PD_basis"},
            **{k: v for k, v in education_signals(ed["degrees"]).items() if k != "SCH_basis"},
            "rv": 2, "hired": f"{hire[0]}-{hire[1]:02d}", "roles_anon": roles_anon,
+           # where the seat is (region of the current role), so market factors can compare with holders based there
+           "seat_region": sorted(regions(at_dest[0].get("location") or "")),
            "LV_size": company_size((f.get("recent_role") or {}).get("company", ""), sizes)}
     return row
 
@@ -232,7 +234,7 @@ def apply(db: Session, prop: Proposal) -> str:
                 feats["geo"], feats["geo_us_months"] = r["geo"], r.get("geo_us_months")
             if r.get("ind"):
                 feats["ind"] = r["ind"]
-            for k in ("PD", "PD_t1", "SCH", "FLD", "rv", "hired", "roles_anon", "LV_size"):
+            for k in ("PD", "PD_t1", "SCH", "FLD", "rv", "hired", "roles_anon", "LV_size", "seat_region"):
                 if r.get(k) is not None:
                     feats[k] = r[k]
             db.add(ReferenceProfile(cluster=p["cluster"], company=r["company"], title=r["title"], features=feats,
