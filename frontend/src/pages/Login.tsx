@@ -11,14 +11,17 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
-  useEffect(() => { api<{ signup_open: boolean }>("/api/auth/config").then((c) => setSignupOpen(c.signup_open)).catch(() => setSignupOpen(false)); }, []);
+  const [inviteRequired, setInviteRequired] = useState(false);
+  const [invite, setInvite] = useState(() => new URLSearchParams(window.location.search).get("invite") ?? "");
+  useEffect(() => { api<{ signup_open: boolean; invite_required?: boolean }>("/api/auth/config").then((c) => { setSignupOpen(c.signup_open); setInviteRequired(!!c.invite_required); }).catch(() => setSignupOpen(false)); }, []);
+  useEffect(() => { if (invite) setMode("signup"); }, [invite]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      mode === "login" ? await login(email, password) : await signup(email, password, name);
+      mode === "login" ? await login(email, password) : await signup(email, password, name, invite);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -45,6 +48,9 @@ export default function Login() {
         <h2>{mode === "login" ? "Sign in" : "Create your account"}</h2>
         {mode === "signup" && (
           <label>Name<input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
+        )}
+        {mode === "signup" && inviteRequired && (
+          <label>Invite code<input required value={invite} onChange={(e) => setInvite(e.target.value)} autoComplete="off" /></label>
         )}
         <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
         <label>

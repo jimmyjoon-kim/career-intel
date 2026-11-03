@@ -97,6 +97,8 @@ export default function ScorecardPage() {
 
       <FocusPanel family={family} />
 
+      {c.top_tier && <TopTierPanel t={c.top_tier} c={c} />}
+
       <NotMeasured c={c} />
 
       <IndustryPanel family={family} />
@@ -125,16 +127,16 @@ export default function ScorecardPage() {
 
       <section className="sc-row2">
         <div className="tile">
-          <div className="tile-title">{RADAR_ORDER.length} factors, you vs the median holder</div>
+          <div className="tile-title">{RADAR_ORDER.length} factors, you vs the top tier</div>
           <div className="small muted">Percentile within holders. Select a factor for its evidence.</div>
           <Radar factors={c.factors} />
-          <div className="legend-dots" style={{ marginBottom: 8 }}><span><span className="sq" style={{ background: "var(--accent-strong)" }} />You</span><span><span className="sq" style={{ background: "var(--holder)" }} />Median holder</span></div>
+          <div className="legend-dots" style={{ marginBottom: 8 }}><span><span className="sq" style={{ background: "var(--accent-strong)" }} />You</span><span><span className="sq" style={{ background: "var(--holder)" }} />Top tier (top quarter of holders)</span></div>
           {RADAR_ORDER.map((k) => {
-            const f = fac(k); const d = f.delta ?? 0;
+            const f = fac(k); const d = f.top_delta ?? f.delta ?? 0;
             return (
               <button key={k} className="fac" onClick={() => setDetail({ kind: "factor", f })}>
                 <span>{SHORT[k]}</span>
-                <span className="track"><span className="fill" style={{ width: `${f.you_pct ?? 0}%`, background: d > 0.5 ? "var(--bad)" : undefined }} /><span className="tick" style={{ left: `${f.holder_median_pct ?? 0}%` }} /></span>
+                <span className="track"><span className="fill" style={{ width: `${f.you_pct ?? 0}%`, background: d > 0.5 ? "var(--bad)" : undefined }} /><span className="tick" style={{ left: `${f.top_pct ?? f.holder_median_pct ?? 0}%` }} /></span>
                 <span className={`gapv ${d > 0.5 ? "bad" : d < -0.5 ? "good" : ""}`}>{d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1).replace("-", "−")}</span>
               </button>
             );
@@ -161,7 +163,7 @@ export default function ScorecardPage() {
               <div className="small" style={{ color: "var(--ink-2)", marginTop: 8 }}>{gap.action} {gap.months_to_close != null ? `About ${gap.months_to_close} months.` : ""} {gap.closable_by_target === false ? "Not closable before your target date." : gap.closable_by_target ? "Closable before your target date." : ""}</div>
             </button>
           ) : (
-            <div className="tile"><span className="kick good">No factor gap</span>You meet or exceed the median holder on every factor.</div>
+            <div className="tile"><span className="kick good">No factor gap</span>You meet or exceed the top tier on every factor.</div>
           )}
           <button className="tile hit" onClick={() => setDetail({ kind: "focus" })}>
             <span className="kick warn">Focus areas · {c.focus_areas.length}</span>
@@ -382,13 +384,41 @@ function DotPlot({ scores, you, median }: { scores: number[]; you: number; media
   );
 }
 
+function TopTierPanel({ t, c }: { t: NonNullable<Card["top_tier"]>; c: Card }) {
+  return (
+    <section className="tile" style={{ marginBottom: 14 }}>
+      <div className="tile-head">
+        <span className="tile-title">Top tier · the top {t.n} of {c.n_reference} holders</span>
+        <span className="big" style={{ color: t.points_to_entry > 0 ? "var(--warn)" : "var(--good)" }}>
+          {t.points_to_entry > 0 ? `${t.points_to_entry} pts to enter` : "You are in it"}
+        </span>
+      </div>
+      <p className="small" style={{ margin: "4px 0" }}>Entry line {t.entry_score} · you {t.you} · top-tier scores {t.scores.join(", ")} · employers: {Object.entries(t.tier_mix).map(([k, n]) => `${k} ${n}`).join(", ")}</p>
+      {t.gate_note && <p className="small bad" style={{ margin: "4px 0" }}>{t.gate_note}</p>}
+      {t.path.length > 0 && <>
+        <b className="small">How to move into it (largest gains first; capabilities before structural)</b>
+        <ol className="small" style={{ margin: "4px 0 8px 18px", padding: 0 }}>
+          {t.path.map((p) => <li key={p.factor}><b>{p.label}</b> +{p.points} pts · {p.class}{p.months != null ? ` · about ${p.months} months` : ""}{p.by_target === false ? " · not before your target date" : p.by_target ? " · before your target date" : ""}<br /><span className="muted">{p.action}</span></li>)}
+        </ol>
+      </>}
+      {t.distinct_signals.length > 0 && <>
+        <b className="small">What the top tier has that the rest do not</b>
+        <ul className="small" style={{ margin: "4px 0 0 18px", padding: 0 }}>
+          {t.distinct_signals.map((s) => <li key={s.tag}>{s.label}: {Math.round(100 * s.top_share)}% of the top tier vs {Math.round(100 * s.rest_share)}% of the rest · you: {s.you >= 1 ? "yes" : s.you > 0 ? "partly" : "not shown"}</li>)}
+        </ul>
+      </>}
+    </section>
+  );
+}
+
+
 function Radar({ factors }: { factors: Factor[] }) {
   const get = (k: string) => factors.find((f) => f.factor === k)!;
   const pt = (i: number, v: number, R = 130) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / RADAR_ORDER.length; return [170 + (R * v / 100) * Math.cos(a), 170 + (R * v / 100) * Math.sin(a)]; };
   const poly = (vals: number[]) => vals.map((v, i) => pt(i, v).map((n) => n.toFixed(1)).join(",")).join(" ");
-  const you = RADAR_ORDER.map((k) => get(k).you_pct ?? 0), med = RADAR_ORDER.map((k) => get(k).holder_median_pct ?? 0);
+  const you = RADAR_ORDER.map((k) => get(k).you_pct ?? 0), med = RADAR_ORDER.map((k) => get(k).top_pct ?? get(k).holder_median_pct ?? 0);
   return (
-    <svg width="100%" height="300" viewBox="0 0 340 340" role="img" aria-label="Radar chart of factor percentiles, you against the median holder">
+    <svg width="100%" height="300" viewBox="0 0 340 340" role="img" aria-label="Radar chart of factor percentiles, you against the top tier">
       <polygon points={poly(Array(RADAR_ORDER.length).fill(100))} fill="none" stroke="var(--line)" />
       <polygon points={poly(Array(RADAR_ORDER.length).fill(50))} fill="none" stroke="var(--line)" />
       <polygon points={poly(med)} fill="var(--holder)" fillOpacity="0.14" stroke="var(--holder)" strokeWidth="2" />
@@ -449,7 +479,7 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         ))}
       </>);
     case "factor": {
-      const f = d.f; const gap = c.gaps.find((g) => g.factor === f.factor); const dd = f.delta ?? 0;
+      const f = d.f; const gap = c.gaps.find((g) => g.factor === f.factor); const dd = f.top_delta ?? f.delta ?? 0;
       const tags = FACTOR_TAGS[f.factor] ?? [];
       const ev = r.evidence.filter((e) => tags.includes(e.tag));
       return (<>
@@ -457,9 +487,10 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
         <h2>{f.label}</h2>
         <dl className="kv">
           <dt>You</dt><dd>{fmtVal(f.factor, f.you_value)} · {ord(f.you_pct ?? 0)} percentile</dd>
+          <dt>Top tier</dt><dd>{fmtVal(f.factor, f.top_value ?? null)}{f.top_share_at_or_above_you != null ? ` · ${Math.round(100 * f.top_share_at_or_above_you)}% of the top tier at or above you` : ""}</dd>
           <dt>Median holder</dt><dd>{fmtVal(f.factor, f.holder_median_value)}</dd>
           <dt>Holders above you</dt><dd>{Math.round(100 * (f.share_above_you ?? 0))}%</dd>
-          <dt>Weighted gap</dt><dd>{dd > 0 ? "+" : ""}{dd.toFixed(1)} points</dd>
+          <dt>Gap to the top tier</dt><dd>{dd > 0 ? "+" : ""}{dd.toFixed(1)} points</dd>
         </dl>
         {gap && <div className="callout">{gap.class === "structural" ? "Structural · stepping stone. " : "Capability · focus area. "}{gap.action} {gap.months_to_close != null ? `About ${gap.months_to_close} months to close.` : ""}</div>}
         {f.factor === "CT" && (<>

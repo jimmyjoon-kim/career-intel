@@ -24,7 +24,12 @@ def standing(card: dict) -> dict:
     above = sum(1 for s in sc if s > you)
     rank, n = above + 1, len(sc) + 1
     med = card["holders"]["median"]
-    lines = [
+    tt = card.get("top_tier") or {}
+    lines = []
+    if tt.get("entry_score") is not None:
+        lines.append(f"Top tier: the top {tt['n']} of {len(sc)} holders score {tt['entry_score']} or more; you score {you}"
+                     + (f", {tt['points_to_entry']} points below the entry line." if tt.get("points_to_entry") else ", inside the top tier."))
+    lines += [
         f"Your score is {you} out of 100. It is the weighted average of where you rank among {len(sc)} people who "
         f"hold {card['cluster']} roles on {len(card['factors'])} factors; 50 means the median holder on every factor.",
         f"You rank {_ord(rank)} of {n} (you plus {len(sc)} holders). The median holder scores {med}; the highest holder scores {max(sc)}.",
@@ -45,24 +50,28 @@ def standing(card: dict) -> dict:
         lines.append(f"Because the holder group is small, your position could reasonably sit anywhere between the "
                      f"{_ord(round(lo))} and {_ord(round(hi))} percentile.")
     lines.append("The score compares you with people already in these roles. It does not predict hiring decisions.")
-    return {"score": you, "rank": rank, "of": n, "median": med, "top": max(sc), "lines": lines}
+    return {"score": you, "rank": rank, "of": n, "median": med, "top": max(sc), "lines": lines,
+            "top_entry": tt.get("entry_score"), "points_to_top": tt.get("points_to_entry")}
 
 
 def versus_peers(card: dict) -> list[dict]:
-    """Each factor: your percentile against the median holder's, and what that difference is worth in score points."""
+    """Each factor: your percentile against the top tier's (top quarter of holders), and what that difference is worth
+    in score points. The median holder's percentile is kept for reference."""
     out = []
     tw = sum(f["weight"] or 0 for f in card["factors"] if f["you_pct"] is not None) or 1
     for f in card["factors"]:
-        if f["you_pct"] is None or f["holder_median_pct"] is None:
+        ref = f.get("top_pct") if f.get("top_pct") is not None else f["holder_median_pct"]
+        if f["you_pct"] is None or ref is None:
             continue
-        diff = f["you_pct"] - f["holder_median_pct"]
+        diff = f["you_pct"] - ref
         pts = round((f["weight"] or 0) * diff / tw, 1)
         state = "lead" if pts >= 0.5 else "gap" if pts <= -0.5 else "level"
         out.append({"factor": f["factor"], "label": f["label"], "you_pct": f["you_pct"], "median_pct": f["holder_median_pct"],
+                    "top_pct": f.get("top_pct"), "top_value": f.get("top_value"), "you_value": f.get("you_value"),
                     "weight": f["weight"], "points": pts, "state": state,
                     "share_above_you": f["share_above_you"],
-                    "plain": (f"{abs(pts)} points ahead of the median holder" if state == "lead" else
-                              f"{abs(pts)} points behind the median holder" if state == "gap" else "level with the median holder")})
+                    "plain": (f"{abs(pts)} points ahead of the top tier" if state == "lead" else
+                              f"{abs(pts)} points behind the top tier" if state == "gap" else "level with the top tier")})
     return sorted(out, key=lambda x: x["points"])
 
 
@@ -151,6 +160,7 @@ def build(card: dict, ev: dict, prof_view, gap_plan: list[dict], evidence_pendin
         edge.append({"label": s["label"], "detail": f"held by {round(100 * s['holder_share'])}% of role holders; you have it",
                      "postings": [f"{p.company} — {p.title}" for p in hits]})
     return {"standing": standing(card), "versus_peers": versus_peers(card), "actions": actions[:12],
+            "top_tier": card.get("top_tier"),
             "edge": edge, "strong_matches_now": strong_now, "postings_considered": len(considered),
             "method": ["Score points: the score is rerun with that one change; everything else stays as read.",
                        "Strong posting matches: postings whose requirements you would match at 80% or more, rescored with the requirement added.",

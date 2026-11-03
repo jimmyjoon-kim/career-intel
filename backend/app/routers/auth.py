@@ -35,13 +35,21 @@ def _fail(email: str) -> None:
     _recent("*").append(now)
 
 
+def _codes() -> set[str]:
+    return {c.strip() for c in get_settings().invite_codes.split(",") if c.strip()}
+
+
 def signup_open(db: Session) -> bool:
-    return get_settings().allow_signup or db.scalar(select(func.count(User.id))) == 0
+    return get_settings().allow_signup or bool(_codes()) or db.scalar(select(func.count(User.id))) == 0
+
+
+def invite_required(db: Session) -> bool:
+    return not get_settings().allow_signup and bool(_codes()) and db.scalar(select(func.count(User.id))) > 0
 
 
 @router.get("/config")
 def auth_config(db: Session = Depends(get_db)):
-    return {"signup_open": signup_open(db)}
+    return {"signup_open": signup_open(db), "invite_required": invite_required(db)}
 
 
 def user_dict(u: User) -> dict:
@@ -53,6 +61,11 @@ def signup(body: SignupIn, db: Session = Depends(get_db)):
     email = body.email.lower()
     if not signup_open(db):
         raise HTTPException(403, "Sign-up is closed. Ask the administrator for an account.")
+    if invite_required(db) and body.invite_code.strip() not in _codes():
+        _fail("signup:" + email)
+        if _locked("signup:" + email):
+            raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
+        raise HTTPException(403, "Invalid invite code")
     if db.scalar(select(User).where(func.lower(User.email) == email)):
         raise HTTPException(409, "An account with this email already exists")
     is_first = db.scalar(select(func.count(User.id))) == 0
@@ -85,3 +98,17 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
 @router.get("/me")
 def me(user: User = Depends(current_user)):
     return user_dict(user)
+
+
+@router.delete("/me")
+def delete_account(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Deletes your account and everything stored for it (profile, CV, LinkedIn import, scores, questions)."""
+    if user.is_admin and db.scalar(select(func.count(User.id)).where(User.is_admin.is_(True))) <= 1:
+        raise HTTPException(409, "The only administrator account cannot be deleted here.")
+    from ..models import PoolRequest
+
+    for r in db.scalars(select(PoolRequest).where(PoolRequest.user_id == user.id)):
+        r.user_id = None
+    db.delete(user)
+    db.commit()
+    return {"deleted": True}

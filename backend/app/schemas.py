@@ -5,6 +5,7 @@ class SignupIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=200)
     name: str = ""
+    invite_code: str = ""
 
 
 class LoginIn(BaseModel):

@@ -192,7 +192,7 @@ def test_signup_closed_and_login_lock(client, monkeypatch):
     s = get_settings()
     monkeypatch.setattr(s, "allow_signup", False)
     monkeypatch.setattr(s, "login_max_failures", 3)
-    assert client.get("/api/auth/config").json() == {"signup_open": False}
+    assert client.get("/api/auth/config").json()["signup_open"] is False
     r = client.post("/api/auth/signup", json={"email": "new@example.com", "password": "password123", "name": "N"})
     assert r.status_code == 403
     auth._fails.clear()

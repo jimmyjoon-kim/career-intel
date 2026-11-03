@@ -354,8 +354,17 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     sc = S_h[~np.isnan(S_h)]
     hist, edges = np.histogram(sc, bins=list(range(0, 101, 10)))
 
+    # Top tier: holders in the top quarter of scores (at least 3). The purpose of the comparison is what they have.
+    ok_i = [i for i in range(len(rows)) if not np.isnan(S_h[i])]
+    cut = float(np.percentile(S_h[ok_i], 75)) if ok_i else None
+    top_i = sorted([i for i in ok_i if S_h[i] >= cut], key=lambda i: -S_h[i]) if cut is not None else []
+    if len(top_i) < 3:
+        top_i = sorted(ok_i, key=lambda i: -S_h[i])[:3]
     factors = []
     for j, k in enumerate(FACTORS):
+        tp = P_h[top_i, j] if top_i else np.array([])
+        tp = tp[~np.isnan(tp)]
+        tv = [rows[i][k] for i in top_i if rows[i].get(k) is not None]
         hp = P_h[:, j]
         hp = hp[~np.isnan(hp)]
         hv = [r[k] for r in rows if r.get(k) is not None]
@@ -365,20 +374,53 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         factors.append({"factor": k, "label": FACTOR_LABELS[k], "weight": _r(w[k]), "you_value": _r(uf.get(k), 2),
                         "you_pct": _r(up), "holder_median_value": _r(np.median(hv), 2) if hv else None,
                         "holder_median_pct": _r(med_p), "share_above_you": _r(np.mean(hp > up), 2) if up is not None else None,
-                        "delta": _r(delta), "coverage": _r(len(hv) / len(rows), 2)})
+                        "delta": _r(delta), "coverage": _r(len(hv) / len(rows), 2),
+                        "top_value": _r(np.median(tv), 2) if tv else None,
+                        "top_pct": _r(float(np.median(tp))) if len(tp) else None,
+                        "top_share_at_or_above_you": _r(np.mean([v >= (uf.get(k) or 0) for v in tv]), 2) if tv and uf.get(k) is not None else None,
+                        "top_delta": _r(w[k] / 100 * (float(np.median(tp)) - up)) if (up is not None and len(tp)) else None})
 
     gaps, leads = [], []
-    for f in sorted(factors, key=lambda f: -(f["delta"] or 0)):
-        if f["delta"] is None:
+    for f in sorted(factors, key=lambda f: -(f["top_delta"] or 0)):  # measured against the top tier, not the median
+        if f["top_delta"] is None:
             continue
         k = f["factor"]
-        if f["delta"] > 0.5:
+        if f["top_delta"] > 0.5:
             cls, action = GAP_CLASS[k]
-            ttc = (round(12 * max(0.0, (f["holder_median_value"] or 0) - (uf["YOE"] or 0))) if k == "YOE" else TIME_TO_CLOSE[k])
+            ttc = (round(12 * max(0.0, (f["top_value"] or 0) - (uf["YOE"] or 0))) if k == "YOE" else TIME_TO_CLOSE[k])
             gaps.append({**f, "class": cls, "action": action, "months_to_close": ttc,
                          "closable_by_target": (ttc <= months_left) if (months_left is not None and ttc is not None) else None})
-        elif f["delta"] < -0.5:
+        elif f["top_delta"] < -0.5:
             leads.append({**f, "class": "differentiator"})
+
+    # What the top tier has in common that the rest do not (requirement signals), and the path into it.
+    top_tags = []
+    if top_i and len(top_i) < len(rows):
+        rest = [i for i in range(len(rows)) if i not in set(top_i)]
+        for t in TAG_LABELS:
+            a = sum(1 for i in top_i if rows[i]["tags"].get(t, 0) > 0) / len(top_i)
+            b = sum(1 for i in rest if rows[i]["tags"].get(t, 0) > 0) / len(rest) if rest else 0
+            if a >= 0.6 and a - b >= 0.15:
+                top_tags.append({"tag": t, "label": TAG_LABELS[t], "top_share": round(a, 2), "rest_share": round(b, 2),
+                                 "you": uf["tags"].get(t, 0)})
+        top_tags.sort(key=lambda x: -(x["top_share"] - x["rest_share"]))
+    need = _r(cut - S_u) if cut is not None else None
+    path, got = [], 0.0
+    for g in sorted(gaps, key=lambda g: (g["class"] == "structural", -(g["top_delta"] or 0))):
+        if need is None or got >= need:
+            break
+        got += g["top_delta"] or 0
+        path.append({"factor": g["factor"], "label": g["label"], "points": g["top_delta"], "class": g["class"],
+                     "action": g["action"], "months": g["months_to_close"], "by_target": g["closable_by_target"]})
+    top_tier = {
+        "n": len(top_i), "entry_score": _r(cut), "you": _r(S_u), "points_to_entry": need if need and need > 0 else 0,
+        "gated": bool(gates), "gate_note": ("Your score is capped at the median holder's until the gate is cleared ("
+                                            + ", ".join(g["label"] for g in gates) + "); the top tier is out of reach "
+                                            "while it applies.") if gates else None,
+        "scores": [_r(S_h[i]) for i in top_i],
+        "tier_mix": {f"Tier {t}": sum(1 for i in top_i if rows[i].get("tier") == t) for t in (1, 2, 3)},
+        "distinct_signals": top_tags[:8], "path": path,
+    }
 
     # Tag-level focus areas: common among holders, weaker or older in your record.
     prevalence = {t: sum(1 for r in rows if r["tags"].get(t, 0) > 0) / len(rows) for t in TAG_LABELS}
@@ -410,6 +452,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "cluster": ref.cluster, "n_reference": ref.n,
         "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
         "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "position": _r(pos),
+        "top_tier": top_tier,
         "position_ci95": ([_r(min(np.percentile(boots, 2.5), pos)), _r(min(np.percentile(boots, 97.5), pos))] if gates else
                           [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))]) if boots else [None, None],
         "holders": {"scores": sorted(_r(x) for x in sc),

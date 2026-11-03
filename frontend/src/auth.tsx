@@ -8,7 +8,7 @@ type Ctx = {
   status: Status | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, invite_code?: string) => Promise<void>;
   logout: () => void;
   refreshStatus: () => Promise<void>;
 };
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     user, status, loading, refreshStatus,
     login: async (email, password) => finish(await api("/api/auth/login", { method: "POST", json: { email, password } })),
-    signup: async (email, password, name) => finish(await api("/api/auth/signup", { method: "POST", json: { email, password, name } })),
+    signup: async (email, password, name, invite_code = "") => finish(await api("/api/auth/signup", { method: "POST", json: { email, password, name, invite_code } })),
     logout: () => { setToken(null); setUser(null); setStatus(null); },
   };
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

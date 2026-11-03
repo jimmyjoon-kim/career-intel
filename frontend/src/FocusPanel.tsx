@@ -7,7 +7,7 @@ type Action = { kind: string; title: string; why: string; where: string; effect:
 type Edge = { label: string; detail: string; postings: string[] };
 type Focus = {
   ready: boolean; reason?: string;
-  standing: { score: number; rank: number; of: number; median: number; top: number; lines: string[] };
+  standing: { score: number; rank: number; of: number; median: number; top: number; lines: string[]; top_entry?: number | null; points_to_top?: number | null };
   versus_peers: Peer[]; actions: Action[]; edge: Edge[]; strong_matches_now: number; postings_considered: number; method: string[];
 };
 
@@ -23,7 +23,7 @@ const KIND: Record<string, { label: string; tone: string }> = {
 function PeerBars({ rows }: { rows: Peer[] }) {
   const max = Math.max(1, ...rows.map((r) => Math.abs(r.points)));
   return (
-    <div role="img" aria-label="Your lead or gap against the median role holder, by factor, in score points">
+    <div role="img" aria-label="Your lead or gap against the top tier of role holders, by factor, in score points">
       {rows.map((r) => (
         <div key={r.factor} style={{ display: "grid", gridTemplateColumns: "minmax(110px, 160px) 1fr 1fr 64px", alignItems: "center", gap: 6, margin: "5px 0" }}>
           <span className="small">{r.label}</span>
@@ -39,7 +39,7 @@ function PeerBars({ rows }: { rows: Peer[] }) {
         </div>
       ))}
       <div className="small muted" style={{ display: "grid", gridTemplateColumns: "minmax(110px, 160px) 1fr 1fr 64px", gap: 6 }}>
-        <span /><span style={{ textAlign: "right" }}>behind the median holder</span><span>ahead</span><span />
+        <span /><span style={{ textAlign: "right" }}>behind the top tier</span><span>ahead</span><span />
       </div>
     </div>
   );
@@ -61,13 +61,13 @@ export default function FocusPanel({ family }: { family: string }) {
           <span className="kick acc">What your score means</span>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "6px 0 8px" }}>
             <span style={{ fontSize: 40, fontWeight: 800 }}>{s.score}</span>
-            <span className="small">ranks <b>{s.rank} of {s.of}</b> · median holder {s.median} · top holder {s.top}</span>
+            <span className="small">ranks <b>{s.rank} of {s.of}</b> · top-tier entry {s.top_entry ?? "—"}{s.points_to_top ? ` (${s.points_to_top} pts to go)` : ""} · top holder {s.top} · median {s.median}</span>
           </div>
           {s.lines.map((l, i) => <p key={i} className="small" style={{ margin: "4px 0" }}>{l}</p>)}
         </div>
         <div className="tile">
           <span className="kick acc">You vs role holders · {leads} ahead, {gaps} behind</span>
-          <p className="small muted" style={{ margin: "4px 0 6px" }}>Score points each factor adds or costs you against the median holder (your percentile vs theirs, times the factor's weight).</p>
+          <p className="small muted" style={{ margin: "4px 0 6px" }}>Score points each factor adds or costs you against the top tier, the top quarter of holders (your percentile vs theirs, times the factor's weight).</p>
           <PeerBars rows={data.versus_peers} />
         </div>
       </section>

@@ -142,8 +142,14 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
                 roles[-1]["desc"].pop()
             hm = CV_HEAD.match(prev)
             if hm:
-                cv_head = (hm.group(1).split(",")[0].strip(), hm.group(2).strip())
-                cv_loc = hm.group(1).split(",", 1)[1].strip() if "," in hm.group(1) else ""
+                left, right = hm.group(1).strip(), hm.group(2).strip()
+                # "Title — Company, Location" (the other common order): the title side carries the title words.
+                if TITLE_WORDS.search(left.split(",")[0]) and not TITLE_WORDS.search(right.split(",")[0]):
+                    cv_head = (right.split(",")[0].strip(), left)
+                    cv_loc = right.split(",", 1)[1].strip() if "," in right else ""
+                else:
+                    cv_head = (left.split(",")[0].strip(), right)
+                    cv_loc = left.split(",", 1)[1].strip() if "," in left else ""
             parts = [p.strip() for p in re.split(r"\s*[|·,—–]\s*", prev) if p.strip()]
         if cv_head:
             company, title = cv_head

@@ -74,8 +74,9 @@ def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None
         action, months = _action(actions, g["factor"])
         wf = whatif.get(g["label"])
         items.append({"against": "Median role holder", "gap": g["label"], "kind": g["class"],
-                      "you": g["you_value"], "them": g["holder_median_value"],
-                      "evidence": f'{round(100 * (g["share_above_you"] or 0))}% of holders are above you; weighted gap +{g["delta"]} points.',
+                      "you": g["you_value"], "them": g.get("top_value", g["holder_median_value"]),
+                      "evidence": f'Top tier: {g.get("top_value")} vs your {g["you_value"]}; gap to the top tier +{g.get("top_delta", g["delta"])} points '
+                                  f'({round(100 * (g["share_above_you"] or 0))}% of all holders are above you).',
                       "action": action, "months": months, "by_target": _closable(months, months_left),
                       "score_effect": wf["delta"] if wf else None, "factor": g["factor"]})
     # 2. Against holders who score above you

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     # Sign-up: open only while there are no accounts (the first account is admin) unless ALLOW_SIGNUP=true.
     allow_signup: bool = False
+    # Invite-only sign-up: comma-separated codes; anyone with a valid code can create an account.
+    invite_codes: str = ""
     # API docs (/docs) are off by default because the API can be reachable from the internet.
     enable_docs: bool = False
     # Failed logins allowed per email (and 10x that overall) in 15 minutes before a temporary lock.

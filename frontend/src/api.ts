@@ -27,6 +27,13 @@ export type Factor = {
   factor: string; label: string; weight: number; you_value: number | null; you_pct: number | null;
   holder_median_value: number | null; holder_median_pct: number | null; share_above_you: number | null;
   delta: number | null; coverage: number;
+  top_value?: number | null; top_pct?: number | null; top_delta?: number | null; top_share_at_or_above_you?: number | null;
+};
+export type TopTier = {
+  n: number; entry_score: number | null; you: number; points_to_entry: number; gated: boolean; gate_note: string | null;
+  scores: number[]; tier_mix: Record<string, number>;
+  distinct_signals: { tag: string; label: string; top_share: number; rest_share: number; you: number }[];
+  path: { factor: string; label: string; points: number; class: string; action: string; months: number | null; by_target: boolean | null }[];
 };
 export type GapV2 = Factor & { class: string; action: string; months_to_close: number | null; closable_by_target: boolean | null };
 export type PlayerCard = {
@@ -36,6 +43,7 @@ export type PlayerCard = {
 export type Card = {
   cluster: string; n_reference: number; weights: Record<string, number>; base_score: number; position: number;
   position_ci95: [number | null, number | null];
+  top_tier?: TopTier;
   holders: { scores: number[]; tier_share: Record<string, number>; median: number; p25: number; p75: number; hist: { edges: number[]; counts: number[] } };
   prevalence: Record<string, number>; tag_labels: Record<string, string>;
   factors: Factor[]; gaps: GapV2[]; differentiators: Factor[];

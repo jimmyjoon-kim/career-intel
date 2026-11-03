@@ -157,7 +157,22 @@ export default function ProfilePage() {
           </div>
         ))}
       </section>
+      <DeleteAccount />
     </>
+  );
+}
+
+function DeleteAccount() {
+  const { logout } = useAuth();
+  const [txt, setTxt] = useState(""), [err, setErr] = useState("");
+  return (
+    <section className="card">
+      <h2>Delete my account</h2>
+      <p className="muted small">Removes your account and everything stored for it: CV, LinkedIn import, requirements, scores and questions. This cannot be undone. Type DELETE to confirm.</p>
+      <input value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="DELETE" aria-label="Type DELETE to confirm" />
+      <button className="btn" disabled={txt !== "DELETE"} onClick={() => api("/api/auth/me", { method: "DELETE" }).then(logout).catch((e) => setErr(String(e)))}>Delete account</button>
+      {err && <div className="error">{err}</div>}
+    </section>
   );
 }
 
