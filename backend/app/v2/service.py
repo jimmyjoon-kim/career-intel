@@ -45,8 +45,31 @@ def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
         from ..taxonomy import keyword_tags
 
         for t, snip in keyword_tags(text.replace(CV_PREFIX, "")).items():
-            if t not in current:
+            if t not in current or (current[t].get("source") == "keyword" and not t.startswith("edu_")):
                 current[t] = {"match": 1.0, "source": "experience", "evidence": f'keyword in experience text: "{snip}"'[:500]}
+    if feats and feats.get("degrees") is not None:  # education requirements from the parsed degrees, not keywords
+        done = [d for d in feats["degrees"] if not d.get("in_progress")]
+        for t, ok, what in (("edu_bachelors", any(d["level"] >= 1 for d in done), "completed bachelor's or higher"),
+                            ("edu_technical", any(d.get("technical") for d in done), "completed technical degree")):
+            prev = current.get(t)
+            if ok and not (prev and prev.get("source") == "user"):
+                d = next(d for d in done if (d["level"] >= 1 if t == "edu_bachelors" else d.get("technical")))
+                current[t] = {"match": 1.0, "source": "education", "evidence": f'{what}: {d["text"][:200]}'}
+    if feats and feats.get("roles"):
+        import re as _re2
+
+        from .reader import role_level
+        from .segment import role_implied
+
+        def _yr(v):
+            m = _re2.search(r"(19|20)\d\d", str(v or ""))
+            return int(m.group(0)) if m else _now_ym()[0]
+        recent = [r for r in feats["roles"] if _yr(r.get("end")) >= _now_ym()[0] - 10]
+        for t, ev in role_implied(recent, lambda r: role_level(dict(r, desc=r.get("desc") or []))[0]).items():
+            prev = current.get(t)
+            if prev and (prev.get("source") == "user" or float(prev.get("match", 0)) >= ev["match"]):
+                continue
+            current[t] = ev
     if feats and feats.get("segment"):
         for side, t in (("demand", "seg_demand_side"), ("supply", "seg_supply_side")):
             prev = current.get(t)

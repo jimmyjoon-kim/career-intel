@@ -49,6 +49,41 @@ def posting_segment_cached(p) -> dict:
     return _cache[key]
 
 
+# What a general-management role at a researched unified ad platform covers by design (docs/sectors/adtech.md):
+# the business sells user acquisition to advertisers, agencies and DSP / UA buyers (demand) and buys or mediates
+# inventory from app publishers, networks and SSPs (supply); the GM owns revenue growth and the P&L across both.
+UNIFIED_GM_COVERS = {
+    "seg_demand_side": "demand side (advertisers, agencies, UA platforms, DSPs)",
+    "seg_supply_side": "supply side (app publishers, ad networks, SSPs, mediation)",
+    "func_growth": "revenue growth ownership",
+    "skill_performance_marketing": "performance (UA) advertising sold to app marketers",
+    "func_product_strategy": "local product and go-to-market strategy for the platform",
+    "skill_exec_presence": "C-level relationships with advertisers and publishers",
+    "pnl_ownership": "P&L of the business",
+}
+
+
+def role_implied(roles: list[dict], level_of) -> dict[str, dict]:
+    """Requirements a role covers by its definition, not by keywords: GM / country head / founder of a unified ad
+    platform in the last 10 years. Each carries the role as evidence."""
+    from .industry import segment_of
+
+    out: dict[str, dict] = {}
+    for r in roles:
+        if not runs_unified(r["company"], level_of(r), [], r.get("title", "")):
+            continue
+        for t, what in UNIFIED_GM_COVERS.items():
+            out.setdefault(t, {"match": 1.0, "source": "role", "evidence":
+                               f'{r.get("title", "")} at {r["company"]} (unified ad platform): covers {what}'[:500]})
+    from .industry import sector_of
+
+    ai = [r for r in roles if sector_of(r["company"])[0] == "ai"]
+    for r in ai[:1]:
+        out.setdefault("skill_llm_ai_products", {"match": 0.5, "source": "role", "evidence":
+                       f'{r.get("title", "")} at {r["company"]} (AI company); hands-on product work not stated'[:500]})
+    return out
+
+
 def sides_from_tags(tagsets: list[set], unified_gm: bool = False) -> dict:
     demand = unified_gm or any({"func_demand_side", "func_brand_agency_sales"} & s for s in tagsets)
     supply = unified_gm or any("func_supply_side" in s for s in tagsets)

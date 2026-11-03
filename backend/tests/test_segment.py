@@ -36,3 +36,13 @@ def test_gm_at_unified_platform_covers_both_sides():
     assert not runs_unified("Unity Technologies", 2, ["func_supply_side"], "Partner Manager")
     assert runs_unified("Unity Technologies", 2, [], "GM, Grow Korea")
     assert not runs_unified("Snowflake", 4, ["pnl_ownership"])
+
+
+def test_unified_gm_implies_both_sides_and_growth():
+    from app.v2.segment import role_implied
+    rs = [{"company": "Unity Technologies", "title": "General Manager, Grow Korea", "end": (2025, 6)},
+          {"company": "Wortal.AI", "title": "Interim CRO", "end": (2026, 1)}]
+    out = role_implied(rs, lambda r: 2)
+    assert {"seg_demand_side", "seg_supply_side", "func_growth", "skill_performance_marketing"} <= set(out)
+    assert out["skill_llm_ai_products"]["match"] == 0.5
+    assert role_implied([{"company": "Snowflake", "title": "General Manager", "end": (2025, 1)}], lambda r: 3) == {}
