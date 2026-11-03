@@ -22,7 +22,18 @@ from __future__ import annotations
 
 import re
 
-from .geo import APAC_LOC, EMEA_LOC, MULTI, US_LOC, US_WORK, regions
+from .geo import APAC_LOC, EMEA_LOC, MULTI, US_LOC, US_WORK
+from .geo import regions as _geo_regions
+
+LATAM_LOC = re.compile(r"\blatam\b|latin america|brazil|s[ãa]o paulo|mexico|ciudad de m[ée]xico|buenos aires|argentina|"
+                       r"bogot[áa]|colombia|chile|santiago|peru|lima\b", re.I)
+
+
+def regions(loc: str) -> set[str]:
+    out = _geo_regions(loc or "")
+    if LATAM_LOC.search(re.sub(r"new mexico", "", loc or "", flags=re.I)):
+        out.add("LATAM")
+    return out
 
 P_DEFAULT = 0.15     # judgment: largest share of fit removed with no experience in the job's market
 RAMP = 36            # judgment: months of effective experience at which the reduction is gone
@@ -33,6 +44,7 @@ MULTI_RAMP = 36
 GLOBAL_TITLE = re.compile(r"\b(global|worldwide|international|intl)\b", re.I)
 REGION_TITLE = [("APAC", re.compile(r"\bapac\b|asia[- ]pacific|\basia\b|\bjapac\b|\banz\b|southeast asia|\bsea\b", re.I)),
                 ("EMEA", re.compile(r"\bemea\b|\beurope\b|\bmiddle east\b", re.I)),
+                ("LATAM", re.compile(r"\blatam\b|latin america", re.I)),
                 ("US", re.compile(r"north america|\bamericas\b|\bus&c\b|\bucan\b", re.I))]
 COUNTRY = [("Korea", r"korea|seoul"), ("Japan", r"japan|tokyo"), ("Singapore", r"singapore"), ("China", r"china|beijing|shanghai|shenzhen"),
            ("Hong Kong", r"hong kong"), ("Taiwan", r"taiwan|taipei"), ("India", r"india|bangalore|bengaluru|mumbai|delhi|gurgaon"),
@@ -40,7 +52,8 @@ COUNTRY = [("Korea", r"korea|seoul"), ("Japan", r"japan|tokyo"), ("Singapore", r
            ("France", r"france|paris"), ("Israel", r"israel|tel aviv"), ("Netherlands", r"netherlands|amsterdam"),
            ("Ireland", r"ireland|dublin"), ("UAE", r"dubai|uae|abu dhabi")]
 SCOPE = {"US": US_WORK, "APAC": re.compile(r"[^.;]{0,60}(?:" + APAC_LOC.pattern + r")[^.;]{0,60}", re.I),
-         "EMEA": re.compile(r"[^.;]{0,60}(?:" + EMEA_LOC.pattern + r")[^.;]{0,60}", re.I)}
+         "EMEA": re.compile(r"[^.;]{0,60}(?:" + EMEA_LOC.pattern + r")[^.;]{0,60}", re.I),
+         "LATAM": re.compile(r"[^.;]{0,60}(?:" + LATAM_LOC.pattern + r")[^.;]{0,60}", re.I)}
 GLOBAL_SCOPE = re.compile(r"\bglobal (?:accounts|business|partnerships|revenue|sales|go-to-market|clients|partners)\b|"
                           r"\bworldwide\b", re.I)
 
