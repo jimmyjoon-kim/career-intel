@@ -29,6 +29,8 @@ PIPELINES = {
     "rescore": ["scoring"],
     # Started when you change your locations (or ask the Ask agent to search): boards + location web search.
     "locations": ["sourcing", "web_sourcing", "reader", "level", "index_update", "scoring"],
+    # Started when a user adds a role: postings for that role from the boards and the web, read and scored now.
+    "role_added": ["sourcing", "web_sourcing", "reader", "level", "index_update", "scoring"],
 }
 USES_MODEL = {"web_sourcing", "reader", "level", "company_facts", "company_levels", "checker", "analyst", "evidence"}
 
@@ -43,7 +45,8 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
     if name == "sourcing":
         return sourcing.run_boards(db)
     if name == "web_sourcing":
-        return sourcing.run_web(db, rid, _profile_summary(db), only_locations=run.kind == "locations")
+        return sourcing.run_web(db, rid, _profile_summary(db), only_locations=run.kind == "locations",
+                                only_roles=run.kind == "role_added")
     if name == "reader":
         return requirements.run(db, rid)
     if name == "index":

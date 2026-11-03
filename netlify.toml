@@ -5,8 +5,10 @@
   command = "npm ci && npm run build"
   publish = "dist"
 
+# The browser calls the API on the M2 directly (CORS allows this site). Relaying /api through Netlify added
+# 1-5 seconds per call (Netlify servers in the US -> Tailscale -> Seoul); the relay below stays as a fallback.
 [build.environment]
-  VITE_API_BASE = ""
+  VITE_API_BASE = "https://jimmy-macbook-pro-m2-personal.tailb8354c.ts.net"
 
 [[redirects]]
   from = "/api/*"

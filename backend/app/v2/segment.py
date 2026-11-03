@@ -39,6 +39,16 @@ def runs_unified(company: str, lv: int | None, tags, title: str = "") -> bool:
     return any(s["segment"] == "unified" for s in segment_of(company)) and ((lv or 0) >= 3 or "pnl_ownership" in set(tags or []) or bool(GM_TITLE.search(title or "")))
 
 
+_cache: dict = {}
+
+
+def posting_segment_cached(p) -> dict:
+    key = (p.id or 0, p.content_hash or str(len(p.description or "")))
+    if key not in _cache:
+        _cache[key] = posting_segment(p.title, p.description or "")
+    return _cache[key]
+
+
 def sides_from_tags(tagsets: list[set], unified_gm: bool = False) -> dict:
     demand = unified_gm or any({"func_demand_side", "func_brand_agency_sales"} & s for s in tagsets)
     supply = unified_gm or any("func_supply_side" in s for s in tagsets)

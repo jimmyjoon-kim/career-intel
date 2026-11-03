@@ -168,6 +168,9 @@ def add_family(body: FamilyIn, user: User = Depends(current_user), db: Session =
     fam = families.family(db, name)
     key = fam["key"] if fam["key"].lower() == name.lower() else name
     r = families.request_pool(db, key, user.id, "" if fam["key"].lower() == name.lower() else families._custom_pattern(name))
-    return {"family": r.family, "status": r.status,
-            "note": "Added. A provisional assessment from open postings is shown now; role holders will be collected by the "
-                    "hire-research task on your Mac, and the full scorecard appears once you approve them."}
+    from ..agents.coordinator import enqueue
+
+    run = enqueue(db, "role_added", trigger="role added", user_id=user.id) if fam["key"].lower() != name.lower() else None
+    return {"family": r.family, "status": r.status, "run_id": run.id if run else None,
+            "note": "Added. Postings for this role are being collected now (a few minutes); role holders are collected by "
+                    "the hourly hire-research task, and the full scorecard appears from 10 holders."}

@@ -83,13 +83,32 @@ def _loc_pattern(names: list[str]) -> re.Pattern | None:
     return re.compile("|".join(cities), re.I) if cities else None
 
 
-def keep(title: str, location: str, extra: re.Pattern | None = None) -> tuple[bool, str]:
+def custom_roles(db: Session) -> list[tuple[str, list[str]]]:
+    """Roles users added that are not built-in families: (name, title words that must all appear)."""
+    from ..models import PoolRequest
+    from ..v2 import families
+
+    built_in = {f["key"].lower() for f in families.FAMILIES}
+    out = []
+    for r in db.scalars(select(PoolRequest)):
+        if r.family.lower() in built_in:
+            continue
+        words = families._custom_pattern(r.family).replace("\\", "").split("|")
+        out.append((r.family, [w for w in words if w]))
+    return out
+
+
+def keep(title: str, location: str, extra: re.Pattern | None = None,
+         roles: list[tuple[str, list[str]]] | None = None) -> tuple[bool, str]:
     """Collection screen (broad on purpose; the level assessor and your preferences decide later).
-    Keeps commercial titles that read as Director+ or as a regional/global leadership role whatever the title word."""
-    if not (LEVEL.search(title) and FUNC.search(title)):
+    Keeps commercial titles that read as Director+ or as a regional/global leadership role whatever the title word,
+    and Director+ titles of any role a user added (every word of the role's name in the title)."""
+    t = (title or "").lower()
+    custom = bool(LEVEL.search(title) and any(ws and all(w in t for w in ws) for _, ws in (roles or [])))
+    if not custom and not (LEVEL.search(title) and FUNC.search(title)):
         return False, "not a senior commercial title"
     # Country-scoped and Country Manager titles are kept: whether they fit is a preference, judged at scoring time.
-    if NON_COMMERCIAL.search(title):
+    if NON_COMMERCIAL.search(title) and not custom:
         return False, "not a commercial role"
     loc = location or ""
     if extra is not None and extra.search(loc):
@@ -181,6 +200,7 @@ def upsert(db: Session, company: str, src: str, j: dict, today: str) -> str:
 def run_boards(db: Session, client: httpx.Client | None = None) -> dict:
     seed_boards(db)
     extra = _loc_pattern(profile_locations(db))
+    roles = custom_roles(db)
     today = date.today().isoformat()
     own = client is None
     client = client or httpx.Client(timeout=30, headers={"User-Agent": "career-intel/1.0"})
@@ -195,7 +215,7 @@ def run_boards(db: Session, client: httpx.Client | None = None) -> dict:
                 continue
             seen = set()
             for j in jobs:
-                ok, _ = keep(j["title"], j["location"], extra)
+                ok, _ = keep(j["title"], j["location"], extra, roles)
                 if not ok:
                     tally["screened_out"] += 1
                     continue
@@ -226,14 +246,23 @@ def location_queries(names: list[str]) -> list[str]:
             f"based in {n}; not Country Manager and not single-country roles" for n in names]
 
 
-def run_web(db: Session, run_id: int | None, profile_summary: str, only_locations: bool = False) -> dict:
+def role_queries(roles: list[tuple[str, list[str]]]) -> list[str]:
+    return [f"{name} (Director, Head of or VP level), US or US-remote, tech, ad tech or AI companies" for name, _ in roles]
+
+
+def run_web(db: Session, run_id: int | None, profile_summary: str, only_locations: bool = False,
+            only_roles: bool = False) -> dict:
     """Web search for employers whose boards are not readable directly, and for profile locations outside the US.
     Results are kept as 'unverified'."""
     from ..matches import web_search
 
     names = profile_locations(db)
     extra = _loc_pattern(names)
-    queries = location_queries(names) + ([] if only_locations else WEB_QUERIES)
+    roles = custom_roles(db)
+    if only_roles:  # a user just added a role: search for that kind of posting now
+        queries = role_queries(roles[-3:])
+    else:
+        queries = location_queries(names) + ([] if only_locations else WEB_QUERIES + role_queries(roles))
     today, added, notes = date.today().isoformat(), 0, []
     for q in queries:
         res = web_search(q, profile_summary, max_results=8, agent="sourcing", run_id=run_id, max_uses=3)
@@ -245,7 +274,7 @@ def run_web(db: Session, run_id: int | None, profile_summary: str, only_location
         for r in res.get("results", []):
             if not (r.get("url") and r.get("seen_in_search")):
                 continue  # only URLs that appeared in actual search results
-            ok, _ = keep(r.get("title", ""), r.get("location", ""), extra)
+            ok, _ = keep(r.get("title", ""), r.get("location", ""), extra, roles)
             if not ok or db.scalar(select(Posting.id).where(Posting.url == r["url"])):
                 continue
             from ..extract import _guess_cluster
