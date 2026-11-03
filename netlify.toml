@@ -4,6 +4,9 @@
   base = "frontend"
   command = "npm ci && npm run build"
   publish = "dist"
+  # Each production deploy costs Netlify credits (free plan: 300 a month). Build only when the pages change;
+  # backend-only commits are skipped (exit code 0 = skip).
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../netlify.toml"
 
 # The browser calls the API on the M2 directly (CORS allows this site). Relaying /api through Netlify added
 # 1-5 seconds per call (Netlify servers in the US -> Tailscale -> Seoul); the relay below stays as a fallback.
