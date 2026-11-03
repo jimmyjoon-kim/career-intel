@@ -130,6 +130,10 @@ def effective_months(roles: list[dict], market: str | None, ctry: str | None = N
         reg = regions(loc)
         label = f'{r.get("title", "")} @ {r.get("company", "")}'
         text = " ".join([r.get("title", "")] + list(r.get("desc") or []))
+        if market in reg and len(reg) > 1:  # several regions in one location line: covered, not based there
+            m_scope += n
+            ev.append(f"{label}: location lists several regions ({loc[:60]}); counted as covering {market}")
+            continue
         if market in reg:
             same = 1.0
             if market != "US" and ctry and country(loc) and country(loc) != ctry:
