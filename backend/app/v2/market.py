@@ -29,8 +29,18 @@ LATAM_LOC = re.compile(r"\blatam\b|latin america|brazil|s[ãa]o paulo|mexico|ciu
                        r"bogot[áa]|colombia|chile|santiago|peru|lima\b", re.I)
 
 
+US_STATES = re.compile(r"\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|"
+                       r"idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|"
+                       r"minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|"
+                       r"new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|"
+                       r"south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|"
+                       r"wisconsin|wyoming)\b", re.I)
+
+
 def regions(loc: str) -> set[str]:
     out = _geo_regions(loc or "")
+    if not out and US_STATES.search(loc or ""):
+        out.add("US")
     if LATAM_LOC.search(re.sub(r"new mexico", "", loc or "", flags=re.I)):
         out.add("LATAM")
     return out
