@@ -1,4 +1,4 @@
-# Career Intel scoring model (v3.5, 2026-11-02)
+# Career Intel scoring model (v3.6, 2026-11-03)
 
 What the score is: where your record sits among people who currently hold a role family (Partnerships, Ad Sales,
 GM / Regional lead, BD / Alliances, Growth, or any role you add), on factors that can be read from a CV or a LinkedIn
@@ -61,9 +61,19 @@ group of 10–19 holders: once 80% have it). Groups of 10–19 holders get a sco
 For each factor k: your percentile p_k among the holders (ties count half), after caps.
 Score = Σ w_k · p_k / Σ w_k over the factors that count. 50 = the median holder on every factor.
 
-Gates (US, FT, FN, DM): when 60%+ of holders show a factor you lack, the score and position range are capped at the
-median holder's. The score before gates and the gates applied are shown. Only leader seats (Director/Head and above)
-are compared once 10+ remain.
+Flags, not caps (v3.6, 2026-11-03): when 60%+ of holders show US market experience, same function at a major
+company, function evidence or domain fit, and you show none, it is reported as a flag; the factor counts at its weight.
+A cutoff set by what most holders happen to have is normative, not a stated job requirement: selection guidance ties
+cutoffs to what the job requires (Uniform Guidelines, 41 CFR 60-3.5, https://www.law.cornell.edu/cfr/text/41/60-3.5;
+Cascio & Aguinis 2001, https://www.hermanaguinis.com/pdf/RPPA2001.pdf). Foreign experience is discounted on average
+(Oreopoulos field experiment, https://nber.org/digest/sep09/w15036.html; Fortin, Lemieux & Torres 2016), but no source
+gives a size for Director/VP commercial hires or supports a cap. A posting that states a US-market requirement scores
+it as an unmet requirement in job fit. (v3.4–3.5 capped the score at the median holder's.) Only leader seats
+(Director/Head and above) are compared once 10+ remain.
+
+Top tier: the top quarter of holders by score (at least 3). Each factor shows your gap to the top tier's median
+percentile; the panel shows the entry line, the points to it, a path (capabilities first) and the signals the top tier
+shows at 60%+ and 15+ points more often than the rest.
 
 SG (ad tech sides) is weighted 8 for Ad Sales, Partnerships, BD / Alliances and GM; 0 elsewhere. It counts only for
 holders read with the demand-side signal (tag version 2, from 2026-11-02). Postings get seg_demand_side /

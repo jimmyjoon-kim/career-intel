@@ -18,7 +18,7 @@ import numpy as np
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
 # Bump on any change to factors, weights or rules; every stored score carries it.
-MODEL_VERSION = "v3.5"
+MODEL_VERSION = "v3.6"
 
 FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT", "SG"]
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
@@ -332,8 +332,10 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
             if not np.isnan(U[j]) and U[j] >= caps[k]:
                 P_u[j] = min(P_u[j], cap_q or 100)
     S_h, S_u = composite(P_h, wv), float(composite(P_u[None, :], wv)[0])
-    # Gates, like a screen: a factor that most holders show (60%+) and you do not show at all caps your score at the
-    # median holder's, instead of being averaged away by strengths elsewhere.
+    # Flags (v3.6): a factor that most holders show (60%+) and you do not show at all is reported, not used as a cap.
+    # A cutoff set by what most holders happen to have is normative, not a stated job requirement (Uniform Guidelines
+    # 41 CFR 60-3.5; Cascio & Aguinis 2001); the factor already counts at its weight. A hard requirement is applied
+    # per posting only when the posting states it (posting fit), never from holder prevalence. docs/model.md.
     gates = []
     for j, k in enumerate(FACTORS):
         if k not in GATE_FACTORS or w.get(k, 0) <= 0 or np.isnan(U[j]):
@@ -343,8 +345,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         if share >= GATE_SHARE and U[j] <= 0:
             gates.append({"factor": k, "label": FACTOR_LABELS[k], "holder_share": round(share, 2)})
     S_u_ungated = S_u
-    if gates:
-        S_u = min(S_u, float(np.nanmedian(S_h)))
+    flags, gates = gates, []
     pos = position(S_u, S_h)
     rng = np.random.default_rng(seed)
     boots = []
@@ -414,9 +415,9 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                      "action": g["action"], "months": g["months_to_close"], "by_target": g["closable_by_target"]})
     top_tier = {
         "n": len(top_i), "entry_score": _r(cut), "you": _r(S_u), "points_to_entry": need if need and need > 0 else 0,
-        "gated": bool(gates), "gate_note": ("Your score is capped at the median holder's until the gate is cleared ("
-                                            + ", ".join(g["label"] for g in gates) + "); the top tier is out of reach "
-                                            "while it applies.") if gates else None,
+        "gated": False, "gate_note": ("Most of the top tier and the holders show "
+                                      + ", ".join(g["label"].lower() for g in flags) + "; your record does not. "
+                                      "It counts at its weight, not as a cap.") if flags else None,
         "scores": [_r(S_h[i]) for i in top_i],
         "tier_mix": {f"Tier {t}": sum(1 for i in top_i if rows[i].get("tier") == t) for t in (1, 2, 3)},
         "distinct_signals": top_tags[:8], "path": path,
@@ -451,7 +452,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     return {
         "cluster": ref.cluster, "n_reference": ref.n,
         "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
-        "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "position": _r(pos),
+        "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "flags": flags, "position": _r(pos),
         "top_tier": top_tier,
         "position_ci95": ([_r(min(np.percentile(boots, 2.5), pos)), _r(min(np.percentile(boots, 97.5), pos))] if gates else
                           [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))]) if boots else [None, None],

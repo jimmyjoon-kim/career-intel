@@ -34,10 +34,10 @@ def standing(card: dict) -> dict:
         f"hold {card['cluster']} roles on {len(card['factors'])} factors; 50 means the median holder on every factor.",
         f"You rank {_ord(rank)} of {n} (you plus {len(sc)} holders). The median holder scores {med}; the highest holder scores {max(sc)}.",
     ]
-    for g in card.get("gates") or []:
-        lines.append(f"Capped at the median holder: {round(100 * g['holder_share'])}% of these holders show "
-                     f"{g['label'].lower()} and your record does not. Without this cap the score would be "
-                     f"{card.get('score_before_gates')}.")
+    for g in card.get("flags") or []:
+        lines.append(f"Flag: {round(100 * g['holder_share'])}% of these holders show {g['label'].lower()} and your "
+                     "record does not. It counts at its weight in the score; it is a hard requirement only where a "
+                     "posting states it.")
     if len(sc) < 20:
         lines.append(f"This group has {len(sc)} holders so far (fewer than 20), so the comparison is less certain. "
                      "A small group can mean few people hold this kind of role, or that collection is still running.")
