@@ -404,7 +404,7 @@ function TopTierPanel({ t, c }: { t: NonNullable<Card["top_tier"]>; c: Card }) {
       {t.distinct_signals.length > 0 && <>
         <b className="small">What the top tier has that the rest do not</b>
         <ul className="small" style={{ margin: "4px 0 0 18px", padding: 0 }}>
-          {t.distinct_signals.map((s) => <li key={s.tag}>{s.label}: {Math.round(100 * s.top_share)}% of the top tier vs {Math.round(100 * s.rest_share)}% of the rest · you: {s.you >= 1 ? "yes" : s.you > 0 ? "partly" : "not shown"}</li>)}
+          {t.distinct_signals.map((s) => <li key={s.tag}>{s.label}: {Math.round(100 * s.top_share)}% of the top tier vs {Math.round(100 * s.rest_share)}% of the rest · you: {s.you >= 1 ? "yes" : s.you > 0 ? "yes, over 8 years ago (counts half)" : "not shown"}</li>)}
         </ul>
       </>}
     </section>
