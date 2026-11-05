@@ -56,3 +56,19 @@ def test_market_fit_bounded_and_multi_bonus():
     assert g["market"] == "global" and round(s2, 4) == 0.85
     apac = posting_market("Head of APAC Partnerships", "Singapore", False)
     assert apac["market"] == "APAC" and effective_months(roles, "APAC")["E"] == 30
+
+
+def test_gate_is_not_tied_to_one_person():
+    """A new user's defaults: no location preference, country-scoped roles allowed, their own functions."""
+    from types import SimpleNamespace as NS
+    from app.scoring import ProfileView, gate_split
+    eng = ProfileView(target_roles=["Director of Engineering"], work_auth={"EMEA": "needs_sponsorship", "US": "authorized"})
+    p = NS(title="Director of Engineering", status="open", no_sponsorship=True, level_band="Director", scope="country",
+           location="Berlin, Germany", remote_flag="no", bay_area=False)
+    hard, soft = gate_split(p, eng)
+    assert hard and not soft  # needs sponsorship in EMEA; engineering is in target; Germany-only scope allowed
+    p.location, p.title = "Seattle, WA", "Director of Engineering"
+    assert gate_split(p, eng) == ([], [])  # authorized in the US
+    apac = ProfileView(locations=["APAC"])
+    p.location, p.no_sponsorship, p.title = "Singapore", False, "Head of Partnerships"
+    assert gate_split(p, apac)[1] == []  # a region name matches cities in it

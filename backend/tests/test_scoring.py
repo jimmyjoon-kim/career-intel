@@ -42,7 +42,8 @@ def test_market_stats_classifies_and_merges_small_clusters():
 
 
 def test_gate_rules():
-    prof = ProfileView(excluded_title_terms=["Country Manager"], needs_sponsorship=False)
+    prof = ProfileView(excluded_title_terms=["Country Manager"], needs_sponsorship=False, locations=["SF Bay Area"],
+                       exclude_country_scope=True)
     assert gate(P(1), prof) == (True, [])
     ok, reasons = gate(P(2, level_band="Manager"), prof)
     assert not ok and "below" in reasons[0]

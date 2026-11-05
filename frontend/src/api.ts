@@ -98,6 +98,8 @@ export type Profile = {
     requested_at?: string; experience_text?: string; education_text?: string;
     merge?: { matched: number; added: number; lines_added: number }; tags_added?: number };
   linkedin_chars: number;
+  target_roles: string[]; target_industries: string[]; target_companies: string[];
+  work_auth: Record<string, "authorized" | "needs_sponsorship">; exclude_country_scope: boolean; relocating: boolean; onboarded: boolean;
 };
 
 export type Source = { n: number; title: string; type: string; url: string; similarity: number; excerpt: string };

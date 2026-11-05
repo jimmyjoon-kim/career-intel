@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { api } from "./api";
+import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
+import { api, type Profile } from "./api";
+import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ScorecardPage from "./pages/Scorecard";
@@ -30,6 +31,11 @@ const NAV = [
 export default function App() {
   const { user, status, loading, logout } = useAuth();
   const location = useLocation();
+  const [needsSetup, setNeedsSetup] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    api<Profile>("/api/profile").then((p) => setNeedsSetup(!p.onboarded)).catch(() => setNeedsSetup(false));
+  }, [user, location.pathname]);
   if (loading) return <div className="center muted">Loading…</div>;
   if (!user) return <Login />;
 
@@ -61,7 +67,8 @@ export default function App() {
       </aside>
       <main className="main">
         <ErrorBoundary key={location.pathname}>
-        <Routes>
+        {needsSetup && location.pathname !== "/welcome" ? <Navigate to="/welcome" replace /> : <Routes>
+          <Route path="/welcome" element={<Welcome />} />
           <Route path="/" element={<ScorecardPage />} />
           <Route path="/scorecard" element={<ScorecardPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -74,7 +81,7 @@ export default function App() {
           <Route path="/agents" element={<Agents />} />
           {user.is_admin && <Route path="/admin" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        </Routes>}
         </ErrorBoundary>
       </main>
     </div>

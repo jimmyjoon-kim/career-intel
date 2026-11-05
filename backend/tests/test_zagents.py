@@ -374,7 +374,8 @@ def test_level_assessor_and_soft_screen(client, monkeypatch):
     b = level.assess(p)
     assert b["confidence"] == "low"  # no verifiable quote: the title band stands
 
-    prof = NS(min_level="Director", locations=["SF Bay Area"], remote_ok=True, needs_sponsorship=False, excluded_title_terms=[])
+    prof = NS(min_level="Director", locations=["SF Bay Area"], remote_ok=True, needs_sponsorship=False, excluded_title_terms=[],
+              exclude_country_scope=True)
     pv = NS(title="Country Manager, Korea", status="open", no_sponsorship=False, level_band="Director", scope="country",
             location="Seoul", remote_flag="no", bay_area=False)
     hard, soft = gate_split(pv, prof)

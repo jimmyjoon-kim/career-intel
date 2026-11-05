@@ -29,6 +29,13 @@ class ProfileIn(BaseModel):
     remote_ok: bool | None = None
     needs_sponsorship: bool | None = None
     excluded_title_terms: list[str] | None = None
+    target_roles: list[str] | None = Field(default=None, max_length=12)
+    target_industries: list[str] | None = Field(default=None, max_length=12)
+    target_companies: list[str] | None = Field(default=None, max_length=40)
+    work_auth: dict[str, str] | None = None
+    exclude_country_scope: bool | None = None
+    relocating: bool | None = None
+    onboarded: bool | None = None
 
 
 class TagMatchIn(BaseModel):

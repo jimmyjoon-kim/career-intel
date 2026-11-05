@@ -246,6 +246,20 @@ def location_queries(names: list[str]) -> list[str]:
             f"based in {n}; not Country Manager and not single-country roles" for n in names]
 
 
+def company_queries(db: Session, limit: int = 10) -> list[str]:
+    """Companies users asked to watch (set-up), with each user's first target role."""
+    from ..models import Profile
+
+    out = []
+    for p in db.scalars(select(Profile)):
+        role = (p.target_roles or ["Director-level"])[0]
+        for c in (p.target_companies or [])[:5]:
+            q = f"{role} roles at {c}, open now"
+            if q not in out:
+                out.append(q)
+    return out[:limit]
+
+
 def role_queries(roles: list[tuple[str, list[str]]]) -> list[str]:
     return [f"{name} (Director, Head of or VP level), US or US-remote, tech, ad tech or AI companies" for name, _ in roles]
 
@@ -262,7 +276,8 @@ def run_web(db: Session, run_id: int | None, profile_summary: str, only_location
     if only_roles:  # a user just added a role: search for that kind of posting now
         queries = role_queries(roles[-3:])
     else:
-        queries = location_queries(names) + ([] if only_locations else WEB_QUERIES + role_queries(roles))
+        queries = location_queries(names) + ([] if only_locations else WEB_QUERIES + role_queries(roles)
+                                             + company_queries(db))
     today, added, notes = date.today().isoformat(), 0, []
     for q in queries:
         res = web_search(q, profile_summary, max_results=8, agent="sourcing", run_id=run_id, max_uses=3)

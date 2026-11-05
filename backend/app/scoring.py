@@ -11,6 +11,7 @@
 No probabilities or hire likelihoods are produced anywhere.
 """
 
+import re
 import math
 from collections import Counter
 from dataclasses import dataclass, field
@@ -44,10 +45,13 @@ class PostingView:
 @dataclass
 class ProfileView:
     min_level: str = "Director"
-    locations: list[str] = field(default_factory=lambda: ["SF Bay Area"])
+    locations: list[str] = field(default_factory=list)
     remote_ok: bool = True
     needs_sponsorship: bool = False
     excluded_title_terms: list[str] = field(default_factory=list)
+    work_auth: dict[str, str] = field(default_factory=dict)  # market -> "authorized" | "needs_sponsorship"
+    exclude_country_scope: bool = False
+    target_roles: list[str] = field(default_factory=list)
     years_experience: int | None = None
     matches: dict[str, float] = field(default_factory=dict)  # tag -> 0 | 0.5 | 1
 
@@ -115,14 +119,25 @@ def market_stats(postings: list[PostingView]) -> dict:
     return {"clusters": clusters, "assignment": assignment, "all": {"n": len(open_p), "tags": _tag_table(open_p)}}
 
 
+REGION_WORDS = {"us": "US", "usa": "US", "united states": "US", "north america": "US", "americas": "US",
+                "apac": "APAC", "asia": "APAC", "asia pacific": "APAC", "asia-pacific": "APAC",
+                "emea": "EMEA", "europe": "EMEA", "middle east": "EMEA", "latam": "LATAM", "latin america": "LATAM"}
+
+
 def _location_ok(p: PostingView, prof: ProfileView) -> bool:
     if prof.remote_ok and p.remote_flag == "yes":
         return True
+    if not [w for w in prof.locations if w.strip()]:
+        return True  # no location preference: every location passes
     loc = p.location.lower()
+    from .v2.market import regions
+
     for want in prof.locations:
         w = want.lower().strip()
         if not w:
             continue
+        if w in REGION_WORDS and REGION_WORDS[w] in regions(p.location):  # a region you named ("APAC", "Europe")
+            return True
         if w in ("sf bay area", "bay area") and p.bay_area:
             return True
         if w in loc:
@@ -133,6 +148,9 @@ def _location_ok(p: PostingView, prof: ProfileView) -> bool:
         if w in ("remote", "remote us") and "remote" in loc and prof.remote_ok:
             return True
     return False
+
+
+ROLE_STOP = {"head", "director", "senior", "vice", "president", "lead", "manager", "the", "and", "for"}
 
 
 def gate_split(p: PostingView, prof: ProfileView) -> tuple[list[str], list[str]]:
@@ -147,17 +165,27 @@ def gate_split(p: PostingView, prof: ProfileView) -> tuple[list[str], list[str]]
         hard.append(f"posting status: {p.status}")
     elif p.status != "open":
         soft.append("not yet confirmed on the employer's job board")
-    if prof.needs_sponsorship and p.no_sponsorship:
+    needs = prof.needs_sponsorship
+    if getattr(prof, "work_auth", None):  # authorization by market, when you gave it
+        from .v2.market import posting_market
+
+        mk = posting_market(p.title, p.location).get("market")
+        if mk in prof.work_auth:
+            needs = prof.work_auth[mk] == "needs_sponsorship"
+    if needs and p.no_sponsorship:
         hard.append("no visa sponsorship and candidate needs sponsorship")
     title = p.title.lower()
     for term in prof.excluded_title_terms:
         if term.strip() and term.lower().strip() in title:
             hard.append(f"title contains excluded term '{term}'")
-    if NON_COMMERCIAL.search(p.title or ""):
-        soft.append("not a commercial role (finance, legal, engineering or similar)")
+    words = [[w for w in re.findall(r"[a-z]{3,}", r.lower()) if w not in ROLE_STOP] for r in getattr(prof, "target_roles", [])]
+    in_target = any(ws and all(w in title for w in ws) for ws in words)
+    if NON_COMMERCIAL.search(p.title or "") and not in_target:
+        soft.append("outside your target functions" if getattr(prof, "target_roles", None)
+                    else "not a commercial role (finance, legal, engineering or similar)")
     if LEVEL_RANK.get(p.level_band, 0) < LEVEL_RANK.get(prof.min_level, LEVEL_RANK["Director"]):
         soft.append(f"level {p.level_band or 'unknown'} below your minimum ({prof.min_level})")
-    if (p.scope or "").lower() == "country" or EXCLUDE.search(p.title or ""):
+    if getattr(prof, "exclude_country_scope", False) and ((p.scope or "").lower() == "country" or EXCLUDE.search(p.title or "")):
         soft.append("single-country scope or Country Manager title")
     if not _location_ok(p, prof):
         soft.append("location outside your locations and not remote")

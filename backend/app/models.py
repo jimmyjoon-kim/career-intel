@@ -53,10 +53,19 @@ class Profile(Base):
     tag_matches: Mapped[dict] = mapped_column(JSON, default=dict)
     # Gate preferences — see scoring.gate()
     min_level: Mapped[str] = mapped_column(String(40), default="Director")
-    locations: Mapped[list] = mapped_column(JSON, default=lambda: ["SF Bay Area"])
+    locations: Mapped[list] = mapped_column(JSON, default=list)
     remote_ok: Mapped[bool] = mapped_column(Boolean, default=True)
     needs_sponsorship: Mapped[bool] = mapped_column(Boolean, default=False)
     excluded_title_terms: Mapped[list] = mapped_column(JSON, default=list)
+    # Set-up answers (onboarding): roles and industries you target, companies you want watched, work authorization by
+    # market ({"US": "authorized" | "needs_sponsorship"}), whether single-country / Country Manager roles are out.
+    target_roles: Mapped[list] = mapped_column(JSON, default=list)
+    target_industries: Mapped[list] = mapped_column(JSON, default=list)
+    target_companies: Mapped[list] = mapped_column(JSON, default=list)
+    work_auth: Mapped[dict] = mapped_column(JSON, default=dict)
+    exclude_country_scope: Mapped[bool] = mapped_column(Boolean, default=False)
+    relocating: Mapped[bool] = mapped_column(Boolean, default=False)
+    onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
     user: Mapped[User] = relationship(back_populates="profile")

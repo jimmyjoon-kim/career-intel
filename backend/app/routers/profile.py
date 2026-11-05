@@ -32,6 +32,10 @@ def profile_dict(p: Profile) -> dict:
         "tag_matches": p.tag_matches or {}, "min_level": p.min_level, "locations": p.locations or [],
         "remote_ok": p.remote_ok, "needs_sponsorship": p.needs_sponsorship,
         "excluded_title_terms": p.excluded_title_terms or [],
+        "target_roles": p.target_roles or [], "target_industries": p.target_industries or [],
+        "target_companies": p.target_companies or [], "work_auth": p.work_auth or {},
+        "exclude_country_scope": bool(p.exclude_country_scope), "relocating": bool(p.relocating),
+        "onboarded": bool(p.onboarded),
         "linkedin_url": p.linkedin_url or "", "linkedin_import": p.linkedin_import or {},
         "linkedin_chars": len(p.linkedin_text or ""),
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
@@ -66,9 +70,16 @@ def get_profile(user: User = Depends(current_user), db: Session = Depends(get_db
 
 @router.get("/taxonomy")
 def taxonomy():
+    from ..v2.families import FAMILIES
+    from ..v2.industry import SECTORS
+
     return {
         "levels": LEVELS,
         "tags": [{"key": t.key, "label": t.label, "group": t.group, "closable": t.closable} for t in TAGS.values()],
+        # set-up options: built-in role families (any other role can be typed), industries, markets
+        "families": [f["key"] for f in FAMILIES], "sectors": SECTORS,
+        "markets": {"US": "United States", "APAC": "Asia-Pacific", "EMEA": "Europe, Middle East & Africa",
+                    "LATAM": "Latin America"},
     }
 
 
@@ -78,6 +89,13 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user), db: Sess
     data = body.model_dump(exclude_none=True)
     if "min_level" in data and data["min_level"] not in LEVELS:
         raise HTTPException(422, f"min_level must be one of {LEVELS}")
+    if "work_auth" in data:
+        data["work_auth"] = {k: v for k, v in data["work_auth"].items()
+                             if k in ("US", "APAC", "EMEA", "LATAM") and v in ("authorized", "needs_sponsorship")}
+    for k in ("target_roles", "target_industries", "target_companies"):
+        if k in data:
+            data[k] = [s.strip()[:80] for s in data[k] if s and s.strip()]
+    new_roles = [r for r in data.get("target_roles", []) if r not in (prof.target_roles or [])]
     cv = data.pop("cv_text", None)
     old_locations = list(prof.locations or [])
     for k, v in data.items():
@@ -91,6 +109,14 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user), db: Sess
     if "experience_text" in data:
         _refresh_experience(prof)
     db.commit()
+    if new_roles:  # each target role becomes a role family: postings and role holders are collected for it now
+        from .scorecard import FamilyIn, add_family
+
+        for r in new_roles:
+            try:
+                add_family(FamilyIn(name=r), user, db)
+            except HTTPException:
+                pass
     if cv is not None and cv.strip() != (prof.cv_text or "").strip():
         return _apply_cv(db, user, prof, cv.strip())
     rebuild_user(db, user)

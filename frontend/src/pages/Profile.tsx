@@ -157,6 +157,8 @@ export default function ProfilePage() {
           </div>
         ))}
       </section>
+      <section className="card"><h2>Set-up answers</h2><p className="muted small">Target roles, locations, work authorization, industries, companies and exclusions.</p>
+        <a className="btn" href="/welcome">Edit set-up answers</a></section>
       <DeleteAccount />
     </>
   );

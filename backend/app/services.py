@@ -43,6 +43,8 @@ def profile_view(prof: Profile | None, feats: dict | None = None) -> ProfileView
     return ProfileView(
         min_level=prof.min_level, locations=list(prof.locations or []), remote_ok=prof.remote_ok,
         needs_sponsorship=prof.needs_sponsorship, excluded_title_terms=list(prof.excluded_title_terms or []),
+        work_auth=dict(prof.work_auth or {}), exclude_country_scope=bool(prof.exclude_country_scope),
+        target_roles=list(prof.target_roles or []),
         years_experience=years,
         matches=matches,
     )

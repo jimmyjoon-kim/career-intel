@@ -6,6 +6,7 @@ Start: python -m app.worker   (docker compose runs it as the 'worker' service)""
 
 from __future__ import annotations
 
+import os
 import logging
 import time
 from datetime import datetime, timezone
@@ -18,7 +19,7 @@ from .db import SessionLocal, engine, init_db
 from .models import AgentRun
 
 log = logging.getLogger("worker")
-TZ = ZoneInfo("Asia/Seoul")
+TZ = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Seoul"))  # the schedule's time zone (server owner's)
 LOCK_ID = 7_402_611
 
 
