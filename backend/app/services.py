@@ -104,7 +104,8 @@ def evaluate(db: Session, user: User) -> dict:
             # a stated US-market requirement is scored from your effective US months, not a keyword
             view = _replace(prof, matches={**prof.matches, "geo_us_market": round(min(eff["E"] / 24, 1.0), 2)})
         result = score(pv, view, stats)
-        result["rank_score"], result["market_fit"] = market_adjust(result["rank_score"], pm, eff, has_us_req, R)
+        result["rank_score"], result["market_fit"] = market_adjust(result["rank_score"], pm, eff, has_us_req, R,
+                                                                         multi_scored="geo_multi_region" in pv.tags)
         opp = None
         own = [f["key"] for f in fams if families.in_family(p, f)]
         fam = next((k for k in own if k in cards), None)

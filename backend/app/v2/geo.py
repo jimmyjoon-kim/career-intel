@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import re
 
-US_LOC = re.compile(r"united states|\busa\b|\bu\.s\.|\bus\b|, (?:ca|ny|wa|tx|ma|il|de|ga|co|fl|nj|pa|or|dc|va|nc|az|ut|mn)\b|"
+US_LOC = re.compile(r"\bUS\b|(?i:united states|\busa\b|\bu\.s\.|"
                     r"san francisco|bay area|new york|seattle|los angeles|boston|chicago|austin|palo alto|mountain view|"
-                    r"sunnyvale|menlo park|redwood city|san jose|santa monica|washington, dc", re.I)
+                    r"sunnyvale|menlo park|redwood city|san jose|santa monica|washington, dc|atlanta|denver|redmond|miami|san diego|portland, or|philadelphia|dallas|houston)")
 APAC_LOC = re.compile(r"korea|seoul|japan|tokyo|singapore|apac|asia|china|beijing|shanghai|hong kong|taiwan|india|"
                       r"australia|sydney|\banz\b|vietnam|thailand|indonesia|philippines|malaysia", re.I)
 EMEA_LOC = re.compile(r"emea|europe|london|united kingdom|\buk\b|germany|berlin|paris|france|israel|tel aviv|amsterdam|"
@@ -73,14 +73,30 @@ def posting_geo_cached(p) -> dict:
     return _cache[key]
 
 
+US_STATE_CODE = re.compile(r",\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|"
+                           r"NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s*(?:\d{5})?\s*$")
+US_STATE_NAME = re.compile(r"\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|"
+                           r"hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|"
+                           r"michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|"
+                           r"new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|"
+                           r"rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|"
+                           r"west virginia|wisconsin|wyoming)\b", re.I)
+OTHER_COUNTRY = re.compile(r"canada|toronto|vancouver|montreal|ottawa|tbilisi|mexico(?! city, mo)|brazil", re.I)
+
+
 def regions(loc: str) -> set[str]:
+    """Regions a location line names. Country and city names come first; a two-letter state code or a state name
+    counts as US only when no other country or region is named ("Toronto, CA", "Berlin, DE", "Tbilisi, Georgia")."""
+    loc = loc or ""
     out = set()
-    if US_LOC.search(loc or ""):
-        out.add("US")
-    if APAC_LOC.search(loc or ""):
+    if APAC_LOC.search(loc):
         out.add("APAC")
-    if EMEA_LOC.search(loc or ""):
+    if EMEA_LOC.search(loc) or re.search(r"tbilisi", loc, re.I):
         out.add("EMEA")
+    if US_LOC.search(loc):
+        out.add("US")
+    elif not out and not OTHER_COUNTRY.search(loc) and (US_STATE_CODE.search(loc.strip()) or US_STATE_NAME.search(loc)):
+        out.add("US")
     return out
 
 

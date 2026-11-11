@@ -39,8 +39,6 @@ US_STATES = re.compile(r"\b(alabama|alaska|arizona|arkansas|california|colorado|
 
 def regions(loc: str) -> set[str]:
     out = _geo_regions(loc or "")
-    if not out and US_STATES.search(loc or ""):
-        out.add("US")
     if LATAM_LOC.search(re.sub(r"new mexico", "", loc or "", flags=re.I)):
         out.add("LATAM")
     return out
@@ -51,6 +49,7 @@ REQ_FULL = 24        # judgment: months for full credit on a stated local-market
 MULTI_BONUS = 0.05   # judgment: up to 5 points for multi-region scope when the role is multi-region
 MULTI_RAMP = 36
 
+NOT_SCOPE = re.compile(r"\b(?:global payments|international paper|global foundries|globalfoundries|international business machines)\b", re.I)
 GLOBAL_TITLE = re.compile(r"\b(global|worldwide|international|intl)\b", re.I)
 REGION_TITLE = [("APAC", re.compile(r"\bapac\b|asia[- ]pacific|\basia\b|\bjapac\b|\banz\b|southeast asia|\bsea\b", re.I)),
                 ("EMEA", re.compile(r"\bemea\b|\beurope\b|\bmiddle east\b", re.I)),
@@ -77,11 +76,13 @@ def country(loc: str) -> str | None:
 
 def posting_market(title: str, location: str, multi_tag: bool = False) -> dict:
     t = title or ""
-    if GLOBAL_TITLE.search(t):
+    if GLOBAL_TITLE.search(NOT_SCOPE.sub("", t)):
         return {"market": "global", "country": None, "multi": True, "basis": f"title: {t[:80]}"}
-    for reg, rx in REGION_TITLE:
-        if rx.search(t):
-            return {"market": reg, "country": None, "multi": multi_tag or reg != "US", "basis": f"title: {t[:80]}"}
+    named = [reg for reg, rx in REGION_TITLE if rx.search(t)]
+    if len(named) > 1:  # "EMEA & APAC": several regions, no single market
+        return {"market": "global", "country": None, "multi": True, "basis": f"title names {' and '.join(named)}: {t[:60]}"}
+    if named:
+        return {"market": named[0], "country": None, "multi": multi_tag or named[0] != "US", "basis": f"title: {t[:80]}"}
     reg = regions(location or "")
     if len(reg) == 1:
         return {"market": next(iter(reg)), "country": country(location), "multi": multi_tag, "basis": f"location: {location[:80]}"}
@@ -162,7 +163,7 @@ def multi_months(roles: list[dict]) -> int:
     return out
 
 
-def adjust(rank_score: float, pm: dict, eff: dict, has_us_req: bool, R: int) -> tuple[float, dict]:
+def adjust(rank_score: float, pm: dict, eff: dict, has_us_req: bool, R: int, multi_scored: bool = False) -> tuple[float, dict]:
     """Fit after market fit. Returns (new score 0-1, explanation)."""
     t, E = pm["market"], eff.get("E")
     out = {"market": t, "basis": pm["basis"], "effective_months": E, "parts": {k: eff.get(k) for k in ("in", "scope", "hq")},
@@ -173,8 +174,8 @@ def adjust(rank_score: float, pm: dict, eff: dict, has_us_req: bool, R: int) -> 
         factor = 1 - p * (1 - min(E, RAMP) / RAMP)
         s *= factor
         out["reduction_pct"] = round(100 * (1 - factor), 1)
-    if pm["multi"] and R > 0:
-        s = min(1.0, s + MULTI_BONUS * min(R / MULTI_RAMP, 1))
+    if pm["multi"] and R > 0 and not multi_scored:  # not when multi-region scope is already a scored requirement
+        s = min(1.0, s + MULTI_BONUS * min(R / MULTI_RAMP, 1)) if rank_score > 0 else s
         out["multi_bonus"] = round(100 * MULTI_BONUS * min(R / MULTI_RAMP, 1), 1)
     out["change"] = round(100 * (s - rank_score), 1)
     return s, out

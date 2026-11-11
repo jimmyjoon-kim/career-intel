@@ -241,7 +241,8 @@ def score(p: PostingView, prof: ProfileView, stats: dict) -> dict:
     else:
         weighted = 0.0
     zero_hard = any(g["match"] == 0 for g in hard_gaps)
-    partial_hard = sum(1 for g in hard_gaps if g["match"] == 0.5)
+    # continuous: a minimum met at m (0 < m < 1) costs 2 x penalty x (1 - m), so 0.5 costs the full penalty as before
+    partial_hard = sum(2 * (1 - g["match"]) for g in hard_gaps if 0 < g["match"] < 1)
     rank_score = round(max(0.0, weighted - HARD_GAP_PARTIAL_PENALTY * partial_hard), 3)
     gaps.sort(key=lambda g: (-WEIGHTS[g["cls"]], g["match"]))
     return {

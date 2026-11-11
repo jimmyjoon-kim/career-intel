@@ -32,7 +32,8 @@ export type Factor = {
   top_value?: number | null; top_pct?: number | null; top_delta?: number | null; top_share_at_or_above_you?: number | null;
 };
 export type TopTier = {
-  n: number; entry_score: number | null; you: number; points_to_entry: number; gated: boolean; gate_note: string | null;
+  n: number; of?: number; basis?: string | null; provisional?: boolean; definition?: string;
+  score_range?: [number, number] | null; you_rank_in_top?: number | null; entry_score: number | null; you: number; points_to_entry: number; gated: boolean; gate_note: string | null;
   scores: number[]; tier_mix: Record<string, number>;
   distinct_signals: { tag: string; label: string; top_share: number; rest_share: number; you: number }[];
   path: { factor: string; label: string; points: number; class: string; action: string; months: number | null; by_target: boolean | null }[];

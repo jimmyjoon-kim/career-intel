@@ -216,8 +216,9 @@ def user_features(prof: Profile | None) -> dict | None:
     f["ED_target"] = education_by(edu["degrees"], target) if target else None
     from .signals import AI_DEGREE, combine
 
-    ai_deg = [d for d in edu["degrees"] if AI_DEGREE.search(d["text"]) and d["level"] >= 2]
-    ai_now = 1.0 if any(not d["in_progress"] for d in ai_deg) else 0.5 if ai_deg else 0.0
+    # same rule as for holders: a completed AI degree counts; one in progress does not (it shows under your target date)
+    ai_deg = [d for d in edu["degrees"] if AI_DEGREE.search(d["text"])]
+    ai_now = 1.0 if any(not d["in_progress"] for d in ai_deg) else 0.0
     tech_deg = any(d["technical"] and not d["in_progress"] for d in edu["degrees"])
     combine(f, tech_degree=tech_deg, ai_degree=ai_now, now=_now_ym())
     f["AI_degrees"] = [d["text"] for d in ai_deg]

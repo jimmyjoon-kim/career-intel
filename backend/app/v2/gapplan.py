@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from ..taxonomy import TAGS
+from .model import GAP_CLASS
 
 # How to close each kind of gap. Stated as conditions on facts, never as claims about the user.
 FACTOR_ACTIONS = {
@@ -73,7 +74,7 @@ def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None
     for g in card["gaps"]:
         action, months = _action(actions, g["factor"])
         wf = whatif.get(g["label"])
-        items.append({"against": "Median role holder", "gap": g["label"], "kind": g["class"],
+        items.append({"against": "Top tier of role holders" if (card.get("top_tier") or {}).get("n") else "Median role holder", "gap": g["label"], "kind": g["class"],
                       "you": g["you_value"], "them": g.get("top_value", g["holder_median_value"]),
                       "evidence": f'Top tier: {g.get("top_value")} vs your {g["you_value"]}; gap to the top tier +{g.get("top_delta", g["delta"])} points '
                                   f'({round(100 * (g["share_above_you"] or 0))}% of all holders are above you).',
@@ -87,7 +88,7 @@ def build_gap_plan(card: dict, posting_gaps: list[dict], months_left: int | None
             action, months = _action(actions, k)
             wf = whatif.get(d["label"])
             items.append({"against": f'{card["benchmark"]["n_above"]} holders who score above you', "gap": d["label"],
-                          "kind": "structural" if k in ("CT", "LV", "YOE") else "capability",
+                          "kind": GAP_CLASS.get(k, ("capability",))[0],
                           "you": next(f["you_value"] for f in card["factors"] if f["factor"] == k), "them": None,
                           "evidence": f'{d["holders_ahead"]} of them lead you here, by {d["avg_points"]} points on average.',
                           "action": action, "months": months, "by_target": _closable(months, months_left),

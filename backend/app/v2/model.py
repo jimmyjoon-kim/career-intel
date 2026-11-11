@@ -13,12 +13,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import math
+
 import numpy as np
 
 from .reader import LEVEL_NAMES, SCARCE_TAGS
 
 # Bump on any change to factors, weights or rules; every stored score carries it.
-MODEL_VERSION = "v3.7"
+MODEL_VERSION = "v3.8"
 
 FACTORS = ["YOE", "CT", "LV", "FN", "DM", "UQ", "AC", "ED", "AI", "TK", "PD", "SCH", "FLD", "US", "FT", "SG"]
 # Factors read from new peer files only: they count once this many holders in the comparison group have a value.
@@ -31,8 +33,13 @@ FACTOR_LABELS = {"YOE": "Years of experience", "CT": "Company tier & journey", "
 # Expert prior, set from published evidence (docs/model.md): type of experience (function, domain, same function at a
 # major company) and level lead; tenure counts up to a floor; US experience counts; school and degree matter little at
 # senior level (the school effect fades with experience). Blended with market weights as outcome data accrue.
-W_EXPERT = {"YOE": 10, "CT": 5, "LV": 15, "FN": 16, "DM": 9, "UQ": 3, "AC": 2, "ED": 3, "AI": 6, "TK": 3,
-            "PD": 5, "SCH": 2, "FLD": 2, "US": 12, "FT": 14, "SG": 0}  # SG weighted for ad families only (below)
+# v3.8 (council review, 2026-11-12): employer tier was counted three times (CT 5 + PD 5 + FT 14 = 24); now 14 in total.
+# School tier and degree field are shown as information, not scored (school effect fades by year 10; the list is from
+# a secondary source; field penalizes non-STEM degrees without evidence at senior level). The market factor has no
+# sourced size, so it is held at 8 until outcomes are recorded (job fit carries the per-posting market adjustment).
+W_EXPERT = {"YOE": 10, "CT": 3, "LV": 15, "FN": 16, "DM": 9, "UQ": 3, "AC": 2, "ED": 3, "AI": 6, "TK": 3,
+            "PD": 2, "SCH": 0, "FLD": 0, "US": 8, "FT": 9, "SG": 0}  # SG weighted for ad families only (below)
+INFO_ONLY = {"SCH", "FLD"}
 # Market weights: discrimination of each factor between holders and non-target hires (title-based run, 2026-10-27).
 W_MARKET = {"YOE": 0.1, "CT": 13.2, "LV": 22.7, "FN": 50.4, "DM": 4.3, "UQ": 2.3, "AC": 7.0}
 PRIOR_M = 50
@@ -132,11 +139,24 @@ def pct_matrix(X: np.ndarray, ref: np.ndarray) -> np.ndarray:
     return out
 
 
+def pct_clipped(X: np.ndarray, ref: np.ndarray, caps: dict | None, cap_q: float | None) -> np.ndarray:
+    """The one percentile rule, used by every path (score, range, what-ifs, posting view): percentile among `ref`
+    with ties counted half; a value at or above a factor's cap gets at most the cap's percentile."""
+    P = pct_matrix(X, ref)
+    for j, k in enumerate(FACTORS):
+        if caps and k in caps:
+            P[:, j] = np.where(X[:, j] >= caps[k], np.minimum(P[:, j], cap_q or 100), P[:, j])
+    return P
+
+
 def composite(P: np.ndarray, wv: np.ndarray) -> np.ndarray:
-    ok = ~np.isnan(P)
-    num = np.nansum(np.where(ok, P, 0) * wv[None, :], axis=1)
-    den = (ok * wv[None, :]).sum(1)
-    return np.where(den > 0, num / np.where(den > 0, den, 1), np.nan)
+    """Weighted mean of factor percentiles. A factor that counts (weight > 0) but is unknown for a person takes the
+    neutral value 50 (the median holder), for you and for holders alike, so nobody is scored on a shorter list."""
+    known = ~np.isnan(P)
+    Pn = np.where(known, P, 50.0)
+    den = float(wv.sum())
+    out = (Pn * wv[None, :]).sum(1) / (den or 1)
+    return np.where((known * (wv[None, :] > 0)).any(1) & (den > 0), out, np.nan)
 
 
 def position(x: float, arr: np.ndarray) -> float:
@@ -174,17 +194,23 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None, seen_tag
     """Function evidence for this family; major-company hires with Tier 1 employers counted double."""
     f = dict(f)
     tags = f.get("tags") or {}
-    keys = usable if usable is not None else FAMILY_FN.get(cluster.split(" · ")[0].lower(), FAMILY_FN["partnerships"])
+    keys = usable if usable is not None else FAMILY_FN.get(cluster.split(" · ")[0].lower(), [])
     f["FN"] = (sum(float(tags.get(t, 0)) for t in keys) / len(keys)) if keys else None
     if f.get("CT_tier_only") is not None:  # employer tier only: the IPO/acquisition bonus is dropped (counted elsewhere)
         f["CT"] = f["CT_tier_only"]
+    ra = [r for r in (f.get("roles_anon") or []) if r.get("tier") and r.get("y1")]
+    if ra:  # as documented: best employer tier among 12+ month roles in the last 10 years (Tier 1 = 3 ... Tier 3 = 1)
+        last = max(r["y1"] for r in ra)
+        best_t = min((r["tier"] for r in ra if (r.get("months") or 0) >= 12 and r["y1"] >= last - 10), default=None)
+        if best_t is not None:
+            f["CT"] = float(4 - best_t)
     if f.get("PD") is not None:
         f["PD"] = float(f["PD"]) + float(f.get("PD_t1") or 0)
     if f.get("geo_us_months") is not None:
         f["US"] = min(60.0, float(f["geo_us_months"]))
     if f.get("roles_anon") is not None:  # same function at a major company, from the anonymized role list
         fam = cluster.split(" · ")[0].lower()
-        fam_tags = set(FAMILY_FN.get(fam, FAMILY_FN["partnerships"])) & set(seen_tags if seen_tags is not None else FAMILY_FN.get(fam, []))
+        fam_tags = set(FAMILY_FN.get(fam, [])) & set(seen_tags if seen_tags is not None else FAMILY_FN.get(fam, []))
         gm = fam == "gm / regional lead"  # general management: a VP/GM-band role, not a keyword
         best = 0
         for r in f["roles_anon"]:
@@ -205,6 +231,7 @@ def family_view(f: dict, cluster: str, usable: list[str] | None = None, seen_tag
 
 
 GATE_FACTORS = ["US", "FT", "FN", "DM"]
+TOP_MIN = 5  # fewer holders than this at major employers: no top tier is shown
 AD_FAMILIES = {"ad sales", "partnerships", "bd / alliances", "gm / regional lead"}
 GATE_SHARE = 0.6
 
@@ -293,9 +320,9 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                    cap_q: float | None = CAP_Q) -> dict:
     prev = scarcity(ref.rows)
     fam = ref.cluster.split(" · ")[0].lower()
-    wanted = FAMILY_FN.get(fam, FAMILY_FN["partnerships"])
+    wanted = FAMILY_FN.get(fam, [])  # a role without its own function signals: function evidence is not measured
     # a function tag counts only once at least 20 holders were read with it (older reads lack newer tags)
-    need = min(20, max(10, int(0.8 * len(ref.rows))))  # in a group of 10-19, at least 80% of holders must have it
+    need = min(20, max(8, math.ceil(0.8 * len(ref.rows))))  # in a group of 10-19, at least 80% of holders must have it
     usable = [t for t in wanted if sum(1 for r in ref.rows if t in (r.get("tags") or {})) >= need]
     # Domain fit: domains weighted by how many holders of this role show them (a role's domains, not breadth).
     from .reader import DOMAIN_TAGS
@@ -330,19 +357,14 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     pending = {}
     for k, need_k in NEW_FACTORS.items():
         have = sum(1 for r in rows if r.get(k) is not None)
-        need_k = min(need_k, max(10, int(0.8 * len(rows))))
+        need_k = min(need_k, max(8, math.ceil(0.8 * len(rows))))
         if have < need_k:
             w[k] = 0.0
             pending[k] = {"label": FACTOR_LABELS[k], "holders_with_data": have, "needed": need_k, "you": uf.get(k)}
     tot = sum(w.values()) or 1
     w = {k: 100 * v / tot for k, v in w.items()}  # weights of the factors that count sum to 100
     wv = np.array([w[k] for k in FACTORS])
-    P_h, P_u = pct_matrix(M, M), pct_matrix(U[None, :], M)[0]
-    for j, k in enumerate(FACTORS):  # at or above the cap = the cap's percentile, not a tie-split above it
-        if k in caps:
-            P_h[:, j] = np.where(M[:, j] >= caps[k], np.minimum(P_h[:, j], cap_q or 100), P_h[:, j])
-            if not np.isnan(U[j]) and U[j] >= caps[k]:
-                P_u[j] = min(P_u[j], cap_q or 100)
+    P_h, P_u = pct_clipped(M, M, caps, cap_q), pct_clipped(U[None, :], M, caps, cap_q)[0]
     S_h, S_u = composite(P_h, wv), float(composite(P_u[None, :], wv)[0])
     # Flags (v3.6): a factor that most holders show (60%+) and you do not show at all is reported, not used as a cap.
     # A cutoff set by what most holders happen to have is normative, not a stated job requirement (Uniform Guidelines
@@ -363,16 +385,26 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
     boots = []
     for _ in range(n_boot):
         R = M[rng.integers(0, len(M), len(M))]
-        boots.append(position(float(composite(pct_matrix(U[None, :], R), wv)[0]), composite(pct_matrix(R, R), wv)))
+        boots.append(position(float(composite(pct_clipped(U[None, :], R, caps, cap_q), wv)[0]),
+                              composite(pct_clipped(R, R, caps, cap_q), wv)))
     sc = S_h[~np.isnan(S_h)]
     hist, edges = np.histogram(sc, bins=list(range(0, 101, 10)))
 
     # Top tier: holders in the top quarter of scores (at least 3). The purpose of the comparison is what they have.
     ok_i = [i for i in range(len(rows)) if not np.isnan(S_h[i])]
-    cut = float(np.percentile(S_h[ok_i], 75)) if ok_i else None
-    top_i = sorted([i for i in ok_i if S_h[i] >= cut], key=lambda i: -S_h[i]) if cut is not None else []
-    if len(top_i) < 3:
-        top_i = sorted(ok_i, key=lambda i: -S_h[i])[:3]
+    # v3.8: the top tier is defined by an outcome outside the score: holders whose seat (the job they were hired
+    # into) is at a Tier 1 employer; Tier 1 or 2 if fewer than 5. Fewer than 5 either way: no top tier is shown and
+    # gaps are measured against the median holder. (Before: the top quarter by this model's own score, which is circular.)
+    from .reader import company_tier
+
+    seat = {i: company_tier(rows[i].get("company") or "") for i in ok_i}
+    top_i, top_basis = [i for i in ok_i if seat[i] == 1], "holders hired into Tier 1 employers"
+    if len(top_i) < TOP_MIN:
+        top_i, top_basis = [i for i in ok_i if seat[i] in (1, 2)], "holders hired into Tier 1 or Tier 2 employers"
+    if len(top_i) < TOP_MIN or len(top_i) == len(ok_i):
+        top_i, top_basis = [], None
+    top_i = sorted(top_i, key=lambda i: -S_h[i])
+    cut = float(np.median(S_h[top_i])) if top_i else None
     factors = []
     for j, k in enumerate(FACTORS):
         tp = P_h[top_i, j] if top_i else np.array([])
@@ -391,7 +423,8 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
                         "top_value": _r(np.median(tv), 2) if tv else None,
                         "top_pct": _r(float(np.median(tp))) if len(tp) else None,
                         "top_share_at_or_above_you": _r(np.mean([v >= (uf.get(k) or 0) for v in tv]), 2) if tv and uf.get(k) is not None else None,
-                        "top_delta": _r(w[k] / 100 * (float(np.median(tp)) - up)) if (up is not None and len(tp)) else None})
+                        # gap to the top tier where one exists, else to the median holder
+                        "top_delta": _r(w[k] / 100 * (float(np.median(tp)) - up)) if (up is not None and len(tp)) else _r(delta)})
 
     if tm and tm != "US":
         for f in factors:
@@ -402,9 +435,11 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         if f["top_delta"] is None:
             continue
         k = f["factor"]
+        if (w.get(k) or 0) <= 0:
+            continue
         if f["top_delta"] > 0.5:
             cls, action = GAP_CLASS[k]
-            ttc = (round(12 * max(0.0, (f["top_value"] or 0) - (uf["YOE"] or 0))) if k == "YOE" else TIME_TO_CLOSE[k])
+            ttc = (round(12 * max(0.0, (f["top_value"] or f["holder_median_value"] or 0) - (uf["YOE"] or 0))) if k == "YOE" else TIME_TO_CLOSE[k])
             gaps.append({**f, "class": cls, "action": action, "months_to_close": ttc,
                          "closable_by_target": (ttc <= months_left) if (months_left is not None and ttc is not None) else None})
         elif f["top_delta"] < -0.5:
@@ -417,7 +452,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         for t in TAG_LABELS:
             a = sum(1 for i in top_i if rows[i]["tags"].get(t, 0) > 0) / len(top_i)
             b = sum(1 for i in rest if rows[i]["tags"].get(t, 0) > 0) / len(rest) if rest else 0
-            if a >= 0.6 and a - b >= 0.15:
+            if a >= 0.6 and a - b >= 0.2 and len(top_i) >= TOP_MIN:
                 top_tags.append({"tag": t, "label": TAG_LABELS[t], "top_share": round(a, 2), "rest_share": round(b, 2),
                                  "you": uf["tags"].get(t, 0)})
         top_tags.sort(key=lambda x: -(x["top_share"] - x["rest_share"]))
@@ -430,7 +465,11 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         path.append({"factor": g["factor"], "label": g["label"], "points": g["top_delta"], "class": g["class"],
                      "action": g["action"], "months": g["months_to_close"], "by_target": g["closable_by_target"]})
     top_tier = {
-        "n": len(top_i), "entry_score": _r(cut), "you": _r(S_u), "points_to_entry": need if need and need > 0 else 0,
+        "n": len(top_i), "of": len(ok_i), "basis": top_basis, "provisional": len(ok_i) < 20,
+        "definition": "Defined by where holders were hired (the employer's tier), not by this score.",
+        "score_range": [_r(min(S_h[i] for i in top_i)), _r(max(S_h[i] for i in top_i))] if top_i else None,
+        "you_rank_in_top": (1 + sum(1 for i in top_i if S_h[i] > S_u)) if top_i else None,
+        "entry_score": _r(cut), "you": _r(S_u), "points_to_entry": need if need and need > 0 else 0,
         "gated": False, "gate_note": ("Most of the top tier and the holders show "
                                       + ", ".join(g["label"].lower() for g in flags) + "; your record does not. "
                                       "It counts at its weight, not as a cap.") if flags else None,
@@ -481,7 +520,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "scarcity_prevalence": {t: round(p, 2) for t, p in prev.items()},
         "benchmark": _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev, caps),
         "cards": _cards(S_u, S_h, P_h, P_u, rows, uf, order),
-        "_internal": {"P_u": P_u, "M": M, "wv": wv, "user": uf, "prev": prev, "caps": caps},
+        "_internal": {"P_u": P_u, "P_h": P_h, "M": M, "wv": wv, "user": uf, "prev": prev, "caps": caps},
     }
 
 
@@ -508,13 +547,13 @@ def opportunity(card: dict, posting_tags: list[str], tag_weights: dict[str, int]
     wv2 = np.array([w2[k] for k in FACTORS])
     M, P_u = internal["M"], internal["P_u"]
     S_u = float(composite(P_u[None, :], wv2)[0])
-    pos = position(S_u, composite(pct_matrix(M, M), wv2))
+    pos = position(S_u, composite(internal["P_h"], wv2))
     uf = internal["user"]
     thresholds = []
     if years_required and uf.get("YOE_raw") is not None and uf["YOE_raw"] < years_required:
         thresholds.append(f"{years_required}+ years required; your counted years: {uf['YOE_raw']}")
     need = LEVEL_TO_BAND.get(posting_level)
-    have = uf.get("LV_max")
+    have = uf.get("LV") if uf.get("LV") is not None else uf.get("LV_max")  # size-adjusted level, as in the score
     if need is not None and have is not None and have < need:
         thresholds.append(f"Level {posting_level} required; highest band held 12+ months: {LEVEL_NAMES[have]}")
     shifts = sorted(((k, w2[k] - card["weights"][k]) for k in FACTORS), key=lambda x: -x[1])
@@ -586,9 +625,9 @@ def _score_with(uf: dict, M: np.ndarray, wv: np.ndarray, prev: dict, caps: dict 
     for k, c in (caps or {}).items():  # the same cap as the holders' values
         if f.get(k) is not None and float(f[k]) > c:
             f[k] = c
-    P = pct_matrix(_vec(f)[None, :], M)
+    P = pct_clipped(_vec(f)[None, :], M, caps, CAP_Q)
     s = float(composite(P, wv)[0])
-    return s, position(s, composite(pct_matrix(M, M), wv))
+    return s, position(s, composite(pct_clipped(M, M, caps, CAP_Q), wv))
 
 
 def _benchmark(S_u, S_h, P_h, P_u, w, rows, uf, M, wv, prev, caps=None) -> dict:

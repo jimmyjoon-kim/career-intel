@@ -28,10 +28,22 @@ TYPE_LINE = re.compile(rf"^({TYPES})$")
 CO_TYPE_LINE = re.compile(rf"^(.+?) · ({TYPES})$")
 GROUP_DUR = re.compile(rf"^(?:(?:{TYPES}) · )?\d+ (?:yrs?|mos?)(?: \d+ mos?)?$")
 TITLE_WORDS = re.compile(
-    r"director|manager|head|vp|vice president|president|chief|lead|officer|partner|sales|engineer|consultant|executive|"
-    r"analyst|associate|specialist|founder|principal|gm\b|general manager|strategist|coordinator|assistant|intern|advisor|"
-    r"member|producer|representative|scientist|architect|planner|supervisor|development|partnerships|business", re.I)
-SKIP_LINE = re.compile(r"^(Skills: |Education: |Show all \d|Load more$|Experience$|Hybrid$|Remote$|On-site$|.* · (Hybrid|Remote|On-site)$|\s*$)")
+    r"\b(?:director|manager|head|vp|svp|evp|avp|vice[- ]president|president|chief|ceo|cro|coo|cfo|cmo|cto|cpo|cso|lead|"
+    r"officer|partner|engineer|consultant|executive|analyst|associate|specialist|founder|co-founder|principal|gm|"
+    r"general manager|strategist|coordinator|assistant|intern|advisor|member|producer|representative|scientist|"
+    r"architect|planner|supervisor)\b", re.I)
+SKIP_LINE = re.compile(r"^(Skills: |Education: |Show all \d|Load more$|(?i:experience|work experience|professional experience)$|Hybrid$|Remote$|On-site$|.* · (Hybrid|Remote|On-site)$|\s*$)")
+# A keyword or skills list is not evidence of work done: tags are read from sentences, not from lists.
+KEYWORD_LINE = re.compile(r"^\s*(?:keywords?|skills?|core competenc\w+|competenc\w+|technolog\w+|tools?|expertise|"
+                          r"areas? of expertise|tags?)\s*[:\-–]", re.I)
+_VERB = re.compile(r"\b(?:led|built|managed|grew|launched|drove|owned|ran|created|negotiated|closed|developed|delivered|"
+                   r"scaled|established|oversaw|headed|responsible|increased|reduced|signed|secured|directed|founded|"
+                   r"expanded|generated|achieved|partnered|worked|served|reported|held|was|is|are|were)\b|\w+(?:ed|ing)\b", re.I)
+
+
+def keyword_list(line: str) -> bool:
+    ln = line or ""
+    return bool(KEYWORD_LINE.match(ln)) or (ln.count(",") + ln.count("|") + ln.count("·") >= 5 and not _VERB.search(ln))
 CV_PREFIX = "<<CV>> "
 
 
@@ -144,7 +156,10 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
             if hm:
                 left, right = hm.group(1).strip(), hm.group(2).strip()
                 # "Title — Company, Location" (the other common order): the title side carries the title words.
-                if TITLE_WORDS.search(left.split(",")[0]) and not TITLE_WORDS.search(right.split(",")[0]):
+                lt, rt = bool(TITLE_WORDS.search(left.split(",")[0])), bool(TITLE_WORDS.search(right.split(",")[0]))
+                if lt and rt:  # both sides carry a title word: the title is the side that reads as a level
+                    lt, rt = title_level(left) is not None, title_level(right) is not None and title_level(left) is None
+                if lt and not rt:
                     cv_head = (right.split(",")[0].strip(), left)
                     cv_loc = right.split(",", 1)[1].strip() if "," in right else ""
                 else:
@@ -156,10 +171,18 @@ def parse_inline(text: str, now: tuple[int, int] | None = None) -> list[dict]:
         else:
             titled = [p for p in parts if TITLE_WORDS.search(p)]
             title = titled[0] if titled else (parts[0] if parts else "")
-            company = next((p for p in parts if p != title), "")
+            rest = [p for p in parts if p != title]
+            # "Director, Partnerships | Salesforce": a function word after the title belongs to the title
+            if len(rest) > 1 and FUNCTION_WORD.fullmatch(rest[0]):
+                title, rest = f"{title}, {rest[0]}", rest[1:]
+            company = rest[0] if rest else ""
         roles.append(_finish({"title": title, "company": company, "emp_type": None, "location": cv_loc,
                               "start_raw": m.group(1), "end_raw": m.group(2), "desc": []}, now))
     return roles
+
+
+FUNCTION_WORD = re.compile(r"(?:strategic |global |channel |business )?(?:partnerships?|sales|business development|"
+                           r"alliances|marketing|growth|operations|product|engineering|strategy|ad sales|monetization)", re.I)
 
 
 # CV role heading: "Company, Location — Title" (em or en dash with spaces), with the dates on the next line.
@@ -170,10 +193,10 @@ def _is_cv(text: str) -> bool:
     """CV format: at least two date-range lines whose previous line is a 'Company — Title' heading."""
     L = [ln.strip() for ln in text.split("\n") if ln.strip()]
     hits = sum(1 for i in range(1, len(L)) if INLINE_DATE.fullmatch(L[i]) and CV_HEAD.match(L[i - 1]))
-    return hits >= 2
+    return hits >= 1
 
 
-def parse_roles(text: str, now: tuple[int, int] | None = None) -> tuple[list[dict], str]:
+def _parse_roles(text: str, now: tuple[int, int] | None = None) -> tuple[list[dict], str]:
     if not text or not text.strip():
         return [], "empty"
     if _is_cv(text):
@@ -182,6 +205,19 @@ def parse_roles(text: str, now: tuple[int, int] | None = None) -> tuple[list[dic
     if li:
         return li, "linkedin"
     return parse_inline(text, now), "inline"
+
+
+def parse_roles(text: str, now: tuple[int, int] | None = None) -> tuple[list[dict], str]:
+    """Roles from CV or LinkedIn text. Keyword and skills lists are dropped from role descriptions: nothing downstream
+    (requirement tags, AI / technical signals, ad tech sides, quantified lines) reads evidence from a list."""
+    roles, fmt = _parse_roles(text, now)
+    for r in roles:
+        keep = [k for k, d in enumerate(r.get("desc") or []) if not keyword_list(d)]
+        if len(keep) != len(r.get("desc") or []):
+            r["desc"] = [r["desc"][k] for k in keep]
+            if isinstance(r.get("desc_src"), list) and len(r["desc_src"]) >= (max(keep) + 1 if keep else 0):
+                r["desc_src"] = [r["desc_src"][k] for k in keep]
+    return roles, fmt
 
 
 # ------------------------------------------------------------------ rules
@@ -195,7 +231,10 @@ LEVEL = [
     (r"\b(chief|cro|ceo|coo|cso|cmo|cpo|(?<!vice )(?<!vice-)president)\b", 5),
     (r"\b(svp|evp|senior vice president|executive vice president|managing director)\b", 4),
     # A general manager runs a business unit (P&L, multiple functions): VP-equivalent in most companies.
-    (r"\b(vp|vice president|avp|rvp|general manager|gm)\b", 3),
+    # Assistant / associate VP is a mid-level title (banking and some enterprises), not a VP.
+    (r"\b(avp|assistant vice[- ]president|associate vice[- ]president)\b", 1),
+    # Country manager / country head runs a country business: GM band (the single-country rule then reads it one lower).
+    (r"\b(vp|vice[- ]president|rvp|general manager|gm|country manager|country head|country lead|country director)\b", 3),
     (r"\b(senior director|sr\.? director|global head|head of|group director)", 2),
     (r"\bdirector\b", 1),
     (r"\b(senior manager|sr\.? manager|lead|principal|consultant|specialist|account executive|manager|associate|analyst|"
@@ -209,18 +248,23 @@ STAFF_PHRASES = re.compile(r"office of the (?:ceo|coo|cro|chairman)|chief of sta
 
 TAG_VERSION = 2  # 2: func_demand_side added (holders read earlier have no SG)
 TAGPAT = {
-    "func_partnerships": r"partner|alliance",
+    "func_partnerships": r"partnerships?\b|\bpartner (?:program|ecosystem|manage|develop|success|sales|network|strategy)|"
+                         r"(?:strategic|channel|technology|platform|business|global|key) partners?\b|alliances?\b",
     "func_bd": r"business development|\bbd\b",
-    "func_channel": r"\bchannel|reseller|partner sales|\bvar\b|distributor|\bgsi\b|system integrator",
+    "func_channel": r"\bchannel (?:sales|partners?|program|strategy|business|team|management|development)|\bchannels? and|"
+                    r"reseller|partner sales|\bvar\b|distributor|distribution channel|\bgsi\b|system integrator",
     "func_ad_sales": r"ad sales|advertising sales|media sales|sales\b[^.]{0,30}advertis|advertis[^.]{0,30}\bsales|agency (?:sales|partnerships|relationships)|"
                      r"demand sales|supply sales|publisher sales|revenue (?:from )?advertis|\bupfront|\bquota\b",
     "func_enterprise_sales": r"account executive|enterprise sales|strategic accounts?|named accounts?|\bquota\b|\barr\b|"
                              r"head of sales|vp(?:,)? sales|vice president(?:,)? sales|sales director|regional sales|field sales",
     "func_brand_agency_sales": r"\bagency\b|agencies|brand (?:advertis|partnerships|sales|clients)|holding compan|upfronts?|"
                                r"media buyers?|cpg|client partner",
-    "func_supply_side": r"supply|publisher|mediation|monetiz|monetis|offerwall|\bssp\b|inventory|yield",
-    "func_demand_side": r"\bdemand\b|advertisers?\b|user acquisition|\bua\b|\bdsp\b|performance (?:advertis|marketing)|"
-                        r"media buy|agenc(?:y|ies)|brand (?:advertis|clients|partners)|app marketers?",
+    "func_supply_side": r"supply[- ]side|\bsupply (?:partners?|partnerships?|sales|team|business)|publishers?\b|mediation|monetiz|"
+                        r"monetis|offerwall|\bssp\b|ad inventory|inventory (?:partners?|sales|monetiz)|yield (?:optimi|manage)",
+    "func_demand_side": r"demand[- ]side|\bdemand (?:partners?|partnerships?|sales|team|business)|advertisers?\b|user acquisition|"
+                        r"\bua\b|\bdsp\b|performance advertis|media buy|(?:ad|advertising|media|creative) agenc(?:y|ies)|"
+                        r"agenc(?:y|ies) (?:sales|partnerships?|partners|relationships|holding)|brand (?:advertis|clients|partners)|"
+                        r"app marketers?",
     "rev_scale": r"\$\s?\d+(?:\.\d+)?\s?(?:m|mm|b|bn|million|billion)\b|\b\d+(?:\.\d+)?\s?(?:million|billion)\b|"
                  r"(?:seven|eight|nine)[- ]figure|quota attainment|\d{2,3}%\s+(?:of|to)\s+(?:quota|target|plan)",
     "func_growth": r"\bgrowth (?:marketing|team|strategy|product|function|org)|user acquisition|\bua\b|performance marketing|retention|"
@@ -234,16 +278,17 @@ TAGPAT = {
     "domain_mobile": r"mobile|\bapp\b|\bapps\b|gaming|games?\b|roblox|epic games|xbox|app store|\bios\b|android|playstation|nintendo|publisher",
     "skill_hyperscaler": r"\baws\b|amazon web services|google cloud|\bgcp\b|azure|hyperscaler|bedrock",
     "skill_govtech": r"government|federal|public sector|\bnavy\b|defense|anduril|national security|\bdod\b|military",
-    "skill_0to1_build": r"founder|co-founder|fractional|\bceo\b|incubat|from scratch|from inception|from the ground up|from zero|"
+    "skill_0to1_build": r"founder|co-founder|fractional|(?<!to the )(?<!the )\bceo\b|incubat|from scratch|from inception|from the ground up|from zero|"
                         r"first (?:commercial|business development|bd) hire|founding (?:team|member)|launched (?:the )?(?:korea|business|a new|new) |"
                         r"stood up|built (?:and led |and scaled )?(?:the |a )?[^.]{0,30}(?:function|team|program|business|operation)",
 }
 # Consulting background = worked AT a consulting firm (employer field) or described management/strategy consulting work.
 # A "Consultant" job title elsewhere, or a consulting firm named as a client or partner, does not count.
 CONSULTING_FIRMS = re.compile(
-    r"\b(mckinsey|bain|bcg|boston consulting|deloitte|accenture|pwc|pricewaterhouse|kpmg|ernst & young|\bey\b|ey-parthenon|"
+    r"\b(mckinsey|bain(?! capital)|bcg|boston consulting|deloitte|accenture|pwc|pricewaterhouse|kpmg|ernst & young|\bey\b|ey-parthenon|"
     r"alvarez|oliver wyman|kearney|slalom|booz|l\.e\.k|capgemini|roland berger|strategy&)", re.I)
-CONSULTING_WORK = re.compile(r"management consult|strategy consult|consulting firm|consulting practice", re.I)
+CONSULTING_WORK = re.compile(r"\b(?:as an?|worked in|career in|years (?:of|in))\s+(?:management|strategy) consult\w*|"
+                             r"^(?:management|strategy) consult\w*", re.I)
 CONSULTING = "skill_consulting_firm_background"
 
 FUNC_TAGS = ["func_partnerships", "func_bd", "func_channel"]
@@ -453,7 +498,8 @@ def extract_features(roles: list[dict], *, destination_company: str | None = Non
     for r in ev_roles:
         w = 1.0 if months_between(r["end"], now) <= 96 else 0.5  # evidence older than 8 years counts half
         ctx = [(tg, note, url) for pat, tg, note, url in COMPANY_CONTEXT if re.search(pat, r["company"].lower())]
-        segs = [("title", r["title"]), ("employer name", r["company"])] + list(zip(r["desc_src"], r["desc"]))
+        segs = [("title", r["title"]), ("employer name", r["company"])] + \
+            [(s_, d_) for s_, d_ in zip(r["desc_src"], r["desc"]) if not keyword_list(d_)]
         found: dict[str, tuple[str, str]] = {}
 
         def hit(tag, src, phrase):

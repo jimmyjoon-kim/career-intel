@@ -1,4 +1,19 @@
-# Career Intel scoring model (v3.7, 2026-11-03)
+# Career Intel scoring model (v3.8, 2026-11-12)
+
+## 0. Scoring guideline (council review, 2026-11-12)
+1. The score measures how your record compares with role holders' records when they were hired. It is not hiring
+   competitiveness: nobody in the comparison was rejected. Wording in the app must not claim more.
+2. One rule for everyone: every factor is read and scored the same way for you and for holders, in every path
+   (score, range, what-ifs, posting view). A factor that is unknown for a person takes the neutral value 50.
+3. The top tier is defined by an outcome outside the score (holders hired into Tier 1 employers; Tier 1 or 2 if fewer
+   than 5; not shown under 5), never by the score itself.
+4. A factor with no published evidence and no measured outcome weight is shown as information, not scored (school
+   tier, degree field). One underlying fact is not counted more than once at full weight (employer tier).
+5. Nothing falls back to another role's rules: a role without its own function signals has no function factor.
+6. Evidence is read from sentences about work done, not from keyword or skills lists.
+7. Every rank carries its group size; under 20 holders it is provisional. Times to close are judgments and are
+   labeled so; structural gaps are shown apart from capability gaps.
+8. A change that moves a score by more than 3 points ships with a before-and-after table and the reason.
 
 What the score is: where your record sits among people who currently hold a role family (Partnerships, Ad Sales,
 GM / Regional lead, BD / Alliances, Growth, or any role you add), on factors that can be read from a CV or a LinkedIn
@@ -21,22 +36,22 @@ profile. It is not a hiring probability and it does not measure interviews, refe
 | FN function evidence | share of the family's function signals shown (Partnerships: partnerships, BD, channel; BD: BD, partnerships; Ad Sales: sales leadership, ad sales; GM: P&L, team leadership, large team; Growth: growth) | 75th pct |
 | FT same function at a major company | 2 = Tier 1 employer, 1 = Tier 2, role of 12+ months in this function (GM: VP/GM band) | none |
 | DM domain fit | domains evidenced, weighted by how many holders of this role show each domain (fit, not breadth) | 75th pct |
-| CT employer tier & journey | best role in 10 years: Tier 1 = 3, Tier 2 = 2, Tier 3 = 1; +1 IPO/acquisition held through | none |
+| CT employer tier | best 12+ month role in the last 10 years: Tier 1 = 3, Tier 2 = 2, Tier 3 = 1 | none |
 | PD hired into major companies | distinct Tier 1/2 employers (12+ months, 20 years), Tier 1 counted double; merger moves excluded | none |
-| US US market experience | months in US-located roles, up to 60 | 60 |
+| US market experience | months in roles located in your target market (first target location), up to 60; not scored without a target market | 60 |
 | UQ scarce experience | rarity-weighted hyperscaler, government, consulting, 0-to-1, mobile | 75th pct |
 | AC quantified outcomes | count of quantified achievement lines | 75th pct |
-| AI current AI relevance | 0.6 × AI work (recency-weighted) + 0.4 × completed AI degree | 75th pct |
+| AI current AI relevance | 0.6 × AI work (recency-weighted) + 0.4 × completed AI degree (in progress = 0, for you and holders) | 75th pct |
 | TK technical depth | mean of technical degree, technical role, technical product work | 75th pct |
 | ED degree level | highest completed degree | none |
-| SCH school tier | QS top 30 = 2, 31–100 = 1, else 0 (QS 2027 via secondary source) | none |
-| FLD degree field | engineering/CS/science = 1, economics/business = 0.5, other = 0 | none |
+| SCH school tier (information only, not scored) | QS top 30 = 2, 31–100 = 1, else 0 (QS 2027 via secondary source) | none |
+| FLD degree field (information only, not scored) | engineering/CS/science = 1, economics/business = 0.5, other = 0 | none |
 | SG ad tech sides (ad families only) | sides shown in the last 10 years: demand (advertisers, agencies, brands, UA / DSP) and supply (publishers, app monetization, SSP / mediation); both = 2 (unified) | none |
 
 ### 2a. Effective level (titles compared by scope)
 Large employers (5,000+ employees, or Tier 1/2 when headcount is unknown) are the reference scale. Smaller employers'
 titles are read down: 500–4,999 employees: VP and above −1; 50–499: Director/Head −1, VP and above −2; under 50:
-Director/Head −1, VP −2, SVP and C-level −3 (a C-level title at a 5-person startup reads as Head / Senior Director).
+Director/Head −1, VP −2, SVP and C-level −3, and never above Director (a C-level title at a 5-person startup reads as Director).
 Headcount bands are classified once per company by a model and stored ('unknown' if it does not know the company;
 then Tier 3 is read as 50–499). Same rule for you and every holder.
 Basis: Pave — about half of Directors at companies under ~500–1,000 employees do not manage managers; executive orgs
@@ -47,7 +62,7 @@ startup-to-big-tech moves are typically 1–2 levels down (anecdotal, unverified
 commercial roles was found; the step sizes are a judgment.
 
 Titles also read one band lower when interim, acting or fractional, and when a VP+ title has single-country scope.
-Employers under 50 people cap effective level at band 1 above IC-lead (Head / Senior Director); 50–499 at band 2.
+Employers under 50 people cap effective level at Director (band 1); 50–499 at Head / Senior Director (band 2).
 
 Caps: credit stops at what the strongest quarter of holders show. Without them a long, broad career outranks every
 holder by being "more" on each factor, while real holders are strong on a few.
@@ -59,7 +74,8 @@ group of 10–19 holders: once 80% have it). Groups of 10–19 holders get a sco
 
 ## 3. Formula
 For each factor k: your percentile p_k among the holders (ties count half), after caps.
-Score = Σ w_k · p_k / Σ w_k over the factors that count. 50 = the median holder on every factor.
+Score = Σ w_k · p_k / Σ w_k over the factors that count; an unknown factor takes 50. Your position among holders' scores
+(not the score itself) says where you sit: the median holder is at position 50.
 
 Flags, not caps (v3.6, 2026-11-03): when 60%+ of holders show US market experience, same function at a major
 company, function evidence or domain fit, and you show none, it is reported as a flag; the factor counts at its weight.
@@ -71,9 +87,9 @@ gives a size for Director/VP commercial hires or supports a cap. A posting that 
 it as an unmet requirement in job fit. (v3.4–3.5 capped the score at the median holder's.) Only leader seats
 (Director/Head and above) are compared once 10+ remain.
 
-Top tier: the top quarter of holders by score (at least 3). Each factor shows your gap to the top tier's median
-percentile; the panel shows the entry line, the points to it, a path (capabilities first) and the signals the top tier
-shows at 60%+ and 15+ points more often than the rest.
+Top tier (v3.8): holders hired into Tier 1 employers (Tier 1 or 2 if fewer than 5; not shown under 5). Each factor shows
+your gap to the top tier's median percentile, or to the median holder when no top tier is shown. Signals listed are
+those 60%+ of the top tier show and 20+ points more often than the rest: a description, not a cause.
 
 SG (ad tech sides) is weighted 8 for Ad Sales, Partnerships, BD / Alliances and GM; 0 elsewhere. It counts only for
 holders read with the demand-side signal (tag version 2, from 2026-11-02). Postings get seg_demand_side /
@@ -82,8 +98,9 @@ seg_supply_side tags (both = a unified role), so job fit shows which side a role
 Weights w_k = blend of an expert prior and measured market discrimination:
 w_k = (50 · prior_k + n · market_k) / (50 + n), n = holders in the group.
 
-Prior (normalized): FN 16, LV 15, FT 14, US 12, YOE 10, DM 9, AI 6, CT 5, PD 5, UQ 3, ED 3, TK 3, AC 2, SCH 2,
-FLD 2 (+ SG 8 in ad families). Measured market weights are used for Partnerships only (other groups too small). Basis:
+Prior (v3.8, normalized): FN 16, LV 15, YOE 10, DM 9, FT 9, US 8, AI 6, CT 3, UQ 3, ED 3, TK 3, PD 2, AC 2, SCH 0, FLD 0
+(+ SG 8 in ad families). Employer tier (CT + PD + FT) totals 14, down from 24. Measured market weights are used for
+Partnerships only (other groups too small). Basis:
 - Recruiters rate years (84%) and type of experience (83%) above education level (35%) at screening
   (SHRM, 2022, n = 1,030+). https://www.shrm.org/topics-tools/news/talent-acquisition/recruiters-say-experience-top-factor-applicant-evaluation
 - Google Director commercial postings set 15 years as a floor (three postings read 2026-11-02); no source shows
@@ -116,6 +133,15 @@ Applies only to the market a job is based in (US jobs: US experience; APAC jobs:
   high-income countries (https://www.nber.org/system/files/working_papers/w21914/w21914.pdf); international stints
   carry a CEO pay premium (ESCP, 275 CEOs). No source sizes the effect for Director/VP commercial hires: 15%, 36, 24 and
   5 are judgments, to be re-estimated from recorded outcomes (Bayesian while few; logistic at 100+ outcomes).
+
+## 3b. Known limits kept open (council review)
+- Holders are read from LinkedIn text; you are read from CV plus LinkedIn. Text-read factors (function, domain,
+  scarce experience, quantified lines) grow with the amount of text; caps bound this, they do not remove it.
+- Buzzwords written into full sentences still raise text-read factors. Weighting evidence by role months is the fix.
+- Title templates (a CEO or GM title implies P&L and people management) apply at any employer size.
+- Employer tiers come from a hand-written list that leans toward ad tech and AI; it is static, not by date.
+- Job-fit requirement weights come from posting frequency only; they are not yet checked against hire profiles.
+- The position range holds caps and weights fixed, so it is somewhat too narrow.
 
 ## 4. What it does not know
 US network, size and scope of each business run, how competitive each hire was, reputation, interview performance,

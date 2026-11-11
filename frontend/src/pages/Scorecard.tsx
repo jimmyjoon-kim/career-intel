@@ -243,7 +243,7 @@ function GapPlan({ items, monthsLeft }: { items: PlanItem[]; monthsLeft: number 
         <span className="tile-title">Close the gap</span>
         <span className="small muted">{monthsLeft != null ? `${monthsLeft} months to your target date` : "Set a target date on Profile to see what closes in time"}</span>
       </div>
-      {items.length === 0 ? <div className="muted small">No gaps against the median holder, the holders above you, or open postings.</div> :
+      {items.length === 0 ? <div className="muted small">No gaps against the reference holders, the holders above you, or open postings.</div> :
         Object.entries(groups).map(([against, list]) => (
           <div key={against} style={{ marginBottom: 14 }}>
             <h3 style={{ color: "var(--muted)" }}>Compared with: {against}</h3>
@@ -388,21 +388,23 @@ function TopTierPanel({ t, c }: { t: NonNullable<Card["top_tier"]>; c: Card }) {
   return (
     <section className="tile" style={{ marginBottom: 14 }}>
       <div className="tile-head">
-        <span className="tile-title">Top tier · the top {t.n} of {c.n_reference} holders</span>
-        <span className="big" style={{ color: t.points_to_entry > 0 ? "var(--warn)" : "var(--good)" }}>
-          {t.points_to_entry > 0 ? `${t.points_to_entry} pts to enter` : "You are in it"}
-        </span>
+        <span className="tile-title">Top tier · {t.n ? `${t.n} of ${t.of ?? c.n_reference} ${t.basis ?? "holders"}` : "not shown yet"}{t.provisional ? " · provisional (fewer than 20 holders)" : ""}</span>
+        {t.n > 0 && <span className="big" style={{ color: t.points_to_entry > 0 ? "var(--warn)" : "var(--good)" }}>
+          {t.points_to_entry > 0 ? `${t.points_to_entry} pts below their median` : "At or above their median"}
+        </span>}
       </div>
-      <p className="small" style={{ margin: "4px 0" }}>Entry line {t.entry_score} · you {t.you} · top-tier scores {t.scores.join(", ")} · employers: {Object.entries(t.tier_mix).map(([k, n]) => `${k} ${n}`).join(", ")}</p>
+      {t.n > 0
+        ? <p className="small" style={{ margin: "4px 0" }}>{t.definition} Their median score {t.entry_score} (range {t.score_range?.[0]}–{t.score_range?.[1]}, n = {t.n}) · you {t.you}. This compares records; it does not predict a hiring decision.</p>
+        : <p className="small" style={{ margin: "4px 0" }}>Fewer than 5 of these holders were hired into major (Tier 1 or 2) employers, so a top tier is not shown; gaps below are measured against the median holder.</p>}
       {t.gate_note && <p className="small bad" style={{ margin: "4px 0" }}>{t.gate_note}</p>}
       {t.path.length > 0 && <>
-        <b className="small">How to move into it (largest gains first; capabilities before structural)</b>
+        <b className="small">Largest gaps to {t.n > 0 ? "the top tier" : "the median holder"} (capabilities first, then structural)</b>
         <ol className="small" style={{ margin: "4px 0 8px 18px", padding: 0 }}>
-          {t.path.map((p) => <li key={p.factor}><b>{p.label}</b> +{p.points} pts · {p.class}{p.months != null ? ` · about ${p.months} months` : ""}{p.by_target === false ? " · not before your target date" : p.by_target ? " · before your target date" : ""}<br /><span className="muted">{p.action}</span></li>)}
+          {t.path.map((p) => <li key={p.factor}><b>{p.label}</b> +{p.points} pts · {p.class}{p.months != null ? ` · at least ${p.months} months once the role or work is held (a judgment, not a measurement)` : ""}{p.by_target === false ? " · not before your target date" : p.by_target ? " · before your target date" : ""}<br /><span className="muted">{p.action}</span></li>)}
         </ol>
       </>}
       {t.distinct_signals.length > 0 && <>
-        <b className="small">What the top tier has that the rest do not</b>
+        <b className="small">More common in the top tier than in the rest (n = {t.n}; a description, not a cause)</b>
         <ul className="small" style={{ margin: "4px 0 0 18px", padding: 0 }}>
           {t.distinct_signals.map((s) => <li key={s.tag}>{s.label}: {Math.round(100 * s.top_share)}% of the top tier vs {Math.round(100 * s.rest_share)}% of the rest · you: {s.you >= 1 ? "yes" : s.you > 0 ? "yes, over 8 years ago (counts half)" : "not shown"}</li>)}
         </ul>
@@ -457,7 +459,7 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
     case "score":
       return (<>
         <h2>Base score {c.base_score.toFixed(1)}</h2>
-        <p className="small" style={{ color: "var(--ink-2)" }}>Weighted mean of your percentile on seven factors, within people who hold {c.cluster} roles. Weights blend an expert prior with how strongly each factor separates holders from other hires.</p>
+        <p className="small" style={{ color: "var(--ink-2)" }}>Weighted mean of your percentile on the factors that count (listed below with their weights), within people who hold {c.cluster} roles. Weights blend an expert prior with how strongly each factor separates holders from other hires.</p>
         <h3>Weights and your contribution</h3>
         {c.factors.filter((f) => f.weight > 0).sort((a, b) => b.weight - a.weight).map((f) => (
           <button key={f.factor} className="fac" onClick={() => onOpen({ kind: "factor", f })}>
@@ -521,7 +523,7 @@ function PanelBody({ d, c, r, notes, reference, onOpen }: {
           <h3>Your degrees</h3>
           {r.degrees.length === 0 ? <p className="small muted">None read. Add a line starting "Education:" to your experience text on Profile.</p> :
             <ul className="ev">{r.degrees.map((g, i) => <li key={i}><div className="src">{["", "Bachelor's", "Master's / MBA / JD", "Doctorate"][g.level]}{g.in_progress ? ` · in progress, counts from ${g.end ?? "completion"}` : " · completed"}{g.technical ? " · technical" : ""}</div>{g.text}</li>)}</ul>}
-          <p className="small muted">Highest degree completed counts today. By your target date: {fmtVal("ED", r.education_by_target)}. 36% of holders have a master's, MBA or JD; none has a doctorate.</p>
+          <p className="small muted">Highest degree completed counts today. By your target date: {fmtVal("ED", r.education_by_target)}.</p>
         </>)}
         {f.factor === "AC" && (<>
           <h3>Quantified outcomes found</h3>

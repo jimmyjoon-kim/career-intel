@@ -72,3 +72,59 @@ def test_gate_is_not_tied_to_one_person():
     apac = ProfileView(locations=["APAC"])
     p.location, p.no_sponsorship, p.title = "Singapore", False, "Head of Partnerships"
     assert gate_split(p, apac)[1] == []  # a region name matches cities in it
+
+
+# ---- council review, 2026-11-12 ----
+def _ref30(cluster="Partnerships"):
+    from app.v2.model import Reference
+    names = ["Google", "Meta", "Apple", "Amazon", "Microsoft", "Unity", "Salesforce"] + [f"C{i}" for i in range(23)]
+    rows = [{"company": names[i], "title": "Head of Partnerships", "YOE": 10 + i % 8, "YOE_raw": 10 + i % 8,
+             "CT": 1 + i % 3, "LV": i % 4, "LV_max": i % 4, "FN": (i % 4) / 3, "DM": (i % 5) / 4, "AC": i % 6,
+             "tags": {"func_partnerships": 1.0 if i % 2 else 0.0, "func_bd": 1.0, "func_channel": 0.0}} for i in range(30)]
+    return Reference(cluster, rows)
+
+
+def test_every_path_uses_the_same_percentile_rule():
+    from app.v2 import model
+    uf = {"YOE": 30, "YOE_raw": 30, "CT": 3, "LV": 3, "LV_max": 3, "FN": 1.0, "DM": 1.0, "AC": 20, "tags": {"func_bd": 1.0}}
+    card = model.base_scorecard(uf, _ref30(), n_boot=20)
+    same = model.what_if(card, {"AC": card["_internal"]["user"]["AC"]})
+    assert abs(same["delta"]) < 0.05  # an unchanged what-if moves nothing
+    assert abs(model.opportunity(card, [], {})["position"] - card["position"]) < 0.05
+
+
+def test_top_tier_is_defined_outside_the_score():
+    from app.v2 import model
+    uf = {"YOE": 12, "YOE_raw": 12, "CT": 2, "LV": 2, "LV_max": 2, "FN": 0.5, "DM": 0.5, "AC": 2, "tags": {}}
+    tt = model.base_scorecard(uf, _ref30(), n_boot=20)["top_tier"]
+    assert tt["n"] == 5 and "Tier 1" in tt["basis"]
+    from app.v2.model import Reference
+    few = Reference("Partnerships", _ref30().rows[7:])  # no holders at major employers
+    card = model.base_scorecard(uf, few, n_boot=20)
+    assert card["top_tier"]["n"] == 0 and card["top_tier"]["entry_score"] is None
+
+
+def test_unknown_role_has_no_function_factor():
+    from app.v2 import model
+    uf = {"YOE": 12, "YOE_raw": 12, "CT": 2, "LV": 2, "LV_max": 2, "FN": 0.5, "DM": 0.5, "AC": 2, "tags": {"func_partnerships": 1.0}}
+    card = model.base_scorecard(uf, _ref30("Director of Engineering"), n_boot=20)
+    fn = next(f for f in card["factors"] if f["factor"] == "FN")
+    assert fn["you_value"] is None and fn["you_pct"] is None
+
+
+def test_reader_council_cases():
+    from app.v2.reader import parse_roles, title_level, role_level, keyword_list
+    from app.v2.pedigree import school_tier, education_signals
+    from app.v2.market import regions, posting_market
+    cv = "EXPERIENCE\nDirector, Partnerships — Salesforce, San Francisco, CA\nJanuary 2016 – Present\n• Led partner program.\n" \
+         "Keywords: channel, resellers, AWS, Azure, government, AI, LLM, advertisers, publishers, monetization, SaaS.\n"
+    roles, _ = parse_roles(cv, (2026, 11))
+    assert roles[0]["company"] == "Salesforce" and roles[0]["title"].startswith("Director")
+    assert all("Keywords" not in d for d in roles[0]["desc"]) and keyword_list("Python, SQL, AWS, GCP, Azure, Spark")
+    assert title_level("Country Manager, Korea") == 3 and title_level("Vice-President, Sales") == 3 and title_level("AVP, Sales") == 1
+    assert role_level({"title": "Country Manager, Korea", "desc": []})[0] >= 1  # not below a Director
+    assert school_tier("Cornell College") == 0 and school_tier("Cornell University") == 2
+    done = [{"text": "MBA, Business", "level": 2, "in_progress": False}, {"text": "MS Computer Science", "level": 2, "in_progress": False}]
+    assert education_signals(done)["FLD"] == 1.0
+    assert regions("Toronto, CA") == set() and regions("Berlin, DE") == {"EMEA"} and regions("Atlanta, Georgia") == {"US"}
+    assert posting_market("Head of Sales, EMEA & APAC", "London")["market"] == "global"

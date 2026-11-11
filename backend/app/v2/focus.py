@@ -27,11 +27,16 @@ def standing(card: dict) -> dict:
     tt = card.get("top_tier") or {}
     lines = []
     if tt.get("entry_score") is not None:
-        lines.append(f"Top tier: the top {tt['n']} of {len(sc)} holders score {tt['entry_score']} or more; you score {you}"
-                     + (f", {tt['points_to_entry']} points below the entry line." if tt.get("points_to_entry") else ", inside the top tier."))
+        lines.append(f"Top tier: {tt['n']} of {len(sc)} {tt.get('basis') or 'holders'} (defined by where they were hired, "
+                     f"not by this score). Their median score is {tt['entry_score']}; you score {you}"
+                     + (f", {tt['points_to_entry']} points below it." if tt.get("points_to_entry") else ", at or above it."))
+    elif tt:
+        lines.append("Top tier: fewer than 5 of these holders were hired into major employers, so no top tier is shown "
+                     "yet; gaps are measured against the median holder.")
     lines += [
         f"Your score is {you} out of 100. It is the weighted average of where you rank among {len(sc)} people who "
-        f"hold {card['cluster']} roles on {len(card['factors'])} factors; 50 means the median holder on every factor.",
+        f"hold {card['cluster']} roles on the factors that count; it measures how your record compares with theirs when "
+        f"they were hired.",
         f"You rank {_ord(rank)} of {n} (you plus {len(sc)} holders). The median holder scores {med}; the highest holder scores {max(sc)}.",
     ]
     for g in card.get("flags") or []:
@@ -47,7 +52,7 @@ def standing(card: dict) -> dict:
                      "include their current role. They are replaced as corrected reads arrive.")
     lo, hi = card["position_ci95"]
     if lo is not None:
-        lines.append(f"Because the holder group is small, your position could reasonably sit anywhere between the "
+        lines.append(f"With {len(sc)} holders, your position could reasonably sit anywhere between the "
                      f"{_ord(round(lo))} and {_ord(round(hi))} percentile.")
     lines.append("The score compares you with people already in these roles. It does not predict hiring decisions.")
     return {"score": you, "rank": rank, "of": n, "median": med, "top": max(sc), "lines": lines,

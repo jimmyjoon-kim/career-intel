@@ -52,7 +52,14 @@ STEM = re.compile(r"engineer|computer|software|information (?:systems|technology
 QUANT = re.compile(r"econom|financ|business|commerce|accounting|statistic|management|\bmba\b|\bbba\b", re.I)
 
 
+NOT_RANKED = re.compile(r"cornell college|oxford brookes|berkeley college|wharton county|community college|junior college|"
+                        r"northwestern polytechnic|loyola marymount|columbia college|cambridge college|"
+                        r"\b(?:harvard|stanford|yale|princeton) (?:extension|online|continuing)", re.I)
+
+
 def school_tier(text: str) -> int:
+    if NOT_RANKED.search(text or ""):
+        return 0
     if _T1.search(text or ""):
         return 2
     if _T2.search(text or ""):
@@ -73,7 +80,7 @@ def education_signals(degrees: list[dict]) -> dict:
     if not done:
         return {"SCH": None, "FLD": None, "SCH_basis": None}
     sch = max(done, key=lambda d: (school_tier(d["text"]), d["level"]))
-    return {"SCH": school_tier(sch["text"]), "FLD": field_score(sch["text"]), "SCH_basis": sch["text"][:120]}
+    return {"SCH": school_tier(sch["text"]), "FLD": max(field_score(d["text"]) for d in done), "SCH_basis": sch["text"][:120]}
 
 
 def employer_signal(roles: list[dict], exclude_company: str | None = None, now: tuple[int, int] | None = None) -> dict:
