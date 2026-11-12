@@ -18,6 +18,7 @@ from ..taxonomy import TAGS
 
 READY_AT = 10  # holders needed before a family gets a full scorecard (under 20 the page says so)
 TARGET = 30
+REFRESH = 5  # recent hires added per month to a group that is already full
 
 # Titles that are never the role itself (assistants, chiefs of staff), whatever words they contain.
 NOT_ROLE = r"executive business partner|business partner to|executive assistant|chief of staff|\bea to\b"
@@ -107,11 +108,21 @@ def status(db: Session) -> list[dict]:
         waiting[k] = waiting.get(k, 0) + len((pr.payload or {}).get("rows", []))
     out = []
     changed = False
-    for f in all_families(db):  # every role without a peer group is queued for collection automatically
-        if holders(db, f["key"]) < READY_AT and f["key"].lower() not in reqs and not waiting.get(f["key"].lower()):
+    # Every role is collected until it has TARGET holders read at hire (not merely READY_AT rows of any kind):
+    # a missing request is created and a finished one is reopened. (Before 2026-11-13 a request closed for good once
+    # any 10 rows existed, so collection stopped at 11-20 usable holders.)
+    for f in all_families(db):
+        k = f["key"].lower()
+        if holders_full(db, f["key"]) + waiting.get(k, 0) >= TARGET:
+            continue
+        r = reqs.get(k)
+        if r is None:
             r = PoolRequest(family=f["key"][:120], pattern="" if not f["custom"] else f["title"], user_id=None)
             db.add(r)
-            reqs[f["key"].lower()] = r
+            reqs[k] = r
+            changed = True
+        elif r.status != "pending":
+            r.status = "pending"
             changed = True
     if changed:
         db.commit()
@@ -201,7 +212,9 @@ def write_requests_file(db: Session) -> None:
     pending = []
     for r in db.scalars(select(PoolRequest).where(PoolRequest.status == "pending")):
         f = family(db, r.family)
-        pending.append({"family": r.family, "have": _have(db, r.family), "target": TARGET,
+        full = holders_full(db, r.family)
+        # a full group is only topped up: REFRESH recent hires a month, not another TARGET
+        pending.append({"family": r.family, "have": _have(db, r.family), "target": TARGET if full < TARGET else REFRESH,
                         "title_keywords": f.get("collect_hint") or f["title"], "requested_at": r.created_at.isoformat() if r.created_at else ""})
     (d / "requests.json").write_text(json.dumps({"pending": pending}, indent=1))
 

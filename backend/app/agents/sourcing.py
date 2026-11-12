@@ -178,6 +178,32 @@ def seed_boards(db: Session) -> int:
     return added
 
 
+JOB_ID = re.compile(r"(?:gh_jid=|/jobs?/|/postings?/|/o/)([0-9]{6,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", re.I)
+UNVERIFIED_DAYS = 30
+
+
+def job_id(url: str) -> str | None:
+    m = JOB_ID.search(url or "")
+    return m.group(1).lower() if m else None
+
+
+def expire_unverified(db: Session, today: str) -> int:
+    """A posting found by web search and never confirmed on a live board is marked stale after 30 days."""
+    from datetime import date as _d
+
+    n = 0
+    for p in db.scalars(select(Posting).where(Posting.status == "unverified")):
+        try:
+            age = (_d.fromisoformat(today) - _d.fromisoformat((p.first_seen or today)[:10])).days
+        except ValueError:
+            continue
+        if age > UNVERIFIED_DAYS:
+            p.status, p.verification = "stale", f"found by web search {p.first_seen}; not confirmed on a live board in {UNVERIFIED_DAYS} days"
+            n += 1
+    db.commit()
+    return n
+
+
 def upsert(db: Session, company: str, src: str, j: dict, today: str) -> str:
     """'new' | 'changed' | 'same'. A changed fingerprint clears the reader's check so it is read again."""
     fp = fingerprint(j["title"], j["description"])
@@ -186,6 +212,16 @@ def upsert(db: Session, company: str, src: str, j: dict, today: str) -> str:
                 bay_area=bool(BAY.search(j["location"] or "")), pay_range=(j["pay"] or "")[:300],
                 description=j["description"], posted=j["posted"] or "unknown", status="open", last_seen=today,
                 source=src, verification=f"listed on {src} board, checked {today}")
+    if p is None:
+        # The same job found earlier by web search under another URL form (careers-page wrapper, old board host):
+        # matched by the board's job id, it becomes this verified posting instead of staying "unverified" forever.
+        jid = job_id(j["url"])
+        if jid:
+            for w in db.scalars(select(Posting).where(Posting.status == "unverified", Posting.url.like(f"%{jid}%"))):
+                if job_id(w.url) == jid:
+                    p = w
+                    p.url = j["url"][:1000]
+                    break
     if p is None:
         db.add(Posting(url=j["url"][:1000], first_seen=today, content_hash=fp, read_check={}, **base))
         return "new"
@@ -222,8 +258,9 @@ def run_boards(db: Session, client: httpx.Client | None = None) -> dict:
                 seen.add(j["url"])
                 tally[upsert(db, b.company, b.ats, j, today)] += 1
             # Postings from this board that are no longer listed are closed.
+            # (same board and same company: a short slug must not close another company's postings)
             for p in db.scalars(select(Posting).where(Posting.source == b.ats, Posting.status == "open",
-                                                      Posting.url.like(f"%{b.slug}%"))):
+                                                      Posting.company == b.company, Posting.url.like(f"%{b.slug}%"))):
                 if p.url not in seen:
                     p.status, p.verification = "closed", f"no longer on {b.ats} board, checked {today}"
                     tally["closed"] += 1
@@ -233,6 +270,7 @@ def run_boards(db: Session, client: httpx.Client | None = None) -> dict:
     finally:
         if own:
             client.close()
+    tally["unverified_expired"] = expire_unverified(db, today)
     return tally
 
 

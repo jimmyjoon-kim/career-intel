@@ -99,10 +99,12 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
     kind = data.get("kind", "holders")
     if kind == "holders":
         holders = data.get("holders", [])
-        bad = sorted({k for h in holders for k in h if k.lower() in FORBIDDEN})
-        if bad:
-            result = {"file": path.name, "rejected": f"file carries personal fields {bad}; not processed and deleted"}
-            return _finish(db, path, result)
+        # A holder entry that carries a personal field is dropped (never stored); the rest of the file is still read.
+        dropped_personal = sum(1 for h in holders if any(k.lower() in FORBIDDEN for k in h))
+        holders = [h for h in holders if not any(k.lower() in FORBIDDEN for k in h)]
+        if dropped_personal and not holders:
+            return _finish(db, path, {"file": path.name, "rejected": "every entry carries personal fields; not processed and deleted"})
+        why = {"personal_fields": dropped_personal, "incomplete": 0, "seat_not_found": 0, "duplicate": 0, "no_dated_roles": 0}
         ym = data.get("as_of") or date.today().strftime("%Y-%m")
         now = (int(ym[:4]), int(ym[5:7]))
         rows, skipped = [], 0
@@ -122,22 +124,25 @@ def process_file(db: Session, path: Path, run_id: int | None) -> dict:
         for h in holders:
             if not (h.get("experience_text") and h.get("company") and h.get("title")):
                 skipped += 1
+                why["incomplete"] += 1
                 continue
             row = derive(h, now, cache, sizes)
             key = (h["company"].lower(), h["title"].lower(), row.get("hired"), row.get("YOE"))
             if row.get("seat_not_found") or key in have:  # same company, title, hire month and tenure = same person
                 skipped += 1
+                why["seat_not_found" if row.get("seat_not_found") else "duplicate"] += 1
                 continue
             have.add(key)
             if not row.get("YOE"):  # no dated roles could be read (e.g. a short press bio): not usable as a peer
                 skipped += 1
+                why["no_dated_roles"] += 1
                 continue
             row["source_type"] = h.get("source_type", "linkedin")
             rows.append(row)
         if rows:
             prop = Proposal(run_id=run_id, kind="holders", title=f"Add {len(rows)} role holders to {data.get('cluster', 'Partnerships')}",
                             detail=f"Read {ym} from {data.get('source', 'monthly hire research')}. Derived values only; raw text discarded. "
-                                   f"{skipped} skipped (duplicate or incomplete).",
+                                   f"{skipped} skipped: " + ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in why.items() if v) + ".",
                             payload={"cluster": data.get("cluster", "Partnerships"), "as_of": ym,
                                      "source": data.get("source", "monthly hire research"), "rows": rows})
             db.add(prop)

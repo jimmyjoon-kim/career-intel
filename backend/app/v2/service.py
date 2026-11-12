@@ -87,8 +87,10 @@ def merge_experience_tags(prof: Profile, feats: dict | None) -> None:
 
 def import_reference_file(db: Session, path: Path) -> int:
     data = json.loads(path.read_text(encoding="utf-8"))
-    # A reference file replaces its whole cluster, so a re-read never leaves the previous rows behind.
-    db.execute(delete(ReferenceProfile).where(ReferenceProfile.cluster == data["cluster"]))
+    # A reference file replaces its own earlier rows, so a re-read never leaves the previous rows behind.
+    # (Only earlier rows from the same file: holders collected and read at hire are never deleted by a reload.)
+    db.execute(delete(ReferenceProfile).where(ReferenceProfile.cluster == data["cluster"],
+                                              ReferenceProfile.source == data["source"]))
     for r in data["rows"]:
         feats = {k: r.get(k) for k in ("YOE", "YOE_raw", "CT", "tier", "LV", "LV_max", "FN", "DM", "AC", "ED", "mba", "technical", "AI", "TK", "CT_tier_only")}
         feats["tags"] = r["tags"]
@@ -109,7 +111,9 @@ def load_reference(db: Session, cluster: str = DEFAULT_CLUSTER) -> Reference | N
         rows = v2
     from .reader import title_level
 
-    leaders = [r for r in rows if (title_level(r.title) or 1) >= 1]  # leader seats only (Director band and up)
+    # Leader seats only (Director band and up). A title with no level word ("Strategic Partnerships") stays in: it was
+    # collected as a leader seat and dropping it would thin small groups; titles read as below Director are left out.
+    leaders = [r for r in rows if (1 if title_level(r.title) is None else title_level(r.title)) >= 1]
     if len(leaders) >= 10:
         rows = leaders
     if not rows:

@@ -379,7 +379,7 @@ def test_level_assessor_and_soft_screen(client, monkeypatch):
     pv = NS(title="Country Manager, Korea", status="open", no_sponsorship=False, level_band="Director", scope="country",
             location="Seoul", remote_flag="no", bay_area=False)
     hard, soft = gate_split(pv, prof)
-    assert not hard and any("single-country" in s for s in soft) and any("location" in s for s in soft)
+    assert any("single-country" in s for s in hard) and any("location" in s for s in soft)  # your stated limit is strict
     pv.status = "closed"
     assert gate_split(pv, prof)[0]
 

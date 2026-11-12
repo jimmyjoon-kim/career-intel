@@ -125,12 +125,12 @@ def test_scorecard_flow(client):
     assert r.status_code == 200 and sum(r.json()["loaded"].values()) == 44
     assert client.put("/api/profile", json={"experience_text": EXPERIENCE, "target_date": "2027-06"}, headers=h).status_code == 200
     s = client.get("/api/scorecard", headers=h).json()
-    assert s["ready"] and s["reading"]["format"] == "linkedin" and s["card"]["n_reference"] == 44
+    assert s["ready"] and s["reading"]["format"] == "linkedin" and s["card"]["n_reference"] == 41
     assert s["reading"]["recent_role"]["company"] == "Wortal.AI"
     assert s["card"]["position_ci95"][0] is not None and s["months_left"] is not None
     rows = client.get("/api/postings", headers=h).json()
     assert all(r["opportunity"] is not None for r in rows)
-    assert client.get("/api/dashboard", headers=h).json()["base"]["n_reference"] == 44
+    assert client.get("/api/dashboard", headers=h).json()["base"]["n_reference"] == 41
     assert client.put("/api/profile", json={"target_date": "June"}, headers=h).status_code == 422
 
 

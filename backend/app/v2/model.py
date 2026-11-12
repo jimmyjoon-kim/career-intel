@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import math
+import re
 
 import numpy as np
 
@@ -316,6 +317,18 @@ def saturate(rows: list[dict], uf: dict, q: float | None = CAP_Q) -> tuple[list[
     return [cap(r) for r in rows], cap(uf), caps
 
 
+def _group_quality(rows: list[dict]) -> dict:
+    """How concentrated the comparison group is. Benchmarking practice shows a cut only with 5+ contributing
+    employers and none above 25% of the sample (Aon Radford survey data policy)."""
+    from collections import Counter
+
+    c = Counter(re.sub(r"[^a-z0-9]", "", (r.get("company") or "").lower())[:12] for r in rows if r.get("company"))
+    n = sum(c.values())
+    top = (max(c.values()) / n) if n else None
+    return {"employers": len(c), "largest_employer_share": round(top, 2) if top is not None else None,
+            "ok": bool(n and len(c) >= 5 and top <= 0.25)}
+
+
 def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = None, n_boot: int = 1000, seed: int = 7,
                    cap_q: float | None = CAP_Q) -> dict:
     prev = scarcity(ref.rows)
@@ -508,6 +521,7 @@ def base_scorecard(user_f: dict, ref: Reference, *, months_left: int | None = No
         "cluster": ref.cluster, "n_reference": ref.n,
         "n_read_at_hire": sum(1 for r in ref.rows if r.get("rv") == 2), "weights": {k: _r(v) for k, v in w.items()},
         "base_score": _r(S_u), "score_before_gates": _r(S_u_ungated), "gates": gates, "flags": flags, "target_market": tm, "position": _r(pos),
+        "group": _group_quality(rows),
         "top_tier": top_tier,
         "position_ci95": ([_r(min(np.percentile(boots, 2.5), pos)), _r(min(np.percentile(boots, 97.5), pos))] if gates else
                           [_r(np.percentile(boots, 2.5)), _r(np.percentile(boots, 97.5))]) if boots else [None, None],

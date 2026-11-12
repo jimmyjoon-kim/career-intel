@@ -115,9 +115,11 @@ def run(db: Session, run_id: int | None, limit: int = 150) -> dict:
         p.years_required = m["years_required"]
         p.no_sponsorship = m["no_sponsorship"] or p.no_sponsorship
         labels = (p.read_check or {}).get("labels")
+        lvl = (p.read_check or {}).get("level")  # the level assessment stays while the posting text is unchanged
         p.read_check = {"hash": p.content_hash, "runs": reads, "mode": results[0].get("mode"), "disputed": m["disputed"],
                         "unanimous": m["unanimous"], "model_tags": m["tags"], "examples": bool(ex),
-                        **({"labels": labels} if labels else {})}
+                        **({"labels": labels} if labels else {}),
+                        **({"level": lvl} if lvl and lvl.get("hash") == p.content_hash else {})}
         apply_labels(p)
         done += 1
         disputed += bool(m["disputed"])

@@ -183,10 +183,14 @@ def gate_split(p: PostingView, prof: ProfileView) -> tuple[list[str], list[str]]
     if NON_COMMERCIAL.search(p.title or "") and not in_target:
         soft.append("outside your target functions" if getattr(prof, "target_roles", None)
                     else "not a commercial role (finance, legal, engineering or similar)")
-    if LEVEL_RANK.get(p.level_band, 0) < LEVEL_RANK.get(prof.min_level, LEVEL_RANK["Director"]):
-        soft.append(f"level {p.level_band or 'unknown'} below your minimum ({prof.min_level})")
+    # Your own stated limits are strict: a posting below your lowest accepted level, or single-country when you asked
+    # to leave those out, is screened out (not shown under "worth a look"). An unread level stays a soft flag.
+    if p.level_band and LEVEL_RANK.get(p.level_band, 0) < LEVEL_RANK.get(prof.min_level, LEVEL_RANK["Director"]):
+        hard.append(f"level {p.level_band} below your minimum ({prof.min_level})")
+    elif not p.level_band:
+        soft.append("level not read")
     if getattr(prof, "exclude_country_scope", False) and ((p.scope or "").lower() == "country" or EXCLUDE.search(p.title or "")):
-        soft.append("single-country scope or Country Manager title")
+        hard.append("single-country scope or Country Manager title")
     if not _location_ok(p, prof):
         soft.append("location outside your locations and not remote")
     return hard, soft

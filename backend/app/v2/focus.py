@@ -46,6 +46,11 @@ def standing(card: dict) -> dict:
     if len(sc) < 20:
         lines.append(f"This group has {len(sc)} holders so far (fewer than 20), so the comparison is less certain. "
                      "A small group can mean few people hold this kind of role, or that collection is still running.")
+    g = card.get("group") or {}
+    if g and not g.get("ok") and g.get("largest_employer_share") is not None:
+        lines.append(f"These holders come from {g['employers']} employers and the largest supplies "
+                     f"{round(100 * g['largest_employer_share'])}% of them (a balanced group has 5 or more employers and "
+                     "none above 25%), so the comparison leans toward a few companies.")
     nh = card.get("n_read_at_hire")
     if nh is not None and nh < len(sc):
         lines.append(f"{nh} of {len(sc)} holders are read as of their hire date; the rest are earlier reads that "

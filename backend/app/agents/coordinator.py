@@ -104,6 +104,10 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
             made.append({"user_id": u.id, "brief_id": b.id, "check_passed": b.check.get("passed")})
         return {"briefs": made}
     if name == "inbox":
+        from ..v2 import families as _fam
+
+        _fam.status(db)                # reopen collection for any role under its target
+        _fam.write_requests_file(db)   # and rewrite the request file on every run, so it cannot go stale
         return inbox.run(db, rid)
     if name == "company_facts":
         return company_facts.run(db, rid)
