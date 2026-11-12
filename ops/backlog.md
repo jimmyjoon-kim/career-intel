@@ -11,3 +11,5 @@
 | B08 | plan A4 | No comparison group: validation compares winners with winners | 5 | 0.6 | 3 | 1.0 | Y (LinkedIn volume) | earlier-hire events derived; 10 one-level-below per role | later |
 | B09 | council 3 | No backups check; Postgres on one Mac | 4 | 0.9 | 1 | 3.6 | N | nightly pg_dump; health check on its age | next |
 | B10 | council 2 | Text-read factors grow with text length; user read from CV + LinkedIn, holders from LinkedIn only | 3 | 0.7 | 3 | 0.7 | Y | evidence weighted by role months | later |
+| B11 | council 3 | Reader cost: batch API (50% off) + cached instruction prefix + one read per posting; estimate 3-6x cheaper (unmeasured) | 3 | 0.7 | 2 | 1.1 | N | cost per posting from usage_log before / after | with B01 |
+| B12 | council 3 | Heartbeat for desktop / cloud scheduled tasks (collector, weekly audit): each writes a dated file; health check alerts when missing | 4 | 0.9 | 1 | 3.6 | N | check fails when a task skips a window | next |

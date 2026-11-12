@@ -25,6 +25,14 @@ LinkedIn volume or PEER_COLLECTION; spending above the cap or a new paid service
 The auditor reads stored outputs only (health status, snapshots, the diff, test results, docs), never the builder's
 explanation. Council reviewers get the diff and the invariants, not the description of the change.
 
+## Limits of the method (outside evidence, 2026-11-13)
+- Multi-agent runs cost about 15x the tokens of a chat, and gains are often small: this product is a fixed pipeline
+  of code steps with a model only for reading, level and synthesis. No agent is added without a job code cannot do.
+- Reviewers on the same model share blind spots (when two models are both wrong they often give the same wrong
+  answer), and a model favors its own output. So every council includes at least one check that is not a model
+  (tests, golden profiles, a query), and escalation to a larger model is decided by a validation rule failing
+  (schema, exact-quote check, required fields), never by a model's stated confidence.
+
 ## Cadence
 - Daily (in-app, no model): `backend/app/agents/health.py` writes one row per invariant; a failed severity-1 check
   raises an alert that closes itself when the check passes. Read: `GET /api/health/status` (numbers only).
