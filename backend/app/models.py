@@ -150,6 +150,7 @@ class ReferenceProfile(Base):
     features: Mapped[dict] = mapped_column(JSON, default=dict)  # YOE, CT, LV, LV_max, FN, DM, AC, tags
     source: Mapped[str] = mapped_column(String(300), default="")
     as_of: Mapped[str] = mapped_column(String(20), default="")
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=_now, nullable=True)
 
 
 # ---- Agent team -----------------------------------------------------------------------------------------
@@ -217,6 +218,39 @@ class Proposal(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending | approved | rejected
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class HealthCheck(Base):
+    """One invariant checked by the daily health step (no model involved). severity 1 = alert, 2 = weekly report."""
+
+    __tablename__ = "health_checks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    check_id: Mapped[str] = mapped_column(String(60), index=True)
+    ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    severity: Mapped[int] = mapped_column(Integer, default=2)
+    value: Mapped[str] = mapped_column(String(300), default="")
+    threshold: Mapped[str] = mapped_column(String(200), default="")
+    detail: Mapped[str] = mapped_column(Text, default="")
+
+
+class Outcome(Base):
+    """What you did with a posting: saved | dismissed | applied | interview | offer | rejected. The only route to
+    validated weights; nothing is inferred from it until enough exist (docs/model.md)."""
+
+    __tablename__ = "outcomes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    posting_id: Mapped[int] = mapped_column(ForeignKey("postings.id", ondelete="CASCADE"), index=True)
+    stage: Mapped[str] = mapped_column(String(20))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # the fit and model version shown when you acted, so later analysis compares like with like
+    fit: Mapped[float | None] = mapped_column(Float, nullable=True)
+    model_version: Mapped[str] = mapped_column(String(20), default="")
+    note: Mapped[str] = mapped_column(String(300), default="")
 
 
 class ScoreSnapshot(Base):

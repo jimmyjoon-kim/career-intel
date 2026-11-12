@@ -79,6 +79,8 @@ export function PostingDetail({ row, onClose }: { row: Row; onClose: () => void 
         <h2>{p.title}</h2>
         <p className="muted">{p.location} · {p.remote_flag === "yes" ? "Remote" : p.remote_flag === "hybrid" ? "Hybrid" : p.remote_flag === "no" ? "On-site" : "Remote unstated"}</p>
 
+        <OutcomeButtons postingId={p.id} fit={row.not_read ? null : row.rank_score} />
+
         <div className={`gate ${row.gate_pass ? "pass" : "fail"}`}>
           {row.gate_pass ? "Passes your gate" : "Fails your gate"}
           {!row.gate_pass && <ul>{row.gate_reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
@@ -120,6 +122,29 @@ export function PostingDetail({ row, onClose }: { row: Row; onClose: () => void 
         <a className="btn" href={p.url} target="_blank" rel="noreferrer">Open posting ↗</a>
         {p.verification && <p className="muted small verif">Verification: {p.verification}</p>}
       </aside>
+    </div>
+  );
+}
+
+
+const STAGE_LABEL: Record<string, string> = { saved: "Save", dismissed: "Not for me", applied: "Applied", interview: "Interview", offer: "Offer", rejected: "Rejected" };
+
+/** What you did with this posting. Recorded with the fit shown at the time; it is the data that can validate the scoring. */
+export function OutcomeButtons({ postingId, fit }: { postingId: number; fit: number | null }) {
+  const [stage, setStage] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    api<{ outcomes: { posting_id: number; stage: string }[] }>("/api/matches/outcomes")
+      .then((d) => setStage(d.outcomes.find((o) => o.posting_id === postingId)?.stage ?? null)).catch(() => undefined);
+  }, [postingId]);
+  const set = (s: string) => api("/api/matches/outcomes", { method: "POST", json: { posting_id: postingId, stage: s, fit } })
+    .then(() => { setStage(s); setErr(""); }).catch((e) => setErr(String(e)));
+  return (
+    <div className="chips" style={{ margin: "8px 0" }} aria-label="What you did with this posting">
+      {Object.entries(STAGE_LABEL).map(([k, label]) => (
+        <button key={k} className={`btn small${stage === k ? " primary" : ""}`} aria-pressed={stage === k} onClick={() => set(k)}>{label}</button>
+      ))}
+      {err && <span className="error small">{err}</span>}
     </div>
   );
 }

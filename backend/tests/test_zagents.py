@@ -142,7 +142,7 @@ def test_weekly_pipeline_and_api(client):
             execute(db, run)
         finally:
             src.run_boards = src_run
-        assert [s["agent"] for s in run.steps] == ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"]
+        assert [s["agent"] for s in run.steps] == ["web_sourcing", "reader", "level", "index_update", "scoring", "evidence", "checker", "analyst", "health"]
         assert run.status == "done", run.steps
         chk = next(s for s in run.steps if s["agent"] == "checker")["result"]
         assert chk["golden"]["failed"] == [] and all(not u["rule_violations"] for u in chk["users"])
@@ -569,3 +569,23 @@ def test_company_size_lookup_ignores_notes():
     assert company_size("ironSource (merged with Unity)", {"ironsource": "mid"}) == "mid"
     assert company_size("Autodesk Korea (contract)", {"autodesk": "large"}) == "large"
     assert company_size("Nobody Inc", {}) == "unknown"
+
+
+def test_health_checks_and_alert_lifecycle(client):
+    from app.agents import health
+    from app.db import SessionLocal
+    from app.models import Proposal
+
+    with SessionLocal() as db:
+        res = {r["check_id"]: r for r in health.checks(db)}
+        assert {"run_daily", "collection_requested", "privacy_no_personal_fields", "score_drift_same_model", "llm_spend"} <= set(res)
+        assert res["privacy_no_personal_fields"]["ok"]
+        out = health.run(db, None)
+        assert out["checks"] == len(res)
+        n_alerts = db.query(Proposal).filter(Proposal.kind == "alert", Proposal.status == "pending").count()
+        assert n_alerts == len(out["sev1_failed"])
+        health.run(db, None)  # a second run does not duplicate open alerts
+        assert db.query(Proposal).filter(Proposal.kind == "alert", Proposal.status == "pending").count() == n_alerts
+    st = client.get("/api/health/status").json()
+    assert st["overall"] in ("green", "amber", "red") and all("check" in c for c in st["checks"])
+    assert "commit" in client.get("/api/version").json()

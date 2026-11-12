@@ -34,3 +34,20 @@ for r in (auth.router, profile.router, market.router, ask.router, scorecard.rout
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/version")
+def app_version():
+    from .agents.health import version
+
+    return {"commit": version()}
+
+
+@app.get("/api/health/status")
+def health_status(days: int = 7):
+    """Numbers only: the latest result of each daily check. Read by the weekly audit; holds no personal data."""
+    from .agents.health import status
+    from .db import SessionLocal
+
+    with SessionLocal() as db:
+        return status(db, max(1, min(days, 31)))

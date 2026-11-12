@@ -71,8 +71,8 @@ def fallback_text(d: dict) -> str:
 def write(db: Session, run_id: int | None, user: User, data: dict) -> Brief:
     body, model = None, ""
     try:
-        body = complete(SYSTEM, "DATA:\n" + json.dumps(data, default=str), max_tokens=900, role="critical", agent="analyst", run_id=run_id)
-        model = model_for("critical") if body else ""
+        body = complete(SYSTEM, "DATA:\n" + json.dumps(data, default=str), max_tokens=900, role="standard", agent="analyst", run_id=run_id)
+        model = model_for("standard") if body else ""
     except BudgetExceeded:
         body = None
     if not body:

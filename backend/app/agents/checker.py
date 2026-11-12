@@ -101,9 +101,9 @@ def check_brief(body: str, data: dict, run_id: int | None) -> dict:
             from ..llm import model_for
 
             res = complete_json(REVIEW, f"DATA:\n{json.dumps(data, default=str)[:60000]}\n\nBRIEF:\n{body}",
-                                max_tokens=1500, role="critical", agent="checker", run_id=run_id) or {}
+                                max_tokens=1500, role="standard", agent="checker", run_id=run_id) or {}
             issues += [str(i) for i in res.get("issues", [])]
-            model_used = model_for("critical")
+            model_used = model_for("standard")
         except BudgetExceeded as err:
             issues.append(f"model review skipped: {err}")
     return {"passed": not issues, "issues": issues, "model": model_used}

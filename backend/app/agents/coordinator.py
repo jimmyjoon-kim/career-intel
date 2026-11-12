@@ -22,10 +22,12 @@ from . import analyst, checker, company_facts, evidence, inbox, level, requireme
 
 log = logging.getLogger(__name__)
 PIPELINES = {
-    "daily": ["inbox", "sourcing", "reader", "level", "index_update"],
-    "weekly": ["sourcing", "web_sourcing", "reader", "level", "index", "scoring", "evidence", "checker", "analyst"],
+    "daily": ["inbox", "sourcing", "reader", "level", "index_update", "health"],
+    # (boards are read by the daily run; the weekly run adds web search and the weekly products, and no full re-index)
+    "weekly": ["web_sourcing", "reader", "level", "index_update", "scoring", "evidence", "checker", "analyst", "health"],
     "arrivals": ["inbox", "scoring"],  # a research file arrived: read it now, not at the next scheduled run
-    "monthly": ["inbox", "refresh_pools", "company_facts", "company_levels", "scoring"],
+    "monthly": ["refresh_pools", "company_facts", "company_levels", "scoring"],
+    "health": ["health"],
     "rescore": ["scoring"],
     # Started when you change your locations (or ask the Ask agent to search): boards + location web search.
     "locations": ["sourcing", "web_sourcing", "reader", "level", "index_update", "scoring"],
@@ -63,6 +65,10 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
             return update_postings(db)
         except Exception as err:  # noqa: BLE001 — search index is not critical to the run
             return {"skipped": f"index update failed: {err}"}
+    if name == "health":
+        from . import health
+
+        return health.run(db, rid)
     if name == "refresh_pools":
         from ..v2.families import refresh_ready
 

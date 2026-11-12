@@ -32,6 +32,7 @@ def init_db() -> None:
                     "ALTER TABLE score_snapshots ADD COLUMN IF NOT EXISTS family VARCHAR(120) DEFAULT 'Partnerships'",
                     "ALTER TABLE company_sectors ADD COLUMN IF NOT EXISTS size VARCHAR(10) DEFAULT ''",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin_education TEXT DEFAULT ''",
+                    "ALTER TABLE reference_profiles ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_roles JSON DEFAULT '[]'::json",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_industries JSON DEFAULT '[]'::json",
                     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_companies JSON DEFAULT '[]'::json",

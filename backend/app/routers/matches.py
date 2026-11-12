@@ -42,3 +42,44 @@ def search(body: SearchIn, user: User = Depends(current_user), db: Session = Dep
         summary = prof.headline or "No profile text."
     prefs = f" Locations: {', '.join(prof.locations or [])}; remote {'OK' if prof.remote_ok else 'not OK'}; minimum level {prof.min_level}."
     return web_search(body.query, summary + prefs)
+
+
+STAGES = ("saved", "dismissed", "applied", "interview", "offer", "rejected")
+
+
+class OutcomeIn(BaseModel):
+    posting_id: int
+    stage: str
+    fit: float | None = None
+    note: str = Field(default="", max_length=300)
+
+
+@router.get("/outcomes")
+def list_outcomes(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Your latest recorded stage per posting."""
+    from sqlalchemy import select
+
+    from ..models import Outcome
+
+    latest: dict[int, dict] = {}
+    for o in db.scalars(select(Outcome).where(Outcome.user_id == user.id).order_by(Outcome.at)):
+        latest[o.posting_id] = {"posting_id": o.posting_id, "stage": o.stage, "at": o.at.isoformat(timespec="minutes"), "note": o.note}
+    return {"stages": STAGES, "outcomes": list(latest.values())}
+
+
+@router.post("/outcomes")
+def record_outcome(body: OutcomeIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Record what you did with a posting. Each stage is kept (a history), with the fit and model version at the time."""
+    from fastapi import HTTPException
+
+    from ..models import Outcome, Posting
+    from ..v2.model import MODEL_VERSION
+
+    if body.stage not in STAGES:
+        raise HTTPException(422, f"stage must be one of {STAGES}")
+    if db.get(Posting, body.posting_id) is None:
+        raise HTTPException(404, "Posting not found")
+    db.add(Outcome(user_id=user.id, posting_id=body.posting_id, stage=body.stage, fit=body.fit,
+                   model_version=MODEL_VERSION, note=body.note))
+    db.commit()
+    return {"recorded": body.stage}
