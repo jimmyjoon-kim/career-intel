@@ -210,6 +210,9 @@ def write_requests_file(db: Session) -> None:
     if not d.exists():
         return
     pending = []
+    if not get_settings().peer_collection:
+        (d / "requests.json").write_text(json.dumps({"pending": [], "note": "peer collection is paused (PEER_COLLECTION=false)"}, indent=1))
+        return
     for r in db.scalars(select(PoolRequest).where(PoolRequest.status == "pending")):
         f = family(db, r.family)
         full = holders_full(db, r.family)

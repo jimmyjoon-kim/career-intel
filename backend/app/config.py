@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     allow_signup: bool = False
     # Invite-only sign-up: comma-separated codes; anyone with a valid code can create an account.
     invite_codes: str = ""
+    # Peer collection reads LinkedIn through the owner's own signed-in browser. False = no requests are written, so the
+    # hourly task finds nothing to do (press-only and user-contributed sources are unaffected).
+    peer_collection: bool = True
     # API docs (/docs) are off by default because the API can be reachable from the internet.
     enable_docs: bool = False
     # Failed logins allowed per email (and 10x that overall) in 15 minutes before a temporary lock.
