@@ -143,6 +143,21 @@ Applies only to the market a job is based in (US jobs: US experience; APAC jobs:
 - Job-fit requirement weights come from posting frequency only; they are not yet checked against hire profiles.
 - The position range holds caps and weights fixed, so it is somewhat too narrow.
 
+## 3c. Validation run against an outside outcome (2026-11-12, n = 99 holders read at hire)
+Question: do the factors separate holders hired into Tier 1 employers (30) from the other holders in the same role?
+Method: within-family percentiles, within-family AUC, permutation test shuffling the outcome inside each family;
+ridge logistic with leave-one-out. Result:
+- The composite does not separate them: AUC 0.37 for Tier 1 (p = 0.08), 0.50 for Tier 1 or 2 (p = 1.0). 0.5 = chance.
+- No single factor passes a correction for 15 factors tested (threshold p < 0.003). Nominal signals only: prior
+  employer tier and prior major-company hires for Tier 1 or 2 (AUC 0.65, p = 0.02); fewer target-market months among
+  Tier 1 hires (AUC 0.35, p = 0.01), which is probably a sampling effect (Tier 1 holders were collected from more
+  regions; seat region is recorded only from 2026-11-03).
+- Fitted weights are not used: the leave-one-out model reaches AUC 0.63 only with mostly negative coefficients.
+Why it cannot work yet: every holder was hired into a leader seat, so this compares winners with winners; peers come
+from search, not a random sample; 30 positives is too few. Weights stay the expert prior, labeled unvalidated. What
+would validate them: recorded outcomes (applied, interview, offer) from users, or a comparison group of people one
+level below the role.
+
 ## 4. What it does not know
 US network, size and scope of each business run, how competitive each hire was, reputation, interview performance,
 and hiring outcomes. Weights are not yet validated against who gets interviews and offers; recording outcomes is the
