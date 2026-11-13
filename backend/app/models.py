@@ -164,7 +164,11 @@ class UsageLog(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
     agent: Mapped[str] = mapped_column(String(40), index=True)
     run_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
-    model: Mapped[str] = mapped_column(String(60))
+    model: Mapped[str] = mapped_column(String(60))  # the model that served (from the response)
+    requested_model: Mapped[str] = mapped_column(String(60), default="")  # the model the registry assigned
+    escalated: Mapped[str] = mapped_column(String(200), default="")  # the validation rule that failed, if escalated
+    runner: Mapped[str] = mapped_column(String(12), default="api")  # api | cli
+    source_job: Mapped[str | None] = mapped_column(String(60), nullable=True, unique=True)  # dispatcher job id
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cache_write: Mapped[int] = mapped_column(Integer, default=0)

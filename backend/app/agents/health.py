@@ -108,6 +108,39 @@ def checks(db: Session) -> list[dict]:
     # 12. spend against the cap
     spend, cap = month_spend(db), s.monthly_cap_usd
     add("llm_spend", spend < 0.8 * cap, 1, f"${spend:.2f} of ${cap:.2f}", "< 80% of the monthly cap")
+    # 12b. every model call in 24 hours ran on the model the registry assigns (or its recorded escalation / fallback);
+    #      the top-tier model appears only under agents allowed to use it
+    from ..models import UsageLog
+    from . import registry
+
+    wrong, top = [], registry.top_tier()
+    rows24 = list(db.scalars(select(UsageLog).where(UsageLog.at >= now - timedelta(hours=24))))
+    by_job: dict = {}
+    for u in rows24:
+        if u.runner == "cli" and u.source_job:
+            by_job.setdefault(u.source_job.rsplit(":", 1)[0], []).append(u)
+    for jid, us in by_job.items():
+        main = max(us, key=lambda x: x.output_tokens)
+        if main.requested_model and not (main.model.startswith(main.requested_model) or main.requested_model.startswith(main.model)):
+            wrong.append(f"{main.agent} session {jid}: most output from {main.model}, assigned {main.requested_model}")
+    for u in [x for x in rows24 if x.runner != "cli"]:
+        try:
+            allowed = registry.allowed_models(u.agent)
+            registry.spec(u.agent)
+        except registry.UnknownAgent:
+            wrong.append(f"{u.agent}: not in the registry")
+            continue
+        served = (u.model or "")
+        if not any(served.startswith(m) or m.startswith(served) for m in allowed):
+            wrong.append(f"{u.agent}: served {served}, assigned {sorted(allowed)}")
+        elif served.startswith(top) and not registry.spec(u.agent).get("top_tier_triggers"):
+            wrong.append(f"{u.agent}: top-tier model used without a trigger")
+    add("model_matches_registry", not wrong, 1, len(wrong), "0 calls on a model other than the one assigned", "; ".join(sorted(set(wrong))[:6]))
+    # 12c. the Mac dispatcher is alive (it starts agent sessions on their assigned model)
+    hb = Path(s.inbox_dir) / "jobs" / "heartbeat.json"
+    if hb.exists():
+        age = (now.timestamp() - hb.stat().st_mtime) / 60
+        add("dispatcher_heartbeat", age <= 30, 2, f"{age:.0f} min ago", "<= 30 min")
     # 13. recorded outcomes (information: validation needs them)
     from ..models import Outcome
 

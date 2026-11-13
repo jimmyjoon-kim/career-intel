@@ -37,7 +37,7 @@ def _years_from_text(text: str) -> int | None:
 
 def extract_cv(cv_text: str) -> dict:
     """Returns {"headline", "years_experience", "tags": {tag: {match, evidence, source}}, "mode"}."""
-    result = complete_json(CV_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\nCV:\n{cv_text[:60000]}")
+    result = complete_json(CV_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\nCV:\n{cv_text[:60000]}", agent="cv_extract")
     if result and isinstance(result.get("tags"), dict):
         tags = {}
         for k, v in result["tags"].items():
@@ -68,6 +68,7 @@ def extract_posting(title: str, description: str, examples: str = "", **kw) -> d
     kw.setdefault("role", "bulk")
     ref = (f"Reference examples (similar postings with confirmed tags; use them to calibrate, do not copy):\n{examples}\n\n"
            if examples else "")
+    kw.setdefault("agent", "jd_extract")
     result = complete_json(JD_SYSTEM, f"Taxonomy:\n{taxonomy_for_prompt()}\n\n{ref}Title: {title}\n\n{description[:30000]}", **kw)
     if result and isinstance(result.get("tags"), list):
         reqs, _ = split_tags([t for t in result["tags"] if isinstance(t, str)])

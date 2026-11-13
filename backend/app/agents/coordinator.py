@@ -66,9 +66,10 @@ def _step(db: Session, run: AgentRun, name: str, ctx: dict):
         except Exception as err:  # noqa: BLE001 — search index is not critical to the run
             return {"skipped": f"index update failed: {err}"}
     if name == "health":
-        from . import health
+        from . import dispatch, health
 
-        return health.run(db, rid)
+        jobs = dispatch.ingest(db)  # results of agent sessions run on the Mac, with the models that served
+        return {**health.run(db, rid), "sessions_recorded": jobs["ingested"]}
     if name == "refresh_pools":
         from ..v2.families import refresh_ready
 

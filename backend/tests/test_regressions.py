@@ -128,3 +128,27 @@ def test_reader_council_cases():
     assert education_signals(done)["FLD"] == 1.0
     assert regions("Toronto, CA") == set() and regions("Berlin, DE") == {"EMEA"} and regions("Atlanta, Georgia") == {"US"}
     assert posting_market("Head of Sales, EMEA & APAC", "London")["market"] == "global"
+
+
+def test_every_model_call_is_in_the_registry():
+    """No code path may pick a model on its own: every agent id used in a model call is registered with a priced model."""
+    import pathlib, re
+    from app.agents import registry
+    from app.llm import PRICES
+    ids = set()
+    for f in pathlib.Path("app").rglob("*.py"):
+        ids |= set(re.findall(r'agent="([a-z_]+)"', f.read_text()))
+    ids -= {"app"}
+    for a in ids:
+        assert registry.spec(a)["runner"] == "api", a
+        for m in registry.models_for(a) + registry.models_for(a, escalate=True):
+            assert m in PRICES, (a, m)
+    assert registry.models_for("reader") == ["claude-haiku-5-5"] and registry.models_for("reader", escalate=True) == ["claude-sonnet-5-5"]
+    import pytest
+    with pytest.raises(registry.UnknownAgent):
+        registry.models_for("made_up")
+    with pytest.raises(registry.UnknownAgent):
+        registry.models_for("council_synth")  # not an in-app agent
+    # the top-tier model is reachable only by the agent that is allowed to use it
+    tops = [k for k, v in registry.load()["agents"].items() if registry.model_id(v.get("model")) == registry.top_tier()]
+    assert tops == ["council_synth"]

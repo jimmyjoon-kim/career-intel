@@ -30,8 +30,8 @@ TEAM = [
     {"key": "level", "name": "Level assessor", "model": "research", "job": "Reads each posting's full description and judges its real level from scope, team, revenue ownership and experience required, quoting the evidence; titles alone are not trusted."},
     {"key": "evidence", "name": "Evidence finder", "model": "bulk", "job": "Searches your own documents for lines that evidence requirements you are marked as missing; you confirm each."},
     {"key": "scoring", "name": "Scoring engine", "model": "none (code)", "job": "Scores every profile and stores the result with the model version."},
-    {"key": "checker", "name": "Checker", "model": "critical", "job": "Rules, arithmetic, regression cases, and a review of every brief against its data."},
-    {"key": "analyst", "name": "Analyst", "model": "critical", "job": "Writes the weekly brief from facts assembled in code. Reports only."},
+    {"key": "checker", "name": "Checker", "model": "standard", "job": "Rules, arithmetic, regression cases, and a review of every brief against its data."},
+    {"key": "analyst", "name": "Analyst", "model": "standard", "job": "Writes the weekly brief from facts assembled in code. Reports only."},
 ]
 
 
@@ -189,3 +189,11 @@ def settle_tags(pid: int, body: TagLabels, _: User = Depends(admin_user), db: Se
     apply_labels(p)
     db.commit()
     return {"ok": True, "tags": p.tags}
+
+
+@router.get("/models")
+def model_registry(_: User = Depends(current_user)):
+    """Which model each agent is assigned (backend/app/agents/registry.json)."""
+    from ..agents import registry
+
+    return {"agents": registry.table()}

@@ -1,0 +1,37 @@
+{
+  "_about": "One place that assigns a model to every agent. runner: api = in-app call to the Anthropic API; cli = a Claude Code session started on the Mac by scripts/dispatcher.py; desktop = a desktop scheduled task on the Mac; code = no model. Models are named by tier and resolved in registry.py. Escalation happens only when a validation rule fails (schema, exact quote, required fields, numbers), never on a model's stated confidence. Changing a model here is an owner decision (ops/steward.md).",
+  "tiers": {"haiku": "claude-haiku-5-5", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5", "top": "claude-fable-5-1"},
+  "agents": {
+    "reader":        {"job": "read a posting's requirements", "runner": "api", "model": "haiku", "escalate_to": "sonnet"},
+    "jd_extract":    {"job": "read a pasted job description", "runner": "api", "model": "sonnet"},
+    "cv_extract":    {"job": "read an uploaded CV into requirement evidence", "runner": "api", "model": "sonnet"},
+    "level":         {"job": "judge a posting's real level and scope with quotes", "runner": "api", "model": "sonnet"},
+    "evidence":      {"job": "find CV lines that evidence a requirement", "runner": "api", "model": "haiku", "escalate_to": "sonnet"},
+    "industry":      {"job": "classify companies by sector and size", "runner": "api", "model": "haiku", "escalate_to": "sonnet"},
+    "sourcing":      {"job": "web search for postings the boards miss", "runner": "api", "model": "sonnet"},
+    "matches":       {"job": "web search for postings on a user's request", "runner": "api", "model": "sonnet"},
+    "company_facts": {"job": "company dates and level ladders with sources", "runner": "api", "model": "sonnet"},
+    "analyst":       {"job": "write the weekly brief from stored numbers", "runner": "api", "model": "sonnet"},
+    "checker":       {"job": "review the brief against its data", "runner": "api", "model": "sonnet", "escalate_to": "opus"},
+    "ask":           {"job": "answer a user's question with the app's tools", "runner": "api", "model": "sonnet"},
+
+    "job_discovery": {"job": "read job boards, filter, dedupe, close vanished postings", "runner": "code"},
+    "peer_intake":   {"job": "request file; derive holders from collected files", "runner": "code"},
+    "scoring":       {"job": "scores, snapshots, number checks", "runner": "code"},
+    "steward_daily": {"job": "daily health checks", "runner": "code"},
+
+    "hire_collector":   {"job": "read-only LinkedIn reads for open requests", "runner": "desktop", "model": "opus",
+                         "note": "model is set in the desktop app's task settings; it cannot be changed from the scheduling API"},
+    "steward_audit":    {"job": "weekly audit of health status, code changes and backlog", "runner": "cli", "model": "sonnet", "fallback": "opus",
+                         "max_turns": 30, "budget_usd_run": 2.0, "daily_runs": 1, "timeout_s": 1500,
+                         "tools": ["Read", "Grep", "Glob", "Bash(git log:*)", "Bash(git diff:*)", "Bash(curl -s http://localhost:8000/api/health/status*)", "Bash(curl -s http://localhost:8000/api/version)", "Write(ops/audits/**)", "Edit(ops/backlog.md)"]},
+    "council_reviewer": {"job": "independent review of a change against the invariants", "runner": "cli", "model": "opus",
+                         "max_turns": 25, "budget_usd_run": 3.0, "daily_runs": 6, "timeout_s": 1500,
+                         "tools": ["Read", "Grep", "Glob", "Bash(python3 -m pytest:*)", "Bash(git log:*)", "Bash(git diff:*)"]},
+    "council_synth":    {"job": "reconcile a council; anything that changes a score or recommendation", "runner": "cli", "model": "top", "fallback": "opus",
+                         "max_turns": 15, "budget_usd_run": 5.0, "daily_runs": 2, "timeout_s": 1500,
+                         "tools": ["Read", "Grep", "Glob", "Write(ops/audits/**)"],
+                         "top_tier_triggers": ["model_change", "sev1_scoring", "holders_threshold", "outcomes_threshold", "owner", "quarterly"]},
+    "probe":            {"job": "dispatcher self-test: reply OK", "runner": "cli", "model": "haiku", "max_turns": 1, "budget_usd_run": 0.05, "daily_runs": 10, "timeout_s": 120, "tools": []}
+  }
+}

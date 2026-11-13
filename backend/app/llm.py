@@ -67,20 +67,27 @@ def check_budget() -> None:
                              f"({int(s.budget_share * 100)}% of ${s.api_monthly_allowance_usd:.2f}).")
 
 
-def _log(agent: str, run_id: int | None, model: str, usage) -> None:
+def _log(agent: str, run_id: int | None, model: str, usage, requested: str = "", escalated: str = "") -> None:
+    """`model` is the model that served (from the response); `requested` is the one the registry assigned."""
     from .db import SessionLocal
     from .models import UsageLog
 
     g = lambda k: getattr(usage, k, 0) or 0  # noqa: E731
     with SessionLocal() as db:
-        db.add(UsageLog(agent=agent, run_id=run_id, model=model, input_tokens=g("input_tokens"),
+        db.add(UsageLog(agent=agent, run_id=run_id, model=model, requested_model=requested or model,
+                        escalated=escalated[:200], input_tokens=g("input_tokens"),
                         output_tokens=g("output_tokens"), cache_write=g("cache_creation_input_tokens"),
                         cache_read=g("cache_read_input_tokens"), cost_usd=cost_usd(model, usage)))
         db.commit()
 
 
-def create(*, role: str = "ask", agent: str = "app", run_id: int | None = None, system: str = "", **kwargs):
-    """messages.create with routing, cap, caching and logging. Returns (message, model_used) or (None, None)."""
+def create(*, role: str = "", agent: str = "ask", run_id: int | None = None, system: str = "",
+           escalate: str = "", **kwargs):
+    """messages.create with routing, cap, caching and logging. Returns (message, model_served) or (None, None).
+    The model comes from the registry by agent id (`role` is accepted for older callers and ignored). `escalate` is
+    the validation rule that failed (e.g. "quote not found"); only then is the agent's escalation model used."""
+    from .agents import registry
+
     s = get_settings()
     if not s.anthropic_api_key:
         return None, None
@@ -89,7 +96,7 @@ def create(*, role: str = "ask", agent: str = "app", run_id: int | None = None, 
 
     client = anthropic.Anthropic(api_key=s.anthropic_api_key)
     sys_blocks = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}] if system else []
-    models = [model_for(role)] + ([s.model_critical_fallback] if role == "critical" else [])
+    models = registry.models_for(agent, escalate=bool(escalate))  # raises for an agent that is not registered
     last = None
     for m in models:
         try:
@@ -98,14 +105,15 @@ def create(*, role: str = "ask", agent: str = "app", run_id: int | None = None, 
             log.warning("model %s not usable on this account (%s); trying fallback", m, err)
             last = err
             continue
-        _log(agent, run_id, m, msg.usage)
-        return msg, m
+        served = getattr(msg, "model", None) or m
+        _log(agent, run_id, served, msg.usage, requested=m, escalated=escalate)
+        return msg, served
     raise last  # type: ignore[misc]
 
 
-def complete(system: str, user: str, max_tokens: int = 1500, *, role: str = "ask", agent: str = "app",
-             run_id: int | None = None) -> str | None:
-    msg, _ = create(role=role, agent=agent, run_id=run_id, system=system, max_tokens=max_tokens,
+def complete(system: str, user: str, max_tokens: int = 1500, *, role: str = "", agent: str = "ask",
+             run_id: int | None = None, escalate: str = "") -> str | None:
+    msg, _ = create(agent=agent, run_id=run_id, system=system, max_tokens=max_tokens, escalate=escalate,
                     messages=[{"role": "user", "content": user}])
     if msg is None:
         return None
@@ -128,3 +136,19 @@ def parse_json(text: str | None) -> dict | None:
 
 def complete_json(system: str, user: str, max_tokens: int = 3000, **kw) -> dict | None:
     return parse_json(complete(system + "\nRespond with a single JSON object and nothing else.", user, max_tokens, **kw))
+
+
+def complete_json_checked(system: str, user: str, validate, max_tokens: int = 3000, *, agent: str,
+                          run_id: int | None = None) -> tuple[dict | None, str]:
+    """One read on the assigned model; `validate(result)` returns a reason when a rule fails (None when it passes).
+    Only then one more read on the agent's escalation model, with the reason recorded. Returns (result, reason or "")."""
+    res = complete_json(system, user, max_tokens, agent=agent, run_id=run_id)
+    why = validate(res)
+    if not why:
+        return res, ""
+    from .agents import registry
+
+    if not registry.spec(agent).get("escalate_to"):
+        return res, why
+    res2 = complete_json(system, user, max_tokens, agent=agent, run_id=run_id, escalate=why)
+    return (res2, why) if not validate(res2) else (res, why)
