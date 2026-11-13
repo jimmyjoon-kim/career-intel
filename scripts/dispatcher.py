@@ -8,6 +8,8 @@ that writes a job can raise its own privileges or pick its own model. No permiss
 can use only the tools listed for its agent. Results (including the models that actually served) go to
 inbox/jobs/done/<id>.json for the app to record.
 """
+from __future__ import annotations
+
 import fcntl
 import json
 import os
@@ -32,7 +34,7 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def today_count(agent: str) -> tuple[int, float]:
+def today_count(agent: str) -> tuple:
     n, cost = 0, 0.0
     if LEDGER.exists():
         for line in LEDGER.read_text().splitlines():
