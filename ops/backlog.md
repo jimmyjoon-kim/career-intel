@@ -15,6 +15,6 @@
 | B03 | plan B1 | Job discovery: 10 seeded boards, fixed commercial title filter, one company = 18% of postings | 5 | 0.8 | 3 | 1.3 | N | largest company <= 15%; companies per user reported | next (2026-11-16: OpenAI 22/109 = 20%, failing 7/7 days; 2026-11-23: 21/121 = 17%, 8 runs failed) |
 | B11 | council 3 | Reader cost: batch API (50% off) + cached instruction prefix + one read per posting; estimate 3-6x cheaper (unmeasured) | 3 | 0.7 | 2 | 1.1 | N | cost per posting from usage_log before / after | with B01 |
 | B08 | plan A4 | No comparison group: validation compares winners with winners | 5 | 0.6 | 3 | 1.0 | Y (LinkedIn volume) | earlier-hire events derived; 10 one-level-below per role | later |
-| B17 | audit 2026-11-23 | Health reports 8 failed runs in a 7-day window (posting_concentration, dispatcher_heartbeat): window or run count off | 1 | 0.8 | 1 | 0.8 | N | failed_runs <= days for every check | open |
 | B04 | plan A1 | Peer group mixes hire years 2003-2026, regions and levels | 4 | 0.7 | 3 | 0.9 | Y (moves scores) | cohort line shown; effective n reported | later |
+| B17 | audit 2026-11-23 | Health reports 8 failed runs in a 7-day window (posting_concentration, dispatcher_heartbeat): window or run count off | 1 | 0.8 | 1 | 0.8 | N | failed_runs <= days for every check | open |
 | B10 | council 2 | Text-read factors grow with text length; user read from CV + LinkedIn, holders from LinkedIn only | 3 | 0.7 | 3 | 0.7 | Y | evidence weighted by role months | later |
