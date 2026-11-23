@@ -3,17 +3,18 @@
 |---|---|---|---|---|---|---|---|---|---|
 | B09 | council 3 | No backups check; Postgres on one Mac | 4 | 0.9 | 1 | 3.6 | N | nightly pg_dump; health check on its age | next |
 | B12 | council 3 | Heartbeat for desktop / cloud scheduled tasks (collector, weekly audit): each writes a dated file; health check alerts when missing | 4 | 0.9 | 1 | 3.6 | N | check fails when a task skips a window | next |
-| B14 | audit 2026-11-16 | dispatcher_heartbeat failing: 4261 min since last beat (expected <= 30), 4 of 7 days failed | 4 | 0.9 | 1 | 3.6 | N | heartbeat <= 30 min on two consecutive daily runs | open |
+| B14 | audit 2026-11-16 | dispatcher_heartbeat failing: 4261 min since last beat (expected <= 30), 4 of 7 days failed (2026-11-23: 14338 min, 8 runs failed) | 4 | 0.9 | 1 | 3.6 | N | heartbeat <= 30 min on two consecutive daily runs | open |
 | B06 | council 3 | Hourly collector starts a top-priced session ~20x a day, mostly for nothing | 3 | 0.9 | 1 | 2.7 | Y (schedule) | gated first step; 3 windows a day; standard model | proposed |
-| B15 | audit 2026-11-16 | Live commit not observable: health version 'unknown'; /api/version unreachable from audit | 3 | 0.9 | 1 | 2.7 | N | health/status returns the live commit; audit compares with origin/main | open |
+| B15 | audit 2026-11-16 | Live commit not observable: health version 'unknown'; /api/version unreachable from audit (2026-11-23: reachable, returns commit 'unknown') | 3 | 0.9 | 1 | 2.7 | N | health/status returns the live commit; audit compares with origin/main | open |
 | B16 | audit 2026-11-16 | Holders read at hire not in health; council trigger 150/250/400 unverifiable | 3 | 0.9 | 1 | 2.7 | N | health check reports holders read at hire per role | open |
 | B13 | audit 2026-11-16 | c7328a8 moved level-below-minimum and country-scope from soft flag to hard screen (scoring.py) without changelog row or before/after | 3 | 0.8 | 1 | 2.4 | N | changelog row + count of postings screened before/after | open |
 | B05 | council 1 | Golden profiles + monotonicity probes in CI; before / after script | 4 | 0.9 | 2 | 1.8 | N | CI fails on a > 3 point move without a changelog row | next |
 | B02 | plan C3 | Fit formula rewards short requirement lists; weights from posting frequency | 4 | 0.8 | 2 | 1.6 | Y (moves fit) | new formula with before / after on all postings | after B01 |
 | B07 | plan A6 | Seat company + title + hire month can identify a person | 4 | 0.8 | 2 | 1.6 | N | hashed dedupe key; hire date by quarter; strata >= 5 holders / 3 employers | next |
 | B01 | plan C1 | Requirement reading is commercial-only, reads each posting 3x, no quotes, no required / preferred | 5 | 0.9 | 3 | 1.5 | N | one read per posting with exact quotes; precision / recall on 50 labeled postings recorded | next |
-| B03 | plan B1 | Job discovery: 10 seeded boards, fixed commercial title filter, one company = 18% of postings | 5 | 0.8 | 3 | 1.3 | N | largest company <= 15%; companies per user reported | next (2026-11-16: OpenAI 22/109 = 20%, failing 7/7 days) |
+| B03 | plan B1 | Job discovery: 10 seeded boards, fixed commercial title filter, one company = 18% of postings | 5 | 0.8 | 3 | 1.3 | N | largest company <= 15%; companies per user reported | next (2026-11-16: OpenAI 22/109 = 20%, failing 7/7 days; 2026-11-23: 21/121 = 17%, 8 runs failed) |
 | B11 | council 3 | Reader cost: batch API (50% off) + cached instruction prefix + one read per posting; estimate 3-6x cheaper (unmeasured) | 3 | 0.7 | 2 | 1.1 | N | cost per posting from usage_log before / after | with B01 |
 | B08 | plan A4 | No comparison group: validation compares winners with winners | 5 | 0.6 | 3 | 1.0 | Y (LinkedIn volume) | earlier-hire events derived; 10 one-level-below per role | later |
+| B17 | audit 2026-11-23 | Health reports 8 failed runs in a 7-day window (posting_concentration, dispatcher_heartbeat): window or run count off | 1 | 0.8 | 1 | 0.8 | N | failed_runs <= days for every check | open |
 | B04 | plan A1 | Peer group mixes hire years 2003-2026, regions and levels | 4 | 0.7 | 3 | 0.9 | Y (moves scores) | cohort line shown; effective n reported | later |
 | B10 | council 2 | Text-read factors grow with text length; user read from CV + LinkedIn, holders from LinkedIn only | 3 | 0.7 | 3 | 0.7 | Y | evidence weighted by role months | later |
